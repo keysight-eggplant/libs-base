@@ -933,6 +933,7 @@ static NSURLProtocol	*placeholder = nil;
       NSURL	*url = [this->request URL];
       NSHost	*host = [NSHost hostWithName: [url host]];
       int	port = [[url port] intValue];
+      [this->request _setProperty: [url host] forKey: GSTLSServerName];
 
       _parseOffset = 0;
       DESTROY(_parser);
@@ -979,6 +980,7 @@ static NSURLProtocol	*placeholder = nil;
                             forKey: NSStreamSocketSecurityLevelKey];
           [this->output setProperty: NSStreamSocketSecurityLevelNegotiatedSSL
                              forKey: NSStreamSocketSecurityLevelKey];
+
           if (nil == keys)
             {
               keys = [[NSArray alloc] initWithObjects:
@@ -991,6 +993,7 @@ static NSURLProtocol	*placeholder = nil;
                 GSTLSRemoteHosts,
                 GSTLSRevokeFile,
                 GSTLSVerify,
+                GSTLSServerName,
                 nil];
             }
           count = [keys count];

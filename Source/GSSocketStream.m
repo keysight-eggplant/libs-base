@@ -457,6 +457,7 @@ static NSArray  *keys = nil;
         GSTLSRemoteHosts,
         GSTLSRevokeFile,
         GSTLSVerify,
+        GSTLSServerName,
         nil];
       [[NSObject leakAt: &keys] release];
     }
