@@ -1834,6 +1834,112 @@ GSICUCollatorOpen(NSStringCompareOptions mask, NSLocale *locale)
     }
 }
 
+- (NSString *) stringByAddingPercentEncodingWithAllowedCharacters:
+  (NSCharacterSet *)aSet
+{
+  NSData	*data = [self dataUsingEncoding: NSUTF8StringEncoding];
+  NSString	*s = nil;
+
+  if (data != nil)
+    {
+      unsigned char	*src = (unsigned char*)[data bytes];
+      unsigned int	slen = [data length];
+      unsigned char	*dst;
+      unsigned int	spos = 0;
+      unsigned int	dpos = 0;
+
+      dst = (unsigned char*)NSZoneMalloc(NSDefaultMallocZone(), slen * 3);
+      while (spos < slen)
+	{
+	  unichar	c = src[spos++];
+	  unsigned int	hi;
+	  unsigned int	lo;
+
+	  /* If the character is in the allowed set *and* is in the
+	   * 7-bit ASCII range, it can be added unchanged.
+	   */
+	  if (c < 128 && [aSet characterIsMember: c])
+	    {
+	      dst[dpos++] = c;
+	    }
+	  else // if not, then encode it...
+	    {
+	      dst[dpos++] = '%';
+	      hi = (c & 0xf0) >> 4;
+	      dst[dpos++] = (hi > 9) ? 'A' + hi - 10 : '0' + hi;
+	      lo = (c & 0x0f);
+	      dst[dpos++] = (lo > 9) ? 'A' + lo - 10 : '0' + lo;
+	    }
+	}
+      s = [[NSString alloc] initWithBytes: dst
+				   length: dpos
+				 encoding: NSASCIIStringEncoding];
+      NSZoneFree(NSDefaultMallocZone(), dst);
+      IF_NO_GC([s autorelease];)
+    }
+  return s;
+}
+
+- (NSString *) stringByRemovingPercentEncoding
+{
+  NSData	*data = [self dataUsingEncoding: NSUTF8StringEncoding];
+  const uint8_t	*s = [data bytes];
+  NSUInteger	length = [data length]; 
+  NSUInteger	lastPercent = length - 3;
+  char		*o = (char *)NSZoneMalloc(NSDefaultMallocZone(), length + 1);
+  char		*next = o;
+  NSUInteger	index;
+  NSString	*result;
+
+  for (index = 0; index < length; index++)
+    {
+      char	c = s[index];
+
+      if ('%' == c && index <= lastPercent)
+	{
+	  uint8_t	hi = s[index+1];
+	  uint8_t	lo = s[index+2];
+
+	  if (isxdigit(hi) && isxdigit(lo))
+	    {
+	      index += 2;
+              if (hi <= '9')
+                {
+                  c = hi - '0';
+                }
+              else if (hi <= 'F')
+                {
+                  c = hi - 'A' + 10;
+                }
+              else
+                {
+                  c = hi - 'a' + 10;
+                }
+	      c <<= 4;
+              if (lo <= '9')
+                {
+                  c += lo - '0';
+                }
+              else if (lo <= 'F')
+                {
+                  c += lo - 'A' + 10;
+                }
+              else
+                {
+                  c += lo - 'a' + 10;
+                }
+	    }
+	}
+      *next++ = c;
+    }
+  *next = '\0';
+
+  result = [NSString stringWithUTF8String: o];
+  NSZoneFree(NSDefaultMallocZone(), o);
+  
+  return result; 
+}
+
 /**
  * Constructs a new ASCII string which is a representation of the receiver
  * in which characters are escaped where necessary in order to produce a
@@ -2213,7 +2319,7 @@ GSICUCollatorOpen(NSStringCompareOptions mask, NSLocale *locale)
 
 - (NSRange) rangeOfComposedCharacterSequencesForRange: (NSRange)range
 {
-  return NSMakeRange(0, 0);     // FIXME
+  return range; // STILL NEED TO FIXME NSMakeRange(0, 0);     // FIXME
 }
 
 /**
