@@ -846,7 +846,8 @@ static NSURLProtocol	*placeholder = nil;
       methods = [[NSDictionary alloc] initWithObjectsAndKeys: 
 	self, @"HEAD",
 	self, @"GET",
-	self, @"POST",
+  self, @"POST",
+  self, @"PATCH",
 	self, @"PUT",
 	self, @"DELETE",
 	self, @"TRACE",
