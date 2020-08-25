@@ -1700,7 +1700,7 @@ static NSString * const GSSOCKSAckConn = @"GSSOCKSAckConn";
   if ((NSStreamEventHasSpaceAvailable == event) && (NO == connectSent))
     {
       // Send HTTP Connect...
-      NSString *connectMsg = [NSString stringWithFormat: @"CONNECT %@:%@ HTTP/1.1\r\n\r\n",address,port];
+      NSString *connectMsg = [NSString stringWithFormat: @"CONNECT %@:%@ HTTP/1.1\r\nHost: %@:%@\r\n\r\n",address,port,address,port];
       NSDebugMLLog(@"GSSocketStream", @"connect to: %@", connectMsg);
       NSWarnMLog(@"connect to: %@", connectMsg);
 
@@ -2164,14 +2164,31 @@ setNonBlocking(SOCKET fd)
         {
           SOCKET        s;
 
-          if (_handler == nil)
+          if (NO == [[NSUserDefaults standardUserDefaults] boolForKey: @"GSUseTunnelingProxy"])
             {
-              [GSHTTP tryInput: self output: _sibling];
+              /* Now reconfigure the streams so they will actually connect
+               * to the HTTP proxy server.
+               */
+              NSDictionary  *conf = [self propertyForKey: kCFStreamPropertyHTTPProxy];
+              NSString      *host = [conf objectForKey: kCFStreamPropertyHTTPProxyHost];
+              int            pnum = [[conf objectForKey: kCFStreamPropertyHTTPProxyPort] intValue];
+              if (NO == [self _setSocketAddress: host port: pnum family: AF_INET])
+                ALog(@"error setting HTTP host:port for input stream");
+              if (NO == [_sibling _setSocketAddress: host port: pnum family: AF_INET])
+                ALog(@"error setting HTTP host:port for output stream");
             }
-          if (_handler == nil)
+          else
             {
-              [GSSOCKS tryInput: self output: _sibling];
+              if (_handler == nil)
+                {
+                  [GSHTTP tryInput: self output: _sibling];
+                }
+              if (_handler == nil)
+                {
+                  [GSSOCKS tryInput: self output: _sibling];
+                }
             }
+          
           s = socket(_address.s.sa_family, SOCK_STREAM, 0);
           if (BADSOCKET(s))
             {
@@ -2663,14 +2680,31 @@ setNonBlocking(SOCKET fd)
         {
           SOCKET        s;
 
-          if (_handler == nil)
+          if (NO == [[NSUserDefaults standardUserDefaults] boolForKey: @"GSUseTunnelingProxy"])
             {
-              [GSHTTP tryInput: _sibling output: self];
+              /* Now reconfigure the streams so they will actually connect
+               * to the HTTP proxy server.
+               */
+              NSDictionary  *conf = [self propertyForKey: kCFStreamPropertyHTTPProxy];
+              NSString      *host = [conf objectForKey: kCFStreamPropertyHTTPProxyHost];
+              int            pnum = [[conf objectForKey: kCFStreamPropertyHTTPProxyPort] intValue];
+              if (NO == [_sibling _setSocketAddress: host port: pnum family: AF_INET])
+                ALog(@"error setting HTTP host:port for input stream");
+              if (NO == [self _setSocketAddress: host port: pnum family: AF_INET])
+                ALog(@"error setting HTTP host:port for output stream");
             }
-          if (_handler == nil)
+          else
             {
-              [GSSOCKS tryInput: _sibling output: self];
+              if (_handler == nil)
+                {
+                  [GSHTTP tryInput: _sibling output: self];
+                }
+              if (_handler == nil)
+                {
+                  [GSSOCKS tryInput: _sibling output: self];
+                }
             }
+
           s = socket(_address.s.sa_family, SOCK_STREAM, 0);
           if (BADSOCKET(s))
             {

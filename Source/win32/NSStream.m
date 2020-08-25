@@ -43,11 +43,13 @@
 
 #define	BUFFERSIZE	(BUFSIZ*64)
 
+#define USEWinHttpGetIEProxyConfigForCurrentUser
+
 // FIXME: Move this code into System Configuration framework...
 CFDictionaryRef SCDynamicStoreCopyProxies(SCDynamicStoreRef store)
 {
   NSMutableDictionary *proxyDict = [NSMutableDictionary dictionary];
-#if 1
+#if defined(USEWinHttpGetIEProxyConfigForCurrentUser)
   WINHTTP_CURRENT_USER_IE_PROXY_CONFIG  proxyInfo = { 0 };
 #else
   WINHTTP_PROXY_INFO                    proxyInfo = { 0 };
@@ -73,7 +75,7 @@ CFDictionaryRef SCDynamicStoreCopyProxies(SCDynamicStoreRef store)
                                    @"SOCKSEnable"    : [NSNumber numberWithBool: NO] };
   [proxyDict setObject: scopedProxies forKey: @"__SCOPED__"];
 
-#if 1
+#if defined(USEWinHttpGetIEProxyConfigForCurrentUser)
   if (FALSE == WinHttpGetIEProxyConfigForCurrentUser(&proxyInfo))
 #else
   if (FALSE == WinHttpGetDefaultProxyConfiguration(&proxyInfo))
@@ -84,7 +86,7 @@ CFDictionaryRef SCDynamicStoreCopyProxies(SCDynamicStoreRef store)
   else
     {
       NSWarnMLog(@"fAutoDetect: %ld hosts: %S bypass %S",
-#if 1
+#if defined(USEWinHttpGetIEProxyConfigForCurrentUser)
                  (long)proxyInfo.fAutoDetect, proxyInfo.lpszProxy, proxyInfo.lpszProxyBypass);
 #else
                  (long)proxyInfo.dwAccessType, proxyInfo.lpszProxy, proxyInfo.lpszProxyBypass);
@@ -1170,16 +1172,20 @@ CFDictionaryRef SCDynamicStoreCopyProxies(SCDynamicStoreRef store)
         }
       if ([[proxyDict objectForKey: @"HTTPSEnable"] boolValue])
         {
-          [ins setProperty: [proxyDict objectForKey: kCFStreamPropertyHTTPSProxyHost] forKey: kCFStreamPropertyHTTPSProxyHost];
-          [ins setProperty: [proxyDict objectForKey: kCFStreamPropertyHTTPSProxyHost] forKey: kCFStreamPropertyHTTPSProxyHost];
-          [outs setProperty: [proxyDict objectForKey: kCFStreamPropertyHTTPSProxyPort] forKey: kCFStreamPropertyHTTPSProxyPort];
-          [outs setProperty: [proxyDict objectForKey: kCFStreamPropertyHTTPSProxyPort] forKey: kCFStreamPropertyHTTPSProxyPort];
+          [ins setProperty: [proxyDict objectForKey: kCFStreamPropertyHTTPSProxyHost]
+                    forKey: kCFStreamPropertyHTTPSProxyHost];
+          [ins setProperty: [proxyDict objectForKey: kCFStreamPropertyHTTPSProxyHost]
+                    forKey: kCFStreamPropertyHTTPSProxyHost];
+          [outs setProperty: [proxyDict objectForKey: kCFStreamPropertyHTTPSProxyPort]
+                     forKey: kCFStreamPropertyHTTPSProxyPort];
+          [outs setProperty: [proxyDict objectForKey: kCFStreamPropertyHTTPSProxyPort]
+                     forKey: kCFStreamPropertyHTTPSProxyPort];
         }
     }
   
   // SCDynamicStoreCopyProxies creates a copy so we need to release...
   [proxyDict release];
-  
+
   if (inputStream)
     {
       [ins _setSibling: outs];
