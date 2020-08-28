@@ -653,6 +653,7 @@ static NSArray  *keys = nil;
 		 withSecurityLevel: str
 		   fromInputStream: i
 		    orOutputStream: o];
+  NSDebugMLLog(@"NSStream", @"opts: %@", opts);
 
   session = [[GSTLSSession alloc] initWithOptions: opts
                                         direction: (server ? NO : YES)
@@ -2160,18 +2161,28 @@ setNonBlocking(SOCKET fd)
           SOCKET        s;
 
           // TESTPLANT-MAL-08272020: See NSURLProtocol for full comments...
-          if (NO == [[NSUserDefaults standardUserDefaults] boolForKey: @"GSUseTunnelingProxy"])
+          if (([self propertyForKey: kCFStreamPropertyHTTPProxy] || [self propertyForKey: kCFStreamPropertyHTTPProxy]) &&
+              (NO == [[NSUserDefaults standardUserDefaults] boolForKey: @"GSUseTunnelingProxy"]))
             {
-              /* Now reconfigure the streams so they will actually connect
-               * to the HTTP proxy server.
-               */
-              NSDictionary  *conf = [self propertyForKey: kCFStreamPropertyHTTPProxy];
-              NSString      *host = [conf objectForKey: kCFStreamPropertyHTTPProxyHost];
-              int            pnum = [[conf objectForKey: kCFStreamPropertyHTTPProxyPort] intValue];
-              if (NO == [self _setSocketAddress: host port: pnum family: AF_INET])
-                ALog(@"error setting HTTP host:port for input stream");
-              if (NO == [_sibling _setSocketAddress: host port: pnum family: AF_INET])
-                ALog(@"error setting HTTP host:port for output stream");
+              if ([self propertyForKey: kCFStreamPropertyHTTPProxy])
+                {
+                  NSDictionary  *conf = [self propertyForKey: kCFStreamPropertyHTTPProxy];
+                  NSString      *host = [conf objectForKey: kCFStreamPropertyHTTPProxyHost];
+                  int            pnum = [[conf objectForKey: kCFStreamPropertyHTTPProxyPort] intValue];
+                  if (NO == [self _setSocketAddress: host port: pnum family: AF_INET])
+                    ALog(@"error setting HTTP host:port for input stream");
+                  if (NO == [_sibling _setSocketAddress: host port: pnum family: AF_INET])
+                    ALog(@"error setting HTTP host:port for output stream");
+                }
+              else
+                {
+                  NSString *host = [self propertyForKey: kCFStreamPropertyHTTPSProxyHost];
+                  int			  pnum = [[self propertyForKey: kCFStreamPropertyHTTPSProxyPort] intValue];
+                  if (NO == [self _setSocketAddress: host port: pnum family: AF_INET])
+                    ALog(@"error setting HTTP host:port for input stream");
+                  if (NO == [_sibling _setSocketAddress: host port: pnum family: AF_INET])
+                    ALog(@"error setting HTTP host:port for output stream");
+                }
             }
           else
             {
@@ -2677,18 +2688,31 @@ setNonBlocking(SOCKET fd)
           SOCKET        s;
 
           // TESTPLANT-MAL-08272020: See NSURLProtocol for full comments...
-          if (NO == [[NSUserDefaults standardUserDefaults] boolForKey: @"GSUseTunnelingProxy"])
+          if (([self propertyForKey: kCFStreamPropertyHTTPProxy] || [self propertyForKey: kCFStreamPropertyHTTPProxy]) &&
+              (NO == [[NSUserDefaults standardUserDefaults] boolForKey: @"GSUseTunnelingProxy"]))
             {
               /* Now reconfigure the streams so they will actually connect
                * to the HTTP proxy server.
                */
-              NSDictionary  *conf = [self propertyForKey: kCFStreamPropertyHTTPProxy];
-              NSString      *host = [conf objectForKey: kCFStreamPropertyHTTPProxyHost];
-              int            pnum = [[conf objectForKey: kCFStreamPropertyHTTPProxyPort] intValue];
-              if (NO == [_sibling _setSocketAddress: host port: pnum family: AF_INET])
-                ALog(@"error setting HTTP host:port for input stream");
-              if (NO == [self _setSocketAddress: host port: pnum family: AF_INET])
-                ALog(@"error setting HTTP host:port for output stream");
+              if ([self propertyForKey: kCFStreamPropertyHTTPProxy])
+                {
+                  NSDictionary  *conf = [self propertyForKey: kCFStreamPropertyHTTPProxy];
+                  NSString      *host = [conf objectForKey: kCFStreamPropertyHTTPProxyHost];
+                  int            pnum = [[conf objectForKey: kCFStreamPropertyHTTPProxyPort] intValue];
+                  if (NO == [_sibling _setSocketAddress: host port: pnum family: AF_INET])
+                    ALog(@"error setting HTTP host:port for input stream");
+                  if (NO == [self _setSocketAddress: host port: pnum family: AF_INET])
+                    ALog(@"error setting HTTP host:port for output stream");
+                }
+              else
+                {
+                  NSString *host = [self propertyForKey: kCFStreamPropertyHTTPSProxyHost];
+                  int	      pnum = [[self propertyForKey: kCFStreamPropertyHTTPSProxyPort] intValue];
+                  if (NO == [_sibling _setSocketAddress: host port: pnum family: AF_INET])
+                    ALog(@"error setting HTTP host:port for input stream");
+                  if (NO == [self _setSocketAddress: host port: pnum family: AF_INET])
+                    ALog(@"error setting HTTP host:port for output stream");
+                }
             }
           else
             {
@@ -3229,7 +3253,9 @@ setNonBlocking(SOCKET fd)
 			 withSecurityLevel: str
 			   fromInputStream: self
 			    orOutputStream: nil];
-	  // and set the input/output streams's properties from the 'opts'
+    NSDebugMLLog(@"NSStream", @"opts: %@", opts);
+
+    // and set the input/output streams's properties from the 'opts'
 	  keys = [opts allKeys];
 	  count = [keys count];
 	  while(count-- > 0)
