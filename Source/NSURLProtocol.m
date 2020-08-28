@@ -463,6 +463,10 @@ static NSURLProtocol	*placeholder = nil;
       [self registerClass: [_NSFileURLProtocol class]];
       [self registerClass: [_NSAboutURLProtocol class]];
       [self registerClass: [_NSDataURLProtocol class]];
+      
+      // TESTPLANT-MAL-08272020:
+      // Some proxies DO NOT support the tunneling 'CONNECT' so we have to support both
+      // but will default to using what seems to be the more standard CONNECT method...
       NSDictionary *userdefs = @{ @"GSUseTunnelingProxy" : [NSNumber numberWithBool: NO] };
       [[NSUserDefaults standardUserDefaults] registerDefaults: userdefs];
     }
@@ -1778,7 +1782,11 @@ static NSURLProtocol	*placeholder = nil;
 	      [m appendData: [[this->request HTTPMethod] dataUsingEncoding: NSASCIIStringEncoding]];
 	      [m appendBytes: " " length: 1];
 	      u = [this->request URL];
-	      // We are using the FULL URL string to support connect through proxies that do not
+        
+        // TESTPLANT-MAL-08272020:
+	      // Some proxies DO NOT support the tunneling 'CONNECT' so we will now default to using
+        // the more standard CONNECT method that works through the system proxies.  This requires
+        // that we use the FULL URL string...
 	      // support connect tunneling...based on a private defaults...
         NSDebugMLLog(@"NSURLProtocol", @"GSUseTunnelingProxy: %d",
                      [[NSUserDefaults standardUserDefaults] boolForKey: @"GSUseTunnelingProxy"]);
