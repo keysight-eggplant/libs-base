@@ -466,8 +466,9 @@ static NSURLProtocol	*placeholder = nil;
       
       // TESTPLANT-MAL-08272020:
       // Some proxies DO NOT support the tunneling 'CONNECT' so we have to support both
-      // but will default to using what seems to be the more standard CONNECT method...
-      NSDictionary *userdefs = @{ @"GSUseTunnelingProxy" : [NSNumber numberWithBool: NO] };
+      // but will default to using the OLD CONNECT method allowing users to reconfigure
+      // if they need...
+      NSDictionary *userdefs = @{ @"GSUseTunnelingProxy" : @"YES" };
       [[NSUserDefaults standardUserDefaults] registerDefaults: userdefs];
     }
 }
