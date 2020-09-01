@@ -96,16 +96,16 @@ debugRead(id handle, int len, const unsigned char *ptr)
                                         freeWhenDone: NO];
           esc = [data escapedRepresentation: 0];
 
-          NSLog(@"Read for %p %@ of %d bytes (escaped) - '%s'\n<[%s]>",
-            handle, [handle in], len, esc, hex); 
+          NSLog(@"Read for %p of %d bytes (escaped) - '%s'\n<[%s]>",
+            handle, len, esc, hex); 
           free(esc);
           RELEASE(data);
           free(hex);
           return;
         }
     }
-  NSLog(@"Read for %p %@ of %d bytes - '%*.*s'\n<[%s]>",
-    handle, [handle in], len, len, len, ptr, hex); 
+  NSLog(@"Read for %p of %d bytes - '%*.*s'\n<[%s]>",
+    handle, len, len, len, ptr, hex); 
   free(hex);
 }
 static void
@@ -131,16 +131,16 @@ debugWrite(id handle, int len, const unsigned char *ptr)
                                               length: len
                                         freeWhenDone: NO];
           esc = [data escapedRepresentation: 0];
-          NSLog(@"Write for %p %@ of %d bytes (escaped) - '%s'\n<[%s]>",
-            handle, [handle out], len, esc, hex); 
+          NSLog(@"Write for %p of %d bytes (escaped) - '%s'\n<[%s]>",
+            handle, len, esc, hex); 
           free(esc);
           RELEASE(data);
           free(hex);
           return;
         }
     }
-  NSLog(@"Write for %p %@ of %d bytes - '%*.*s'\n<[%s]>",
-    handle, [handle out], len, len, len, ptr, hex); 
+  NSLog(@"Write for %p of %d bytes - '%*.*s'\n<[%s]>",
+    handle, len, len, len, ptr, hex); 
   free(hex);
 }
 
@@ -463,6 +463,13 @@ static NSURLProtocol	*placeholder = nil;
       [self registerClass: [_NSFileURLProtocol class]];
       [self registerClass: [_NSAboutURLProtocol class]];
       [self registerClass: [_NSDataURLProtocol class]];
+      
+      // TESTPLANT-MAL-08272020:
+      // Some proxies DO NOT support the tunneling 'CONNECT' so we have to support both
+      // but will default to using the OLD CONNECT method allowing users to reconfigure
+      // if they need...
+      NSDictionary *userdefs = @{ @"GSUseTunnelingProxy" : @"YES" };
+      [[NSUserDefaults standardUserDefaults] registerDefaults: userdefs];
     }
 }
 
@@ -1602,6 +1609,10 @@ static NSURLProtocol	*placeholder = nil;
 		    }
 		}
 	    }
+	  else if (200 == _statusCode)
+	    {
+		_shouldClose = YES;
+	    }
 
 	  [this->input removeFromRunLoop: [NSRunLoop currentRunLoop]
 				 forMode: NSDefaultRunLoopMode];
@@ -1769,16 +1780,30 @@ static NSURLProtocol	*placeholder = nil;
 	       * method /path?query HTTP/version
 	       * where the query part may be missing
 	       */
-	      [m appendData: [[this->request HTTPMethod]
-                dataUsingEncoding: NSASCIIStringEncoding]];
+	      [m appendData: [[this->request HTTPMethod] dataUsingEncoding: NSASCIIStringEncoding]];
 	      [m appendBytes: " " length: 1];
 	      u = [this->request URL];
-	      s = [[u fullPath] stringByAddingPercentEscapesUsingEncoding:
-		NSUTF8StringEncoding];
-	      if ([s hasPrefix: @"/"] == NO)
-	        {
-		  [m appendBytes: "/" length: 1];
-		}
+        
+        // TESTPLANT-MAL-08272020:
+	      // Some proxies DO NOT support the tunneling 'CONNECT' so we will now default to using
+        // the more standard CONNECT method that works through the system proxies.  This requires
+        // that we use the FULL URL string...
+	      // support connect tunneling...based on a private defaults...
+        NSDebugMLLog(@"NSURLProtocol", @"GSUseTunnelingProxy: %d",
+                     [[NSUserDefaults standardUserDefaults] boolForKey: @"GSUseTunnelingProxy"]);
+        BOOL useTunnelingProxy = [[NSUserDefaults standardUserDefaults] boolForKey: @"GSUseTunnelingProxy"];
+        if (NO == useTunnelingProxy)
+          {
+            s = [[u absoluteString] stringByAddingPercentEscapesUsingEncoding: NSUTF8StringEncoding];
+          }
+        else
+          {
+            s = [[u fullPath] stringByAddingPercentEscapesUsingEncoding: NSUTF8StringEncoding];
+            if ([s hasPrefix: @"/"] == NO)
+              {
+                [m appendBytes: "/" length: 1];
+              }
+          }
 	      [m appendData: [s dataUsingEncoding: NSASCIIStringEncoding]];
 	      s = [u query];
 	      if ([s length] > 0)
