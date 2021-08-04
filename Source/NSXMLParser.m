@@ -41,8 +41,6 @@
 + (NSString*) charsetForXml: (NSData*)xml;
 @end
 
-NSString* const NSXMLParserErrorDomain = @"NSXMLParserErrorDomain";
-
 static  NSNull  *null = nil;
 
 /* We always have the native (sloppy) parser, and can get that behavior
@@ -2336,9 +2334,6 @@ NSLog(@"_processTag <%@%@ %@>", flag?@"/": @"", tag, attributes);
   return myHandler->_shouldResolveExternalEntities;
 }
 
-@end
-
-@implementation NSXMLParser (NSXMLParserLocatorAdditions)
 - (NSInteger) columnNumber
 {
   return [myParser columnNumber];

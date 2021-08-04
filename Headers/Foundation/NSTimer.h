@@ -42,6 +42,7 @@ extern "C" {
  *	Other classes must not attempt to use instance variables as
  *	they are subject to change.
  */
+GS_EXPORT_CLASS
 @interface NSTimer : NSObject
 {
 #if	GS_EXPOSE(NSTimer)
@@ -91,6 +92,10 @@ extern "C" {
 			  selector: (SEL)selector
 			  userInfo: (id)info
 			   repeats: (BOOL)f;
+
++ (NSTimer*) timerWithTimeInterval: (NSTimeInterval)ti
+			   repeats: (BOOL)f
+			     block: (GSTimerBlock)block;
 
 - (void) fire;
 - (NSDate*) fireDate;

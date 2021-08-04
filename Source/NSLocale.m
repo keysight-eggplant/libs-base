@@ -38,72 +38,6 @@
 #import "Foundation/NSString.h"
 #import "GNUstepBase/GSLock.h"
 
-NSString * const NSCurrentLocaleDidChangeNotification =
-  @"NSCurrentLocaleDidChangeNotification";
-
-//
-// NSLocale Component Keys
-//
-NSString * const NSLocaleIdentifier = @"NSLocaleIdentifier";
-NSString * const NSLocaleLanguageCode = @"NSLocaleLanguageCode";
-NSString * const NSLocaleCountryCode = @"NSLocaleCountryCode";
-NSString * const NSLocaleScriptCode = @"NSLocaleScriptCode";
-NSString * const NSLocaleVariantCode = @"NSLocaleVariantCode";
-NSString * const NSLocaleExemplarCharacterSet = @"NSLocaleExemplarCharacterSet";
-NSString * const NSLocaleCalendarIdentifier = @"calendar";
-NSString * const NSLocaleCalendar = @"NSLocaleCalendar";
-NSString * const NSLocaleCollationIdentifier = @"collation";
-NSString * const NSLocaleUsesMetricSystem = @"NSLocaleUsesMetricSystem";
-NSString * const NSLocaleMeasurementSystem = @"NSLocaleMeasurementSystem";
-NSString * const NSLocaleDecimalSeparator = @"NSLocaleDecimalSeparator";
-NSString * const NSLocaleGroupingSeparator = @"NSLocaleGroupingSeparator";
-NSString * const NSLocaleCurrencySymbol = @"NSLocaleCurrencySymbol";
-NSString * const NSLocaleCurrencyCode = @"NSLocaleCurrencyCode";
-NSString * const NSLocaleCollatorIdentifier = @"NSLocaleCollatorIdentifier";
-NSString * const NSLocaleQuotationBeginDelimiterKey =
-  @"NSLocaleQuotationBeginDelimiterKey";
-NSString * const NSLocaleQuotationEndDelimiterKey =
-  @"NSLocaleQuotationEndDelimiterKey";
-NSString * const NSLocaleAlternateQuotationBeginDelimiterKey =
-  @"NSLocaleAlternateQuotationBeginDelimiterKey";
-NSString * const NSLocaleAlternateQuotationEndDelimiterKey =
-  @"NSLocaleAlternateQuotationEndDelimiterKey";
-
-//
-// NSLocale Calendar Keys
-//
-NSString * const NSGregorianCalendar = @"gregorian";
-NSString * const NSBuddhistCalendar = @"buddhist";
-NSString * const NSChineseCalendar = @"chinese";
-NSString * const NSHebrewCalendar = @"hebrew";
-NSString * const NSIslamicCalendar = @"islamic";
-NSString * const NSIslamicCivilCalendar = @"islamic-civil";
-NSString * const NSJapaneseCalendar = @"japanese";
-NSString * const NSRepublicOfChinaCalendar = @"roc";
-NSString * const NSPersianCalendar = @"persian";
-NSString * const NSIndianCalendar = @"indian";
-NSString * const NSISO8601Calendar = @"";
-
-//
-// NSLocale New Calendar ID Keys
-//
-NSString * const NSCalendarIdentifierGregorian = @"gregorian";
-NSString * const NSCalendarIdentifierBuddhist = @"buddhist";
-NSString * const NSCalendarIdentifierChinese = @"chinese";
-NSString * const NSCalendarIdentifierCoptic = @"coptic";
-NSString * const NSCalendarIdentifierEthiopicAmeteMihret = @"ethiopic-amete-mihret";
-NSString * const NSCalendarIdentifierEthiopicAmeteAlem = @"ethiopic-amete-alem";
-NSString * const NSCalendarIdentifierHebrew = @"hebrew";
-NSString * const NSCalendarIdentifierISO8601 = @"";
-NSString * const NSCalendarIdentifierIndian = @"indian";
-NSString * const NSCalendarIdentifierIslamic = @"islamic";
-NSString * const NSCalendarIdentifierIslamicCivil = @"islamic-civil";
-NSString * const NSCalendarIdentifierJapanese = @"japanese";
-NSString * const NSCalendarIdentifierPersian = @"persian";
-NSString * const NSCalendarIdentifierRepublicOfChina = @"roc";
-NSString * const NSCalendarIdentifierIslamicTabular = @"islamic-tabular";
-NSString * const NSCalendarIdentifierIslamicUmmAlQura = @"islamic-umm-al-qura";
-
 #if	defined(HAVE_UNICODE_ULOC_H)
 # include <unicode/uloc.h>
 #endif
@@ -112,6 +46,9 @@ NSString * const NSCalendarIdentifierIslamicUmmAlQura = @"islamic-umm-al-qura";
 #endif
 #if	defined(HAVE_UNICODE_UCURR_H)
 # include <unicode/ucurr.h>
+#endif
+#if defined(HAVE_ICU_H)
+# include <icu.h>
 #endif
 
 
@@ -1014,20 +951,28 @@ static NSRecursiveLock *classLock = nil;
   NSCharacterSet *result;
   NSMutableCharacterSet *mSet;
   
-  mSet = [[NSMutableCharacterSet alloc] init];
-  if (mSet == nil)
-    return nil;
-  
   cLocaleId = [_localeId UTF8String];
-  localeData = ulocdata_open (cLocaleId, &err);
+  localeData = ulocdata_open(cLocaleId, &err);
   if (U_FAILURE(err))
-    return nil;
+    {
+      return nil;
+    }
   
-  charSet = ulocdata_getExemplarSet (localeData, NULL,
+  charSet = ulocdata_getExemplarSet(localeData, NULL,
     USET_ADD_CASE_MAPPINGS, ULOCDATA_ES_STANDARD, &err);
   if (U_FAILURE(err))
-    return nil;
+    {
+      ulocdata_close(localeData);
+      return nil;
+    }
   ulocdata_close(localeData);
+  
+  mSet = [[NSMutableCharacterSet alloc] init];
+  if (mSet == nil)
+    {
+      uset_close(charSet);
+      return nil;
+    }
   
   count = uset_getItemCount(charSet);
   for (idx = 0 ; idx < count ; ++idx)
@@ -1036,9 +981,10 @@ static NSRecursiveLock *classLock = nil;
       int strLen;
       
       err = U_ZERO_ERROR;
-      strLen = uset_getItem (charSet, idx, &start, &end, buffer, 1024, &err);
+      strLen = uset_getItem(charSet, idx, &start, &end, buffer, 1024, &err);
       if (U_FAILURE(err))
         {
+	  uset_close(charSet);
           RELEASE(mSet);
           return nil;
         }
@@ -1055,10 +1001,11 @@ static NSRecursiveLock *classLock = nil;
       // FIXME: The icu docs are a bit iffy and don't explain what len == 1
       // means.  So, if it is encountered, we simply skip it.
     }
-  uset_close (charSet);
+  uset_close(charSet);
   
   result = [mSet copyWithZone: NULL];
   RELEASE(mSet);
+
   return AUTORELEASE(result);
 #else
   return nil;

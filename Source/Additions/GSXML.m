@@ -67,6 +67,7 @@
 #import "Foundation/NSFileManager.h"
 #import "Foundation/NSRunLoop.h"
 #import "Foundation/NSString.h"
+#import "Foundation/NSThread.h"
 #import "Foundation/NSTimer.h"
 #import "Foundation/NSTimeZone.h"
 #import "Foundation/NSURL.h"
@@ -104,7 +105,6 @@
  *
  */
 static Class NSString_class;
-static Class treeClass;
 static id (*usImp)(id, SEL, const unsigned char*);
 static SEL usSel;
 
@@ -156,12 +156,12 @@ static char * xml_strdup(const char *from)
   return to;
 }
 
-static void
-setupCache()
+@implementation	NSObject (SetupForGSXML)
++ (void) _setupForGSXML
 {
-  if (cacheDone == NO)
+  if (NO == cacheDone)
     {
-      cacheDone = YES;
+      xmlInitParser();
       xmlMemSetup(free, malloc, realloc, xml_strdup);
       xmlInitializeCatalog();
       xmlDefaultSAXHandlerInit();
@@ -169,7 +169,21 @@ setupCache()
       usSel = @selector(stringWithUTF8String:);
       usImp = (id (*)(id, SEL, const unsigned char*))
 	[NSString_class methodForSelector: usSel];
-      treeClass = [GSTreeSAXHandler class];
+      cacheDone = YES;
+    }
+}
+@end
+
+static void
+setupCache()
+{
+  if (cacheDone == NO)
+    {
+      /* Setup of libxml2 must be done on main thread.
+       */
+      [NSObject performSelectorOnMainThread: @selector(_setupForGSXML)
+				 withObject: nil
+			      waitUntilDone: YES];
     }
 }
 
@@ -2914,7 +2928,7 @@ resolveEntityFunction(void *ctx,
   if (treeImp == 0) \
     { \
       sel = @selector(SELNAME); \
-      treeImp = (RET (*)ARGS)[treeClass instanceMethodForSelector: sel];\
+      treeImp = (RET (*)ARGS)[GSTreeSAXHandler instanceMethodForSelector: sel];\
     } \
   imp = (RET (*)ARGS)[HANDLER methodForSelector: sel]
 
@@ -3660,7 +3674,7 @@ fatalErrorFunction(void *ctx, const unsigned char *msg, ...)
     }
   else
     {
-      memcpy(lib, &xmlDefaultSAXHandler, sizeof(xmlSAXHandler));
+      xmlSAX2InitDefaultSAXHandler(lib, 0);
 
 #define	LIB	((xmlSAXHandlerPtr)lib)
       /*
@@ -3779,10 +3793,10 @@ fatalErrorFunction(void *ctx, const unsigned char *msg, ...)
     }
   else
     {
-      memcpy(lib, &xmlDefaultSAXHandler, sizeof(xmlSAXHandler));
+      xmlSAX2InitDefaultSAXHandler(lib, 0);
 
 #define	LIB	((xmlSAXHandlerPtr)lib)
-#define	SETCB(NAME,SEL) if ([self methodForSelector: @selector(SEL)] != [treeClass instanceMethodForSelector: @selector(SEL)]) LIB->NAME = (void*)NAME ## Function
+#define	SETCB(NAME,SEL) if ([self methodForSelector: @selector(SEL)] != [GSTreeSAXHandler instanceMethodForSelector: @selector(SEL)]) LIB->NAME = (void*)NAME ## Function
       /*
        * We must call xmlSAXVersion() BEFORE setting any functions as it
        * sets up default values and would trash our settings.
@@ -4427,20 +4441,34 @@ static BOOL warned = NO; if (warned == NO) { warned = YES; NSLog(@"WARNING, use 
 /*
  * Build dummy implementations of the classes if libxml is not available
  */
+GS_EXPORT_CLASS
 @interface GSXMLDummy : NSObject
 @end
+
+GS_EXPORT_CLASS
 @interface GSXMLDocument : GSXMLDummy
 @end
+
+GS_EXPORT_CLASS
 @interface GSXMLNamespace : GSXMLDummy
 @end
+
+GS_EXPORT_CLASS
 @interface GSXMLNode : GSXMLDummy
 @end
+
+GS_EXPORT_CLASS
 @interface GSSAXHandler : GSXMLDummy
 @end
+
+GS_EXPORT_CLASS
 @interface GSXMLParser : GSXMLDummy
 @end
+
+GS_EXPORT_CLASS
 @interface GSXMLAttribute : GSXMLNode
 @end
+
 @implementation GSXMLDummy
 + (id) allocWithZone: (NSZone*)z
 {
@@ -4470,16 +4498,28 @@ static BOOL warned = NO; if (warned == NO) { warned = YES; NSLog(@"WARNING, use 
   return nil;
 }
 @end
+
+GS_EXPORT_CLASS
 @implementation GSXMLDocument
 @end
+
+GS_EXPORT_CLASS
 @implementation GSXMLNamespace
 @end
+
+GS_EXPORT_CLASS
 @implementation GSXMLNode
 @end
+
+GS_EXPORT_CLASS
 @implementation GSSAXHandler
 @end
+
+GS_EXPORT_CLASS
 @implementation GSXMLParser
 @end
+
+GS_EXPORT_CLASS
 @implementation GSXMLAttribute
 @end
 

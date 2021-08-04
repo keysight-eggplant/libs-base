@@ -55,6 +55,9 @@
 #if     defined(HAVE_UNICODE_UREGEX_H)
 #include <unicode/uregex.h>
 #endif
+#if     defined(HAVE_ICU_H)
+#include <icu.h>
+#endif
 
 /* Object to represent the expression beign evaluated.
  */
@@ -1745,7 +1748,8 @@ GSICUStringMatchesRegex(NSString *string, NSString *regex, NSStringCompareOption
 
   if ([right isEqualToString: @"NSDate"])
     {
-      return [[NSDate alloc] initWithTimeIntervalSinceReferenceDate: [left doubleValue]];
+      return [NSDate dateWithTimeIntervalSinceReferenceDate:
+	[left doubleValue]];
     }
 
   NSLog(@"Cast to unknown type %@", right);

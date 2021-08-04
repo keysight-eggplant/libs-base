@@ -135,8 +135,3 @@
 }
 
 @end
-
-const NSString * NSInvocationOperationVoidResultException
-  = @"NSInvocationOperationVoidResultException";
-const NSString * NSInvocationOperationCancelledException
-  = @"NSInvcationOperationCancelledException";

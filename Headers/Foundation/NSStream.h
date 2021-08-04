@@ -66,6 +66,7 @@ typedef NSUInteger NSStreamEvent;
 /**
  * NSStream is an abstract class for objects representing streams. 
  */
+GS_EXPORT_CLASS
 @interface NSStream : NSObject
 
 /**
@@ -147,6 +148,7 @@ typedef NSUInteger NSStreamEvent;
  * NSInputStream is a subclass of NSStream that provides read-only
  * stream functionality.
  */
+GS_EXPORT_CLASS
 @interface NSInputStream : NSStream
 
 /**
@@ -208,6 +210,7 @@ typedef NSUInteger NSStreamEvent;
  * NSOutputStream is a subclass of NSStream that provides
  * write-only stream functionality.
  */
+GS_EXPORT_CLASS
 @interface NSOutputStream : NSStream
 
 /**

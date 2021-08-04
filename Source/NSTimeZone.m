@@ -110,20 +110,20 @@
 #import "GSPrivate.h"
 #import "GSPThread.h"
 
-#ifdef HAVE_TZHEAD
-#include <tzfile.h>
-#else
+/* In systems without POSIX time zone information we can use our own builtin
+ * time zone data.  To build on those systems we need a header reproducing
+ * the POSIX time zone file format.
+ */
 #include "nstzfile.h"
-#endif
 
 #if defined(HAVE_UNICODE_UCAL_H)
 #define id id_ucal
 #include <unicode/ucal.h>
 #undef id
 #endif
-
-NSString * const NSSystemTimeZoneDidChangeNotification
-  = @"NSSystemTimeZoneDidChangeNotification";
+#if defined(HAVE_ICU_H)
+#include <icu.h>
+#endif
 
 /* Key for local time zone in user defaults. */
 #define LOCALDBKEY @"Local Time Zone"
@@ -255,7 +255,7 @@ typedef struct {
   NSData	*timeZoneData;
   unsigned int	n_trans;
   unsigned int	n_types;
-  int32_t	*trans;
+  int64_t	*trans;
   TypeInfo	*types;
   unsigned char	*idxs;
 }
@@ -292,7 +292,7 @@ static NSMutableDictionary *abbreviationDictionary = nil;
 static NSMutableDictionary *abbreviationMap = nil;
 
 /* Lock for creating time zones. */
-static pthread_mutex_t zone_mutex;
+static gs_mutex_t zone_mutex;
 
 static Class	NSTimeZoneClass;
 static Class	GSPlaceholderTimeZoneClass;
@@ -390,14 +390,14 @@ static NSString *_time_zone_path(NSString *subpath, NSString *type)
    * Return a cached time zone if possible.
    * NB. if data of cached zone does not match new data ... don't use cache
    */
-  pthread_mutex_lock(&zone_mutex);
+  GS_MUTEX_LOCK(zone_mutex);
   zone = [zoneDictionary objectForKey: name];
   if (data != nil && [data isEqual: [zone data]] == NO)
     {
       zone = nil;
     }
   IF_NO_GC(RETAIN(zone));
-  pthread_mutex_unlock(&zone_mutex);
+  GS_MUTEX_UNLOCK(zone_mutex);
 
   if (zone == nil)
     {
@@ -660,9 +660,9 @@ static NSMapTable	*absolutes = 0;
 {
   if (offset != uninitialisedOffset)
     {
-      pthread_mutex_lock(&zone_mutex);
+      GS_MUTEX_LOCK(zone_mutex);
       NSMapRemove(absolutes, (void*)(uintptr_t)offset);
-      pthread_mutex_unlock(&zone_mutex);
+      GS_MUTEX_UNLOCK(zone_mutex);
     }
   RELEASE(name);
   RELEASE(detail);
@@ -718,7 +718,7 @@ static NSMapTable	*absolutes = 0;
         }
     }
 
-  pthread_mutex_lock(&zone_mutex);
+  GS_MUTEX_LOCK(zone_mutex);
   z = (GSAbsTimeZone*)NSMapGet(absolutes, (void*)(uintptr_t)anOffset);
   if (z != nil)
     {
@@ -769,7 +769,7 @@ static NSMapTable	*absolutes = 0;
           commonAbsolutes[index] = RETAIN(self);
         }
     }
-  pthread_mutex_unlock(&zone_mutex);
+  GS_MUTEX_UNLOCK(zone_mutex);
   return z;
 }
 
@@ -989,7 +989,7 @@ static NSMapTable	*absolutes = 0;
     {
       return abbreviationDictionary;
     }
-  pthread_mutex_lock(&zone_mutex);
+  GS_MUTEX_LOCK(zone_mutex);
   if (abbreviationDictionary == nil)
     {
       NSAutoreleasePool	*pool = [NSAutoreleasePool new];
@@ -1046,7 +1046,7 @@ static NSMapTable	*absolutes = 0;
 	}
       [pool drain];
     }
-  pthread_mutex_unlock(&zone_mutex);
+  GS_MUTEX_UNLOCK(zone_mutex);
   return abbreviationDictionary;
 }
 
@@ -1064,7 +1064,7 @@ static NSMapTable	*absolutes = 0;
     {
       return abbreviationMap;
     }
-  pthread_mutex_lock(&zone_mutex);
+  GS_MUTEX_LOCK(zone_mutex);
   if (abbreviationMap == nil)
     {
       NSAutoreleasePool		*pool = [NSAutoreleasePool new];
@@ -1098,7 +1098,7 @@ static NSMapTable	*absolutes = 0;
 #endif
 	  if (file == NULL)
 	    {
-              pthread_mutex_unlock(&zone_mutex);
+              GS_MUTEX_UNLOCK(zone_mutex);
 	      [NSException
 		raise: NSInternalInconsistencyException
 		format: @"Failed to open time zone abbreviation map."];
@@ -1189,7 +1189,7 @@ static NSMapTable	*absolutes = 0;
         }
       [pool drain];
     }
-  pthread_mutex_unlock(&zone_mutex);
+  GS_MUTEX_UNLOCK(zone_mutex);
 
   return abbreviationMap;
 }
@@ -1207,7 +1207,7 @@ static NSMapTable	*absolutes = 0;
       return namesArray;
     }
 
-  pthread_mutex_lock(&zone_mutex);
+  GS_MUTEX_LOCK(zone_mutex);
   if (namesArray == nil)
     {
       unsigned		i;
@@ -1233,7 +1233,7 @@ static NSMapTable	*absolutes = 0;
           RELEASE(ma);
         }
     }
-  pthread_mutex_unlock(&zone_mutex);
+  GS_MUTEX_UNLOCK(zone_mutex);
   return namesArray;
 }
 
@@ -1263,7 +1263,7 @@ static NSMapTable	*absolutes = 0;
 	   * locate the correct placeholder in the (lock protected)
 	   * table of placeholders.
 	   */
-          pthread_mutex_lock(&zone_mutex);
+          GS_MUTEX_LOCK(zone_mutex);
 	  obj = (id)NSMapGet(placeholderMap, (void*)z);
 	  if (obj == nil)
 	    {
@@ -1274,7 +1274,7 @@ static NSMapTable	*absolutes = 0;
 	      obj = (id)NSAllocateObject(GSPlaceholderTimeZoneClass, 0, z);
 	      NSMapInsert(placeholderMap, (void*)z, (void*)obj);
 	    }
-          pthread_mutex_unlock(&zone_mutex);
+          GS_MUTEX_UNLOCK(zone_mutex);
 	  return obj;
 	}
     }
@@ -1291,7 +1291,7 @@ static NSMapTable	*absolutes = 0;
 {
   NSTimeZone	*zone;
 
-  pthread_mutex_lock(&zone_mutex);
+  GS_MUTEX_LOCK(zone_mutex);
   if (defaultTimeZone == nil)
     {
       zone = [self systemTimeZone];
@@ -1300,7 +1300,7 @@ static NSMapTable	*absolutes = 0;
     {
       zone = AUTORELEASE(RETAIN(defaultTimeZone));
     }
-  pthread_mutex_unlock(&zone_mutex);
+  GS_MUTEX_UNLOCK(zone_mutex);
   return zone;
 }
 
@@ -1309,7 +1309,7 @@ static NSMapTable	*absolutes = 0;
   if (self == [NSTimeZone class])
     {
       NSTimeZoneClass = self;
-      GS_INIT_RECURSIVE_MUTEX(zone_mutex);
+      GS_MUTEX_INIT_RECURSIVE(zone_mutex);
       GSPlaceholderTimeZoneClass = [GSPlaceholderTimeZone class];
       zoneDictionary = [[NSMutableDictionary alloc] init];
       [[NSObject leakAt: &zoneDictionary] release];
@@ -1354,9 +1354,9 @@ static NSMapTable	*absolutes = 0;
  */
 + (void) resetSystemTimeZone
 {
-  pthread_mutex_lock(&zone_mutex);
+  GS_MUTEX_LOCK(zone_mutex);
   DESTROY(systemTimeZone);
-  pthread_mutex_unlock(&zone_mutex);
+  GS_MUTEX_UNLOCK(zone_mutex);
   [[NSNotificationCenter defaultCenter]
     postNotificationName: NSSystemTimeZoneDidChangeNotification
                   object: nil];
@@ -1377,9 +1377,9 @@ static NSMapTable	*absolutes = 0;
 	{
 	  aTimeZone = [self systemTimeZone];
 	}
-      pthread_mutex_lock(&zone_mutex);
+      GS_MUTEX_LOCK(zone_mutex);
       ASSIGN(defaultTimeZone, aTimeZone);
-      pthread_mutex_unlock(&zone_mutex);
+      GS_MUTEX_UNLOCK(zone_mutex);
     }
 }
 
@@ -1390,7 +1390,7 @@ static NSMapTable	*absolutes = 0;
 {
   NSTimeZone	*zone = nil;
 
-  pthread_mutex_lock(&zone_mutex);
+  GS_MUTEX_LOCK(zone_mutex);
   if (systemTimeZone == nil)
     {
       NSFileManager *dflt = [NSFileManager defaultManager];
@@ -1730,7 +1730,7 @@ localZoneString, [zone name], sign, s/3600, (s/60)%60);
       ASSIGN(systemTimeZone, zone);
     }
   zone = AUTORELEASE(RETAIN(systemTimeZone));
-  pthread_mutex_unlock(&zone_mutex);
+  GS_MUTEX_UNLOCK(zone_mutex);
   return zone;
 }
 
@@ -1749,7 +1749,7 @@ localZoneString, [zone name], sign, s/3600, (s/60)%60);
     {
       return regionsArray;
     }
-  pthread_mutex_lock(&zone_mutex);
+  GS_MUTEX_LOCK(zone_mutex);
   if (regionsArray == nil)
     {
       NSAutoreleasePool	*pool = [NSAutoreleasePool new];
@@ -1781,7 +1781,7 @@ localZoneString, [zone name], sign, s/3600, (s/60)%60);
 #endif
 	  if (fp == NULL)
 	    {
-              pthread_mutex_unlock(&zone_mutex);
+              GS_MUTEX_UNLOCK(zone_mutex);
 	      [NSException
 		raise: NSInternalInconsistencyException
 		format: @"Failed to open time zone regions array file."];
@@ -1881,7 +1881,7 @@ localZoneString, [zone name], sign, s/3600, (s/60)%60);
       regionsArray = [[NSArray alloc] initWithObjects: temp_array count: 24];
       [pool drain];
     }
-  pthread_mutex_unlock(&zone_mutex);
+  GS_MUTEX_UNLOCK(zone_mutex);
   return regionsArray;
 }
 
@@ -1924,9 +1924,9 @@ localZoneString, [zone name], sign, s/3600, (s/60)%60);
     }
   else
     {
-      pthread_mutex_lock(&zone_mutex);
+      GS_MUTEX_LOCK(zone_mutex);
       zone = (NSTimeZone*)NSMapGet(absolutes, (void*)(uintptr_t)seconds);
-      pthread_mutex_unlock(&zone_mutex);
+      GS_MUTEX_UNLOCK(zone_mutex);
     }
   if (nil == zone)
     {
@@ -2406,7 +2406,7 @@ static NSString *zoneDirs[] = {
 
   if (beenHere == NO && tzdir == nil)
     {
-      pthread_mutex_lock(&zone_mutex);
+      GS_MUTEX_LOCK(zone_mutex);
       if (beenHere == NO && tzdir == nil)
 	{
 	  NSFileManager	*mgr = [NSFileManager defaultManager];
@@ -2427,7 +2427,7 @@ static NSString *zoneDirs[] = {
 	    }
 	  beenHere = YES;
 	}
-      pthread_mutex_unlock(&zone_mutex);
+      GS_MUTEX_UNLOCK(zone_mutex);
     }
   /* Use the system zone info if possible, otherwise, use our installed
      info.  */
@@ -2915,8 +2915,8 @@ GSBreakTime(NSTimeInterval when,
 static TypeInfo*
 chop(NSTimeInterval since, GSTimeZone *zone)
 {
-  int32_t		when = (int32_t)since;
-  int32_t		*trans = zone->trans;
+  int64_t		when = (int64_t)since;
+  int64_t		*trans = zone->trans;
   unsigned		hi = zone->n_trans;
   unsigned		lo = 0;
   unsigned int		i;
@@ -3021,6 +3021,7 @@ newDetailInZoneForType(GSTimeZone *zone, TypeInfo *type)
       unsigned		i, charcnt;
       unsigned char	*abbr;
       struct tzhead	*header;
+      unsigned		version = 1;
 
       if (length < sizeof(struct tzhead))
 	{
@@ -3029,19 +3030,58 @@ newDetailInZoneForType(GSTimeZone *zone, TypeInfo *type)
 	}
       header = (struct tzhead *)(bytes + pos);
       pos += sizeof(struct tzhead);
-#ifdef TZ_MAGIC
+
       if (memcmp(header->tzh_magic, TZ_MAGIC, strlen(TZ_MAGIC)) != 0)
 	{
 	  [NSException raise: fileException
 		      format: @"TZ_MAGIC is incorrect"];
 	}
-#endif
+
+      /* For version 2+, skip to second header */
+      if (header->tzh_version[0] != 0)
+        {
+	  /* tzh_version[0] is an ascii digit for versions above 1.
+	   */
+	  version = header->tzh_version[0] - '0';
+
+	  /* pos indexes after the first header, increment it to index after
+	   * the data associated with that header too.
+	   */
+          pos += GSSwapBigI32ToHost(*(int32_t*)(void*)header->tzh_timecnt) * 5
+	    + GSSwapBigI32ToHost(*(int32_t*)(void*)header->tzh_typecnt) * 6
+	    + GSSwapBigI32ToHost(*(int32_t*)(void*)header->tzh_charcnt)
+	    + GSSwapBigI32ToHost(*(int32_t*)(void*)header->tzh_leapcnt) * 8
+	    + GSSwapBigI32ToHost(*(int32_t*)(void*)header->tzh_ttisstdcnt)
+	    + GSSwapBigI32ToHost(*(int32_t*)(void*)header->tzh_ttisutcnt);
+
+	  /* Now we get a pointer to the version 2+ header and set pos as an
+	   * index to the data after that.
+	   */
+	  header = (struct tzhead *)(bytes + pos);
+          pos += sizeof(struct tzhead);
+
+          if (memcmp(header->tzh_magic, TZ_MAGIC, strlen(TZ_MAGIC)) != 0)
+	    {
+	      [NSException raise: fileException
+		      format: @"TZ_MAGIC is incorrect (v2+ header)"];
+	    }
+	}
+
       n_trans = GSSwapBigI32ToHost(*(int32_t*)(void*)header->tzh_timecnt);
       n_types = GSSwapBigI32ToHost(*(int32_t*)(void*)header->tzh_typecnt);
       charcnt = GSSwapBigI32ToHost(*(int32_t*)(void*)header->tzh_charcnt);
 
       i = pos;
-      i += sizeof(int32_t)*n_trans;
+      if (1 == version)
+	{
+	  /* v1 with 32-bit transitions */
+	  i += sizeof(int32_t) * n_trans;
+	}
+      else
+	{
+	  /* v2+ with 64-bit transitions */
+	  i += sizeof(int64_t) * n_trans;
+	}
       if (i > length)
 	{
 	  [NSException raise: fileException
@@ -3068,21 +3108,34 @@ newDetailInZoneForType(GSTimeZone *zone, TypeInfo *type)
       /*
        * Now calculate size we need to store the information
        * for efficient access ... not the same saze as the data
-       * we received.
+       * we received (we always use 64bit transitions internally).
        */
-      i = n_trans * (sizeof(int32_t)+1) + n_types * sizeof(TypeInfo);
+      i = n_trans * (sizeof(int64_t)+1) + n_types * sizeof(TypeInfo);
       buf = NSZoneMalloc(NSDefaultMallocZone(), i);
       types = (TypeInfo*)buf;
       buf += (n_types * sizeof(TypeInfo));
-      trans = (int32_t*)buf;
-      buf += (n_trans * sizeof(int32_t));
+      trans = (int64_t*)buf;
+      buf += (n_trans * sizeof(int64_t)); 
       idxs = (unsigned char*)buf;
 
       /* Read in transitions. */
-      for (i = 0; i < n_trans; i++)
+      if (1 == version)
 	{
-	  trans[i] = GSSwapBigI32ToHost(*(int32_t*)(bytes + pos));
-	  pos += sizeof(int32_t);
+	  /* v1 with 32-bit transitions */
+	  for (i = 0; i < n_trans; i++)
+	    {
+	      trans[i] = GSSwapBigI32ToHost(*(int32_t*)(bytes + pos));
+	      pos += sizeof(int32_t);
+	    }
+	}
+      else
+	{
+	  /* v2+ with 64-bit transitions */
+	  for (i = 0; i < n_trans; i++)
+	    {
+	      trans[i] = GSSwapBigI64ToHost(*(int64_t*)(bytes + pos));
+	      pos += sizeof(int64_t);
+	    }
 	}
       for (i = 0; i < n_trans; i++)
 	{
@@ -3148,9 +3201,9 @@ newDetailInZoneForType(GSTimeZone *zone, TypeInfo *type)
 	  }
       }
 
-      pthread_mutex_lock(&zone_mutex);
+      GS_MUTEX_LOCK(zone_mutex);
       [zoneDictionary setObject: self forKey: timeZoneName];
-      pthread_mutex_unlock(&zone_mutex);
+      GS_MUTEX_UNLOCK(zone_mutex);
     }
   NS_HANDLER
     {

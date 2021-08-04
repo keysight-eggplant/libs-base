@@ -279,6 +279,8 @@ typedef NSUInteger NSStringEncodingConversionOptions;
  *   that of the receiver which returned them.
  * </p>
  */
+
+GS_EXPORT_CLASS
 @interface NSString :NSObject <NSCoding, NSCopying, NSMutableCopying>
 
 + (id) string;
@@ -480,6 +482,10 @@ typedef NSUInteger NSStringEncodingConversionOptions;
 // Working With Encodings
 - (BOOL) canBeConvertedToEncoding: (NSStringEncoding)encoding;
 - (NSData*) dataUsingEncoding: (NSStringEncoding)encoding;
+/** Conversion to an encoding where byte order matters but is not specified
+ * (NSUnicodeStringEncoding, NSUTF16StringEncoding, NSUTF32StringEncoding)
+ * produces data with a Byte Order Marker (BOM) at the start of the data.
+ */
 - (NSData*) dataUsingEncoding: (NSStringEncoding)encoding
 	 allowLossyConversion: (BOOL)flag;
 + (NSStringEncoding) defaultCStringEncoding;
@@ -855,6 +861,7 @@ typedef NSUInteger NSStringEncodingConversionOptions;
 
 @end
 
+GS_EXPORT_CLASS
 @interface NSMutableString : NSString
 
 // Creating Temporary Strings
@@ -916,6 +923,8 @@ typedef NSUInteger NSStringEncodingConversionOptions;
  * What follows is a dummy declaration of the class to keep the compiler
  * happy.
  */
+
+GS_EXPORT_CLASS
 @interface NXConstantString : NSString
 {
 @public

@@ -69,6 +69,7 @@
   GSMimeDocument	*current;\
   GSMimeHeader		*version;\
   NSMutableArray	*queue;\
+  NSUInteger		maximum;\
   NSMutableArray	*pending;\
   NSInputStream		*istream;\
   NSOutputStream	*ostream;\
@@ -1526,7 +1527,7 @@ wordData(NSString *word, BOOL *encoded)
     }
 
   NSDebugMLLog(@"GSMime", @"Parse %u bytes - '%*.*s'",
-    (unsigned)l, (unsigned)l, (unsigned)l, [d bytes]);
+    (unsigned)l, (unsigned)l, (unsigned)l, (char*)[d bytes]);
 
   r = [self _endOfHeaders: d];
   if (r.location == NSNotFound)
@@ -2416,7 +2417,7 @@ NSDebugMLLog(@"GSMime", @"Header parsed - %@", info);
     }
 
   NSDebugMLLog(@"GSMime", @"Parse %u bytes - '%*.*s'",
-    (unsigned)l, (unsigned)l, (unsigned)l, [d bytes]);
+    (unsigned)l, (unsigned)l, (unsigned)l, (char*)[d bytes]);
   // NSDebugMLLog(@"GSMime", @"Boundary - '%*.*s'", [boundary length], [boundary length], [boundary bytes]);
 
   if ([context atEnd] == YES)
@@ -2426,7 +2427,7 @@ NSDebugMLLog(@"GSMime", @"Header parsed - %@", info);
       if ([d length] > 0)
 	{
 	  NSLog(@"Additional data (%*.*s) ignored after parse complete",
-	    (unsigned)[d length], (unsigned)[d length], [d bytes]);
+	    (unsigned)[d length], (unsigned)[d length], (char*)[d bytes]);
 	}
       needsMore = NO;	/* Nothing more to do	*/
     }
@@ -5059,11 +5060,11 @@ appendString(NSMutableData *m, NSUInteger offset, NSUInteger fold,
 
   if (charset != nil)
     {
-      enc = (NSStringEncoding)NSMapGet(charsets, charset);
+      enc = (NSStringEncoding)(intptr_t)NSMapGet(charsets, charset);
       if (enc == 0)
 	{
 	  charset = [charset lowercaseString];
-	  enc = (NSStringEncoding)NSMapGet(charsets, charset);
+	  enc = (NSStringEncoding)(intptr_t)NSMapGet(charsets, charset);
 	}
     }
   return enc;
@@ -7931,7 +7932,7 @@ appendString(NSMutableData *m, NSUInteger offset, NSUInteger fold,
 @end
 
 
-NSString* const GSMimeErrorDomain = @"GSMimeErrorDomain";
+GS_DECLARE NSString* const GSMimeErrorDomain = @"GSMimeErrorDomain";
 
 typedef	enum	{
   TP_IDLE,
@@ -8052,7 +8053,7 @@ GS_PRIVATE_INTERNAL(GSMimeSMTPClient)
 
 @implementation	GSMimeSMTPClient
 
-/* Shuts the connection down, fails any message in progress, anbd discards all
+/* Shuts the connection down, fails any message in progress, and discards all
  * queued messages as 'unsent'
  */
 - (void) abort
@@ -8147,6 +8148,11 @@ GS_PRIVATE_INTERNAL(GSMimeSMTPClient)
   return internal->lastError;
 }
 
+- (NSUInteger) queueSize
+{
+  return [internal->queue count];
+}
+
 - (void) send: (GSMimeDocument*)message
 {
   [self send: message envelopeID: nil];
@@ -8192,6 +8198,14 @@ GS_PRIVATE_INTERNAL(GSMimeSMTPClient)
 - (void) setIdentity: (NSString*)s
 {
   ASSIGNCOPY(internal->identity, s);
+}
+
+- (NSUInteger) setMaximum: (NSUInteger)m
+{
+  NSUInteger	old = internal->maximum;
+
+  internal->maximum = m;
+  return old;
 }
 
 - (void) setOriginator: (NSString*)s
@@ -8944,9 +8958,28 @@ GS_PRIVATE_INTERNAL(GSMimeSMTPClient)
 
   [internal->pending removeAllObjects];
   ASSIGN(internal->lastError, e);
-  if (internal->current != nil)
+  if (nil == internal->current)
     {
-      GSMimeDocument	*d = [internal->current retain];
+      while ([self queueSize] > internal->maximum)
+	{
+	  GSMimeDocument	*d = RETAIN([internal->queue objectAtIndex: 0]);
+
+	  [internal->queue removeObjectAtIndex: 0];
+	  if (nil == internal->delegate)
+	    {
+	      NSDebugMLLog(@"GSMime", @"-smtpClient:mimeUnsent: %@ %@",
+		self, d);
+	    }
+	  else
+	    {
+	      [internal->delegate smtpClient: self mimeUnsent: d];
+	    }
+	  RELEASE(d);
+	}
+    }
+  else
+    {
+      GSMimeDocument	*d = RETAIN(internal->current);
 
       [internal->queue removeObjectAtIndex: 0];
       internal->current = nil;
@@ -8958,7 +8991,7 @@ GS_PRIVATE_INTERNAL(GSMimeSMTPClient)
 	{
           [internal->delegate smtpClient: self mimeFailed: d];
 	}
-      [d release];
+      RELEASE(d);
     }
   if ([internal->queue count] > 0)
     {

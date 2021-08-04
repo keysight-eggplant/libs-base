@@ -87,6 +87,7 @@ typedef NSUInteger NSURLRequestCachePolicy;
  * URL, how to cache the results, and when to deal with a slow/hung
  * load process by timing out.
  */
+GS_EXPORT_CLASS
 @interface NSURLRequest : NSObject <NSCoding, NSCopying, NSMutableCopying>
 {
 #if	GS_EXPOSE(NSURLRequest)
@@ -155,6 +156,7 @@ typedef NSUInteger NSURLRequestCachePolicy;
 
 /**
  */
+GS_EXPORT_CLASS
 @interface NSMutableURLRequest : NSURLRequest
 
 /**
@@ -281,6 +283,25 @@ typedef NSUInteger NSURLRequestCachePolicy;
  */
 - (void) setValue: (NSString *)value forHTTPHeaderField: (NSString *)field;
 
+@end
+
+@protocol GSLogDelegate;
+@interface NSMutableURLRequest (GNUstep)
+
+/** Sets a flag to turn on low level debug logging for this request and the
+ * corresponding response.  The previous vaue of the setting is returned.
+ */
+- (int) setDebug: (int)d;
+
+/** Sets a delegate object to override logging of low level I/O of the
+ * request as it is sent and the corresponding response as it arrives.<br />
+ * The delegate object is not retained, so it is the responsibility of the
+ * caller to ensure that it persists until all I/O has completed.<br />
+ * This has no effect unless debug is turned on, but if debug is turned on
+ * it permits the delegate to override the default behavior of writing the
+ * data to stderr.
+ */
+- (id<GSLogDelegate>) setDebugLogDelegate: (id<GSLogDelegate>)d;
 @end
 
 #if	defined(__cplusplus)

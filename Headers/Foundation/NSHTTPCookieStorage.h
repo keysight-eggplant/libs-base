@@ -55,19 +55,19 @@ typedef NSUInteger NSHTTPCookieAcceptPolicy;
  * Posted to the distributed notification center when the cookie
  * accept policy is changed.
  */
-extern NSString * const NSHTTPCookieManagerAcceptPolicyChangedNotification;
+GS_EXPORT NSString * const NSHTTPCookieManagerAcceptPolicyChangedNotification;
 
 /**
  * Posted when the set of cookies changes
  */
-extern NSString * const NSHTTPCookieManagerCookiesChangedNotification;
+GS_EXPORT NSString * const NSHTTPCookieManagerCookiesChangedNotification;
 
 
 /**
  * The NSHTTPCookieStorage class provides a shared instance which handles
  * the shared cookie store.<br />
  */
-
+GS_EXPORT_CLASS
 @interface NSHTTPCookieStorage :  NSObject
 {
 #if	GS_EXPOSE(NSHTTPCookieStorage)

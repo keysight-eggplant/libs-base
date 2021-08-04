@@ -34,13 +34,17 @@ extern "C" {
 
 @class NSTimer, NSDate, NSPort;
 
+typedef NSString* NSRunLoopMode;
+  
 /**
  * Run loop mode used to deal with input sources other than NSConnections or
  * dialog windows.  Most commonly used. Defined in
  * <code>Foundation/NSRunLoop.h</code>.
  */
-GS_EXPORT NSString * const NSDefaultRunLoopMode;
+GS_EXPORT NSRunLoopMode const NSDefaultRunLoopMode;
+GS_EXPORT NSRunLoopMode const NSRunLoopCommonModes;
 
+GS_EXPORT_CLASS
 @interface NSRunLoop : NSObject
 {
 #if	GS_EXPOSE(NSRunLoop)
@@ -124,7 +128,7 @@ GS_EXPORT NSString * const NSDefaultRunLoopMode;
  * run loop.
  */
 typedef	enum {
-#ifdef __MINGW__
+#ifdef _WIN32
     ET_HANDLE,	/* Watch for an I/O event on a handle.		*/
     ET_RPORT,	/* Watch for message arriving on port.		*/
     ET_WINMSG,	/* Watch for a message on a window handle.	*/

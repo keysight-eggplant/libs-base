@@ -75,6 +75,9 @@
 # include <sys/ndir.h>
 #elif defined(HAVE_NDIR_H)
 # include <ndir.h>
+#elif defined(_MSC_VER)
+// we provide our own version of dirent.h on Windows MSVC
+# include <win32/dirent.h>
 #endif
 
 #ifdef HAVE_WINDOWS_H
@@ -207,7 +210,6 @@
 #define	_STAT(A,B)	_wstat(A,B)
 #define	_UTIME(A,B)	_wutime(A,B)
 
-#define	_CHAR		unichar
 #define	_DIR		_WDIR
 #define	_DIRENT		_wdirent
 #define	_STATB		_stat
@@ -226,7 +228,6 @@
 #define	_STAT(A,B)	stat(A,B)
 #define	_UTIME(A,B)	utime(A,B)
 
-#define	_CHAR		char
 #define	_DIR		DIR
 #define	_DIRENT		dirent
 #define	_STATB		stat
@@ -236,6 +237,7 @@
 
 #endif
 
+#define	_CHAR		GSNativeChar
 #define	_CCP		const _CHAR*
 
 
@@ -569,11 +571,7 @@ static NSStringEncoding	defaultEncoding;
     {
       BOOL		ok = NO;
       struct _STATB	sb;
-#if  defined(_WIN32)
       const _CHAR *lpath;
-#else
-      const char  *lpath;
-#endif
 
       lpath = [self fileSystemRepresentationWithPath: path];
       if (_STAT(lpath, &sb) != 0)
@@ -588,7 +586,6 @@ static NSStringEncoding	defaultEncoding;
 #endif
       else
 	{
-	  NSTimeInterval ti = [date timeIntervalSince1970];
 #if  defined(_WIN32)
           FILETIME ctime;
 	  HANDLE fh;
@@ -605,13 +602,15 @@ static NSStringEncoding	defaultEncoding;
 	      ok = SetFileTime(fh, &ctime, NULL, NULL);
               CloseHandle(fh);
 	    }
+#else
+	  NSTimeInterval ti = [date timeIntervalSince1970];
 /* on Unix we try setting the creation date by setting the modification date earlier than the current one */
-#elif defined (HAVE_UTIMENSAT)
+#if defined (HAVE_UTIMENSAT)
           struct timespec ub[2];
 	  ub[0].tv_sec = 0;
 	  ub[0].tv_nsec = UTIME_OMIT; // we don't touch access time
-	  ub[1].tv_sec = truncl(ti);
-	  ub[1].tv_nsec = (ti - (double)ub[1].tv_sec) * 1.0e6;
+	  ub[1].tv_sec = (time_t)trunc(ti);
+	  ub[1].tv_nsec = (long)trunc((ti - trunc(ti)) * 1.0e9);
 
 	  ok = (utimensat(AT_FDCWD, lpath, ub, 0) == 0);
 #elif  defined(_POSIX_VERSION)
@@ -624,6 +623,7 @@ static NSStringEncoding	defaultEncoding;
 	  ub[0] = sb.st_atime;
 	  ub[1] = ti;
 	  ok = (_UTIME(lpath, ub) == 0);
+#endif
 #endif
 	}
       if (ok == NO)
@@ -659,8 +659,8 @@ static NSStringEncoding	defaultEncoding;
           struct timespec ub[2];
 	  ub[0].tv_sec = 0;
 	  ub[0].tv_nsec = UTIME_OMIT; // we don't touch access time
-	  ub[1].tv_sec = truncl(ti);
-	  ub[1].tv_nsec = (ti - (double)ub[1].tv_sec) * 1.0e6;
+	  ub[1].tv_sec = (time_t)trunc(ti);
+	  ub[1].tv_nsec = (long)trunc((ti - trunc(ti)) * 1.0e9);
 
 	  ok = (utimensat(AT_FDCWD, lpath, ub, 0) == 0);
 #elif  defined(_WIN32) || defined(_POSIX_VERSION)
@@ -1060,15 +1060,11 @@ static NSStringEncoding	defaultEncoding;
     }
   else
     {
-#if defined(_WIN32)
       const _CHAR   *lpath;
-          
       lpath = [self fileSystemRepresentationWithPath: path];
+#if defined(_WIN32)
       isDir = (CreateDirectoryW(lpath, 0) != FALSE) ? YES : NO;
 #else
-      const char    *lpath;
-
-      lpath = [self fileSystemRepresentationWithPath: path];
       isDir = (mkdir(lpath, 0777) == 0) ? YES : NO;
       if (YES == isDir)
         {
@@ -1122,12 +1118,12 @@ static NSStringEncoding	defaultEncoding;
 	       attributes: (NSDictionary*)attributes
 {
 #if	defined(_WIN32)
-  const _CHAR *lpath = [self fileSystemRepresentationWithPath: path];
+  const _CHAR	*lpath = [self fileSystemRepresentationWithPath: path];
   HANDLE fh;
   DWORD	written = 0;
   DWORD	len = [contents length];
 #else
-  const char	*lpath;
+  const _CHAR	*lpath;
   int	fd;
   int	len;
   int	written;
@@ -1239,7 +1235,7 @@ static NSStringEncoding	defaultEncoding;
 	}
     }
 #else
-  char path[PATH_MAX];
+  _CHAR path[PATH_MAX];
 #ifdef HAVE_GETCWD
   if (getcwd(path, PATH_MAX-1) == 0)
     return nil;
@@ -2286,7 +2282,7 @@ static NSStringEncoding	defaultEncoding;
 #endif
   unsigned long long totalsize, freesize;
   unsigned long blocksize;
-  const char* lpath = [self fileSystemRepresentationWithPath: path];
+  const _CHAR* lpath = [self fileSystemRepresentationWithPath: path];
 
   id  values[5];
   id	keys[5] = {
@@ -2493,8 +2489,8 @@ static NSStringEncoding	defaultEncoding;
 		      pathContent: (NSString*)otherPath
 {
 #ifdef HAVE_SYMLINK
-  const char* newpath = [self fileSystemRepresentationWithPath: path];
-  const char* oldpath = [self fileSystemRepresentationWithPath: otherPath];
+  const _CHAR* newpath = [self fileSystemRepresentationWithPath: path];
+  const _CHAR* oldpath = [self fileSystemRepresentationWithPath: otherPath];
 
   return (symlink(oldpath, newpath) == 0);
 #else
@@ -2511,7 +2507,7 @@ static NSStringEncoding	defaultEncoding;
 {
 #ifdef HAVE_READLINK
   char  buf[PATH_MAX];
-  const char* lpath = [self fileSystemRepresentationWithPath: path];
+  const _CHAR* lpath = [self fileSystemRepresentationWithPath: path];
   int   llen = readlink(lpath, buf, PATH_MAX-1);
 
   if (llen > 0)
@@ -2785,11 +2781,7 @@ static inline void gsedRelease(GSEnumeratedDirectory X)
     {
       GSEnumeratedDirectory dir = GSIArrayLastItem(_stack).ext;
       struct _STATB	statbuf;
-#if defined(_WIN32)
-      const wchar_t *dirname = NULL;
-#else
-      const char *dirname = NULL;
-#endif
+      const _CHAR *dirname = NULL;
 
 #ifdef __ANDROID__
       if (dir.assetDir)
@@ -3872,7 +3864,15 @@ static NSSet	*fileKeys = nil;
 
 - (NSDate*) fileModificationDate
 {
-  return [NSDate dateWithTimeIntervalSince1970: statbuf.st_mtime];
+  NSTimeInterval ti;
+
+#if defined (HAVE_STRUCT_STAT_ST_MTIM)
+  ti = statbuf.st_mtim.tv_sec + (double)statbuf.st_mtim.tv_nsec / 1.0e9;
+#else
+  ti = (double)statbuf.st_mtime;
+#endif
+
+  return [NSDate dateWithTimeIntervalSince1970: ti];
 }
 
 - (NSUInteger) filePosixPermissions
@@ -4040,11 +4040,15 @@ static NSSet	*fileKeys = nil;
       case S_IFREG: return NSFileTypeRegular;
       case S_IFDIR: return NSFileTypeDirectory;
       case S_IFCHR: return NSFileTypeCharacterSpecial;
+#if defined(S_IFBLK) && !defined(_WIN32)
       case S_IFBLK: return NSFileTypeBlockSpecial;
-#ifdef S_IFLNK
+#endif
+#if defined(S_IFLNK) && !defined(_WIN32)
       case S_IFLNK: return NSFileTypeSymbolicLink;
 #endif
+#ifdef S_IFIFO
       case S_IFIFO: return NSFileTypeFifo;
+#endif
 #ifdef S_IFSOCK
       case S_IFSOCK: return NSFileTypeSocket;
 #endif
@@ -4153,36 +4157,3 @@ static NSSet	*fileKeys = nil;
   return val;
 }
 @end
-
-NSString * const NSFileAppendOnly = @"NSFileAppendOnly";
-NSString * const NSFileCreationDate = @"NSFileCreationDate";
-NSString * const NSFileDeviceIdentifier = @"NSFileDeviceIdentifier";
-NSString * const NSFileExtensionHidden = @"NSFileExtensionHidden";
-NSString * const NSFileGroupOwnerAccountID = @"NSFileGroupOwnerAccountID";
-NSString * const NSFileGroupOwnerAccountName = @"NSFileGroupOwnerAccountName";
-NSString * const NSFileHFSCreatorCode = @"NSFileHFSCreatorCode";
-NSString * const NSFileHFSTypeCode = @"NSFileHFSTypeCode";
-NSString * const NSFileImmutable = @"NSFileImmutable";
-NSString * const NSFileModificationDate = @"NSFileModificationDate";
-NSString * const NSFileOwnerAccountID = @"NSFileOwnerAccountID";
-NSString * const NSFileOwnerAccountName = @"NSFileOwnerAccountName";
-NSString * const NSFilePosixPermissions = @"NSFilePosixPermissions";
-NSString * const NSFileReferenceCount = @"NSFileReferenceCount";
-NSString * const NSFileSize = @"NSFileSize";
-NSString * const NSFileSystemFileNumber = @"NSFileSystemFileNumber";
-NSString * const NSFileSystemFreeNodes = @"NSFileSystemFreeNodes";
-NSString * const NSFileSystemFreeSize = @"NSFileSystemFreeSize";
-NSString * const NSFileSystemNodes = @"NSFileSystemNodes";
-NSString * const NSFileSystemNumber = @"NSFileSystemNumber";
-NSString * const NSFileSystemSize = @"NSFileSystemSize";
-NSString * const NSFileType = @"NSFileType";
-NSString * const NSFileTypeBlockSpecial = @"NSFileTypeBlockSpecial";
-NSString * const NSFileTypeCharacterSpecial = @"NSFileTypeCharacterSpecial";
-NSString * const NSFileTypeDirectory = @"NSFileTypeDirectory";
-NSString * const NSFileTypeFifo = @"NSFileTypeFifo";
-NSString * const NSFileTypeRegular = @"NSFileTypeRegular";
-NSString * const NSFileTypeSocket = @"NSFileTypeSocket";
-NSString * const NSFileTypeSymbolicLink = @"NSFileTypeSymbolicLink";
-NSString * const NSFileTypeUnknown = @"NSFileTypeUnknown";
-
-

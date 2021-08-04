@@ -57,11 +57,6 @@
 
 #import "GSPrivate.h"
 
-/* Constants */
-NSString * const NSBundleDidLoadNotification = @"NSBundleDidLoadNotification";
-NSString * const NSShowNonLocalizedStrings = @"NSShowNonLocalizedStrings";
-NSString * const NSLoadedClasses = @"NSLoadedClasses";
-
 static NSFileManager	*
 manager()
 {
@@ -1071,7 +1066,6 @@ _bundle_load_callback(Class theClass, struct objc_category *theCategory)
 {
   if (self == [NSBundle class])
     {
-      extern const char	*GSPathHandling(const char *);
       NSAutoreleasePool *pool = [NSAutoreleasePool new];
       NSString          *file;
       const char	*mode;

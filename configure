@@ -632,6 +632,8 @@ WARN_FLAGS
 LDIR_FLAGS
 INCLUDE_FLAGS
 USE_GMP
+GS_HAVE_NSURLSESSION
+HAVE_LIBCURL
 HAVE_LIBDISPATCH_RUNLOOP
 HAVE_LIBDISPATCH
 HAVE_ICU
@@ -645,6 +647,8 @@ TLS_CFLAGS
 TLS_CONFIG
 HAVE_LIBXML
 HAVE_LIBXSLT
+XSLT_LIBS
+XSLT_CFLAGS
 XML_CONFIG
 XML2_CONFIG
 XML_LIBS
@@ -678,9 +682,12 @@ NX_CONST_STRING_CLASS
 NX_CONST_STRING_OBJCFLAGS
 GS_HAVE_OBJC_ROOT_CLASS_ATTR
 GS_ALIGNOF_COND_T
+GS_ALIGNOF_COND_MUTEX_T
 GS_ALIGNOF_MUTEX_T
 GS_SIZEOF_COND_T
+GS_SIZEOF_COND_MUTEX_T
 GS_SIZEOF_MUTEX_T
+HAVE_WIN32_THREADS_AND_LOCKS
 DYNAMIC_LINKER
 BUGGY_PTR_LIMITS
 GS_UINTPTR_MAX
@@ -820,6 +827,10 @@ enable_zeroconf
 with_zeroconf_api
 enable_icu
 enable_libdispatch
+with_dispatch_include
+with_dispatch_library
+with_curl
+enable_nsurlsession
 with_gmp_include
 with_gmp_library
 with_gdomap_port
@@ -839,6 +850,8 @@ PKG_CONFIG_PATH
 PKG_CONFIG_LIBDIR
 XML_CFLAGS
 XML_LIBS
+XSLT_CFLAGS
+XSLT_LIBS
 ICU_CFLAGS
 ICU_LIBS'
 
@@ -1500,6 +1513,7 @@ Optional Features:
   --disable-zeroconf		Disable NSNetServices support
   --disable-icu			Disable International Components for Unicode
   --disable-libdispatch		Disable dispatching blocks via libdispatch
+  --disable-nsurlsession  		Disable support for NSURLSession
 
   --enable-setuid-gdomap        Enable installing gdomap as a setuid
                                 executable.  By default, it is installed
@@ -1571,6 +1585,9 @@ Optional Packages:
   --with-xml-prefix=PFX    Prefix where libxml is installed (optional)
   --with-tls-prefix=PFX    Prefix where libgnutls is installed (optional)
   --with-zeroconf-api=API  force use of a specific zeroconf API (mdns or avahi)
+  --with-dispatch-include=PATH       Include path for dispatch header
+  --with-dispatch-library=PATH       Library path for dispatch lib
+  --with-curl=<DIR>       use curl installed in directory <DIR>
   --with-gmp-include=PATH  include path for gmp headers
   --with-gmp-library=PATH  library path for gmp libraries
   --with-gdomap-port=PORT  alternative port for gdomap
@@ -1591,6 +1608,8 @@ Some influential environment variables:
               path overriding pkg-config's built-in search path
   XML_CFLAGS  C compiler flags for XML, overriding pkg-config
   XML_LIBS    linker flags for XML, overriding pkg-config
+  XSLT_CFLAGS C compiler flags for XSLT, overriding pkg-config
+  XSLT_LIBS   linker flags for XSLT, overriding pkg-config
   ICU_CFLAGS  C compiler flags for ICU, overriding pkg-config
   ICU_LIBS    linker flags for ICU, overriding pkg-config
 
@@ -2998,7 +3017,7 @@ then
 fi
 if test x"$GNUSTEP_TARGET_CONFIG_FILE" = x""; then
   case "$target_os" in
-    mingw*)
+    mingw*|windows)
       GNUSTEP_TARGET_CONFIG_FILE=./GNUstep.conf ;;
     *)
       GNUSTEP_TARGET_CONFIG_FILE="$GNUSTEP_MAKE_CONFIG" ;;
@@ -3016,7 +3035,7 @@ $as_echo "$GNUSTEP_TARGET_CONFIG_FILE" >&6; }
 # location (used by gnustep-make when building).
 #-----------------------------------------------------------------
 case "$target_os" in
-    mingw*)	enable_env_config=no;;
+    mingw*|windows)	enable_env_config=no;;
     *)		enable_env_config=yes;;
 esac
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the GNUstep.conf file path can be set in the environment" >&5
@@ -3296,7 +3315,7 @@ GNUSTEP_BASE_DOMAIN=$result
 # paths (relative to libgnustep-base.dll).
 #
 case "$target_os" in
-  mingw*)
+  mingw*|windows)
     # TODO: Improve this hack.
     # According to Wikipedia, this is the default for Windows 2000,
     # Windows XP and Windows Server 2003.  For Windows Vista this will
@@ -6052,7 +6071,7 @@ else
 fi
 
 if test -f "$GNUSTEP_HDIR/objc/objc.h"; then
-  if test -f "$GNUSTEP_LDIR/libobjc.a" -o -f "$GNUSTEP_LDIR/libobjc.so" -o -f "$GNUSTEP_LDIR/libobjc.dll.a" -o -f "$GNUSTEP_LDIR/libobjc-gnu.dylib" -o -f "$GNUSTEP_LDIR/libobjc_gc.a" -o -f "$GNUSTEP_LDIR/libobjc_gc.so" -o -f "$GNUSTEP_LDIR/libobjc_gc.dll.a" -o -f "$GNUSTEP_LDIR/libobjc_gc-gnu.dylib"; then
+  if test -f "$GNUSTEP_LDIR/libobjc.a" -o -f "$GNUSTEP_LDIR/libobjc.so" -o -f "$GNUSTEP_LDIR/libobjc.dll.a" -o -f "$GNUSTEP_LDIR/libobjc-gnu.dylib" -o -f "$GNUSTEP_LDIR/objc.lib"; then
     gs_cv_objc_libdir="$GNUSTEP_LDIR"
     gs_cv_objc_incdir="$GNUSTEP_HDIR"
   fi
@@ -6069,7 +6088,7 @@ else
 fi
 
 if test -f "$GNUSTEP_HDIR/objc/objc.h"; then
-  if test -f "$GNUSTEP_LDIR/libobjc.a" -o -f "$GNUSTEP_LDIR/libobjc.so" -o -f "$GNUSTEP_LDIR/libobjc.dll.a" -o -f "$GNUSTEP_LDIR/libobjc-gnu.dylib" -o -f "$GNUSTEP_LDIR/libobjc_gc.a" -o -f "$GNUSTEP_LDIR/libobjc_gc.so" -o -f "$GNUSTEP_LDIR/libobjc_gc.dll.a" -o -f "$GNUSTEP_LDIR/libobjc_gc-gnu.dylib"; then
+  if test -f "$GNUSTEP_LDIR/libobjc.a" -o -f "$GNUSTEP_LDIR/libobjc.so" -o -f "$GNUSTEP_LDIR/libobjc.dll.a" -o -f "$GNUSTEP_LDIR/libobjc-gnu.dylib" -o -f "$GNUSTEP_LDIR/objc.lib"; then
     gs_cv_objc_libdir="$GNUSTEP_LDIR"
     gs_cv_objc_incdir="$GNUSTEP_HDIR"
   fi
@@ -6086,7 +6105,7 @@ else
 fi
 
 if test -f "$GNUSTEP_HDIR/objc/objc.h"; then
-  if test -f "$GNUSTEP_LDIR/libobjc.a" -o -f "$GNUSTEP_LDIR/libobjc.so" -o -f "$GNUSTEP_LDIR/libobjc.dll.a" -o -f "$GNUSTEP_LDIR/libobjc-gnu.dylib" -o -f "$GNUSTEP_LDIR/libobjc_gc.a" -o -f "$GNUSTEP_LDIR/libobjc_gc.so" -o -f "$GNUSTEP_LDIR/libobjc_gc.dll.a" -o -f "$GNUSTEP_LDIR/libobjc_gc-gnu.dylib"; then
+  if test -f "$GNUSTEP_LDIR/libobjc.a" -o -f "$GNUSTEP_LDIR/libobjc.so" -o -f "$GNUSTEP_LDIR/libobjc.dll.a" -o -f "$GNUSTEP_LDIR/libobjc-gnu.dylib" -o -f "$GNUSTEP_LDIR/objc.lib"; then
     gs_cv_objc_libdir="$GNUSTEP_LDIR"
     gs_cv_objc_incdir="$GNUSTEP_HDIR"
   fi
@@ -6106,6 +6125,11 @@ if test "$gs_cv_objc_libdir" != "NONE"; then
   LDIR_FLAGS="$LDIR_FLAGS -L$gs_cv_objc_libdir/$LIBRARY_COMBO -L$gs_cv_objc_libdir"
   CPPFLAGS="$CPPFLAGS -I$gs_cv_objc_incdir"
   LDFLAGS="$LDFLAGS -L$gs_cv_objc_libdir"
+
+  # add to path on Windows for config checks to find DLL at runtime
+  case $host_os in
+    mingw*|windows) PATH=$PATH:$gs_cv_objc_libdir;;
+  esac
 fi
 
 #--------------------------------------------------------------------
@@ -7237,9 +7261,38 @@ done
 
 
 #--------------------------------------------------------------------
+# Windows: check if we have native threading APIs and SRW locks
+#--------------------------------------------------------------------
+HAVE_WIN32_THREADS_AND_LOCKS=0
+case "$target_os" in
+  mingw*|windows)
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for native Windows threads and locks" >&5
+$as_echo_n "checking for native Windows threads and locks... " >&6; }
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+        #define GS_USE_WIN32_THREADS_AND_LOCKS 1
+        #include "$srcdir/Source/GSPThread.h"
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+      HAVE_WIN32_THREADS_AND_LOCKS=1
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+    ;;
+esac
+
+
+#--------------------------------------------------------------------
 # Check for pthread.h
 #--------------------------------------------------------------------
-for ac_header in pthread.h
+if test $HAVE_WIN32_THREADS_AND_LOCKS = 0; then
+  for ac_header in pthread.h
 do :
   ac_fn_c_check_header_mongrel "$LINENO" "pthread.h" "ac_cv_header_pthread_h" "$ac_includes_default"
 if test "x$ac_cv_header_pthread_h" = xyes; then :
@@ -7251,12 +7304,12 @@ fi
 
 done
 
-for ac_header in pthread_np.h
+  for ac_header in pthread_np.h
 do :
   ac_fn_c_check_header_compile "$LINENO" "pthread_np.h" "ac_cv_header_pthread_np_h" "$ac_includes_default
-		  #ifdef HAVE_PTHREAD_H
-		  #include <pthread.h>
-		  #endif
+    #ifdef HAVE_PTHREAD_H
+    #include <pthread.h>
+    #endif
 
 "
 if test "x$ac_cv_header_pthread_np_h" = xyes; then :
@@ -7268,8 +7321,8 @@ fi
 
 done
 
-if test $ac_cv_header_pthread_h = yes ; then
-  # The cast to long int works around a bug in the HP C Compiler
+  if test $ac_cv_header_pthread_h = yes ; then
+    # The cast to long int works around a bug in the HP C Compiler
 # version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
 # declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
 # This bug is HP SR number 8606223364.
@@ -7279,7 +7332,7 @@ if ${ac_cv_sizeof_pthread_mutex_t+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (pthread_mutex_t))" "ac_cv_sizeof_pthread_mutex_t"        "$ac_includes_default
-#include <pthread.h>
+      #include <pthread.h>
 "; then :
 
 else
@@ -7304,27 +7357,31 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
-  GS_SIZEOF_MUTEX_T=$ac_cv_sizeof_pthread_mutex_t
-  if test $ac_cv_sizeof_pthread_mutex_t = 0 ; then
-    as_fn_error $? "Unable to find size of pthread_mutex_t (required)." "$LINENO" 5
-  fi
+    GS_SIZEOF_MUTEX_T=$ac_cv_sizeof_pthread_mutex_t
+    if test $ac_cv_sizeof_pthread_mutex_t = 0 ; then
+      as_fn_error $? "Unable to find size of pthread_mutex_t (required)." "$LINENO" 5
+    fi
 
-# pthread_mutex_t.__data.__owner is non-standard since pthread_mutex_t is
-# nominally an opaque type.  We must not rely on this for anything other
-# than debug output!
-  ac_fn_c_check_member "$LINENO" "pthread_mutex_t" "__data.__owner" "ac_cv_member_pthread_mutex_t___data___owner" "$ac_includes_default
-#include <pthread.h>
+    GS_SIZEOF_COND_MUTEX_T=$ac_cv_sizeof_pthread_mutex_t
+
+
+    # pthread_mutex_t.__data.__owner is non-standard since pthread_mutex_t is
+    # nominally an opaque type.  We must not rely on this for anything other
+    # than debug output!
+    ac_fn_c_check_member "$LINENO" "pthread_mutex_t" "__data.__owner" "ac_cv_member_pthread_mutex_t___data___owner" "$ac_includes_default
+      #include <pthread.h>
 "
 if test "x$ac_cv_member_pthread_mutex_t___data___owner" = xyes; then :
 
 fi
 
-  if test $ac_cv_member_pthread_mutex_t___data___owner = yes ; then
+    if test $ac_cv_member_pthread_mutex_t___data___owner = yes ; then
 
 $as_echo "#define HAVE_PTHREAD_MUTEX_OWNER 1" >>confdefs.h
 
-  fi
-  # The cast to long int works around a bug in the HP C Compiler
+    fi
+
+    # The cast to long int works around a bug in the HP C Compiler
 # version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
 # declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
 # This bug is HP SR number 8606223364.
@@ -7334,7 +7391,7 @@ if ${ac_cv_sizeof_pthread_cond_t+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (pthread_cond_t))" "ac_cv_sizeof_pthread_cond_t"        "$ac_includes_default
-#include <pthread.h>
+      #include <pthread.h>
 "; then :
 
 else
@@ -7359,12 +7416,13 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
-  if test $ac_cv_sizeof_pthread_cond_t = 0 ; then
-    as_fn_error $? "Unable to find size of pthread_cond_t (required)." "$LINENO" 5
-  fi
-  GS_SIZEOF_COND_T=$ac_cv_sizeof_pthread_cond_t
+    if test $ac_cv_sizeof_pthread_cond_t = 0 ; then
+      as_fn_error $? "Unable to find size of pthread_cond_t (required)." "$LINENO" 5
+    fi
+    GS_SIZEOF_COND_T=$ac_cv_sizeof_pthread_cond_t
 
-  # The cast to long int works around a bug in the HP C Compiler,
+
+    # The cast to long int works around a bug in the HP C Compiler,
 # see AC_CHECK_SIZEOF for more information.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking alignment of pthread_mutex_t" >&5
 $as_echo_n "checking alignment of pthread_mutex_t... " >&6; }
@@ -7372,7 +7430,7 @@ if ${ac_cv_alignof_pthread_mutex_t+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   if ac_fn_c_compute_int "$LINENO" "(long int) offsetof (ac__type_alignof_, y)" "ac_cv_alignof_pthread_mutex_t"        "$ac_includes_default
-#include <pthread.h>
+      #include <pthread.h>
 
 #ifndef offsetof
 # define offsetof(type, member) ((char *) &((type *) 0)->member - (char *) 0)
@@ -7401,12 +7459,15 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
-  GS_ALIGNOF_MUTEX_T=$ac_cv_alignof_pthread_mutex_t
-  if test $ac_cv_alignof_pthread_mutex_t = 0 ; then
-    as_fn_error $? "Unable to find align of pthread_mutex_t (required)." "$LINENO" 5
-  fi
+    GS_ALIGNOF_MUTEX_T=$ac_cv_alignof_pthread_mutex_t
+    if test $ac_cv_alignof_pthread_mutex_t = 0 ; then
+      as_fn_error $? "Unable to find align of pthread_mutex_t (required)." "$LINENO" 5
+    fi
 
-  # The cast to long int works around a bug in the HP C Compiler,
+    GS_ALIGNOF_COND_MUTEX_T=$ac_cv_alignof_pthread_mutex_t
+
+
+    # The cast to long int works around a bug in the HP C Compiler,
 # see AC_CHECK_SIZEOF for more information.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking alignment of pthread_cond_t" >&5
 $as_echo_n "checking alignment of pthread_cond_t... " >&6; }
@@ -7414,7 +7475,7 @@ if ${ac_cv_alignof_pthread_cond_t+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   if ac_fn_c_compute_int "$LINENO" "(long int) offsetof (ac__type_alignof_, y)" "ac_cv_alignof_pthread_cond_t"        "$ac_includes_default
-#include <pthread.h>
+      #include <pthread.h>
 
 #ifndef offsetof
 # define offsetof(type, member) ((char *) &((type *) 0)->member - (char *) 0)
@@ -7443,15 +7504,15 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
-  if test $ac_cv_alignof_pthread_cond_t = 0 ; then
-    as_fn_error $? "Unable to find align of pthread_cond_t (required)." "$LINENO" 5
-  fi
-  GS_ALIGNOF_COND_T=$ac_cv_alignof_pthread_cond_t
+    if test $ac_cv_alignof_pthread_cond_t = 0 ; then
+      as_fn_error $? "Unable to find align of pthread_cond_t (required)." "$LINENO" 5
+    fi
+    GS_ALIGNOF_COND_T=$ac_cv_alignof_pthread_cond_t
 
-else
-  as_fn_error $? "Unable to find pthread.h (needed for thread support)." "$LINENO" 5
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for pthread_join in -lpthread" >&5
+  else
+    as_fn_error $? "Unable to find pthread.h (needed for thread support)." "$LINENO" 5
+  fi
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pthread_join in -lpthread" >&5
 $as_echo_n "checking for pthread_join in -lpthread... " >&6; }
 if ${ac_cv_lib_pthread_pthread_join+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -7493,19 +7554,13 @@ else
   pthread_ok=no
 fi
 
-ismingw=no
-checkinlibc=no
-case "$target_os" in
-  mingw*)	ismingw=yes;;
-  nto*)		checkinlibc=yes;;
-  qnx*)		checkinlibc=yes;;
-  *android*)   checkinlibc=yes;;
-esac
-if test $pthread_ok = yes ; then
-  LIBS="$LIBS -lpthread"
-else
-  if test $ismingw = yes ; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pthread_join in -lpthreadGC2" >&5
+
+  if test $pthread_ok = yes ; then
+    LIBS="$LIBS -lpthread"
+  else
+    case "$target_os" in
+      mingw*)
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pthread_join in -lpthreadGC2" >&5
 $as_echo_n "checking for pthread_join in -lpthreadGC2... " >&6; }
 if ${ac_cv_lib_pthreadGC2_pthread_join+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -7547,13 +7602,60 @@ else
   pthread_ok=no
 fi
 
-    if test $pthread_ok = yes ; then
-      LIBS="$LIBS -lpthreadGC2"
-    fi
-  fi
-  # Android and QNX have pthread in libc instead of libpthread
-  if test $checkinlibc = yes ; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pthread_join in -lc" >&5
+        if test $pthread_ok = yes ; then
+          LIBS="$LIBS -lpthreadGC2"
+        fi
+        ;;
+      windows)
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pthread_join in -lpthreadVC2" >&5
+$as_echo_n "checking for pthread_join in -lpthreadVC2... " >&6; }
+if ${ac_cv_lib_pthreadVC2_pthread_join+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lpthreadVC2  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char pthread_join ();
+int
+main ()
+{
+return pthread_join ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_pthreadVC2_pthread_join=yes
+else
+  ac_cv_lib_pthreadVC2_pthread_join=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_pthreadVC2_pthread_join" >&5
+$as_echo "$ac_cv_lib_pthreadVC2_pthread_join" >&6; }
+if test "x$ac_cv_lib_pthreadVC2_pthread_join" = xyes; then :
+  pthread_ok=yes
+else
+  pthread_ok=no
+fi
+
+        if test $pthread_ok = yes ; then
+          LIBS="$LIBS -lpthreadVC2"
+        fi
+        ;;
+      nto*|qnx*|*android*)
+        # Android and QNX have pthread in libc instead of libpthread
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pthread_join in -lc" >&5
 $as_echo_n "checking for pthread_join in -lc... " >&6; }
 if ${ac_cv_lib_c_pthread_join+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -7595,17 +7697,18 @@ else
   pthread_ok=no
 fi
 
-    if test $pthread_ok = yes ; then
-       LIBS="$LIBS -lc"
-    fi
+        if test $pthread_ok = yes ; then
+           LIBS="$LIBS -lc"
+        fi
+        ;;
+    esac
   fi
-fi
-if test $pthread_ok = no ; then
-  as_fn_error $? "Unable to find pthread library (needed for thread support)." "$LINENO" 5
-fi
+  if test $pthread_ok = no ; then
+    as_fn_error $? "Unable to find pthread library (needed for thread support)." "$LINENO" 5
+  fi
 
-# Check threading extensions
-for ac_func in pthread_getthreadid_np pthread_main_np
+  # Check threading extensions
+  for ac_func in pthread_getthreadid_np pthread_main_np
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
@@ -7618,8 +7721,8 @@ fi
 done
 
 
-# Typically need librt on Solaris for sched_yield
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for sched_yield in -lrt" >&5
+  # Typically need librt on Solaris for sched_yield
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for sched_yield in -lrt" >&5
 $as_echo_n "checking for sched_yield in -lrt... " >&6; }
 if ${ac_cv_lib_rt_sched_yield+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -7665,62 +7768,8 @@ _ACEOF
 fi
 
 
-
-#--------------------------------------------------------------------
-# One of these function needed by NSThread.m and objc initialize test
-#--------------------------------------------------------------------
-for ac_func in nanosleep usleep Sleep
-do :
-  as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
-ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
-if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
-  cat >>confdefs.h <<_ACEOF
-#define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
-_ACEOF
-
-fi
-done
-
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for objc_root_class attribute support" >&5
-$as_echo_n "checking for objc_root_class attribute support... " >&6; }
-saved_CFLAGS="$CFLAGS"
-CFLAGS="$CFLAGS -Werror $OBJCFLAGS -x objective-c"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-  __attribute__((objc_root_class)) @interface RootObject
-  @end
-  @implementation RootObject
-  @end
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: found" >&5
-$as_echo "found" >&6; }
-  gs_objc_root_class_attr=1
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not present" >&5
-$as_echo "not present" >&6; }
-  gs_objc_root_class_attr=0
-
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-
-GS_HAVE_OBJC_ROOT_CLASS_ATTR=$gs_objc_root_class_attr
-
-
-cat >>confdefs.h <<_ACEOF
-#define HAVE_OBJC_ROOT_CLASS_ATTRIBUTE $gs_objc_root_class_attr
-_ACEOF
-
-CFLAGS=$saved_CFLAGS
-
-
-#--------------------------------------------------------------------
-# Check if we can name pthreads
-#--------------------------------------------------------------------
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for pthread_setname_np()" >&5
+  # Check if we can name pthreads
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pthread_setname_np()" >&5
 $as_echo_n "checking for pthread_setname_np()... " >&6; }
 if ${gs_cv_pthread_setname_np+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -7780,28 +7829,26 @@ rm -f core conftest.err conftest.$ac_objext \
 fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $gs_cv_pthread_setname_np" >&5
 $as_echo "$gs_cv_pthread_setname_np" >&6; }
-case $gs_cv_pthread_setname_np in
-  darwin)
+  case $gs_cv_pthread_setname_np in
+    darwin)
 
 $as_echo "#define PTHREAD_SETNAME(a) pthread_setname_np(a)" >>confdefs.h
 
-    ;;
-  glibc)
+      ;;
+    glibc)
 
 $as_echo "#define PTHREAD_SETNAME(a) pthread_setname_np(pthread_self(),a)" >>confdefs.h
 
-    ;;
-  netbsd)
+      ;;
+    netbsd)
 
 $as_echo "#define PTHREAD_SETNAME(a) pthread_setname_np(pthread_self(),\"%s\",a)" >>confdefs.h
 
-    ;;
-esac
+      ;;
+  esac
 
-#--------------------------------------------------------------------
-# Check if we have spinlock support
-#--------------------------------------------------------------------
-for ac_func in pthread_spin_lock
+  # Check if we have spinlock support
+  for ac_func in pthread_spin_lock
 do :
   ac_fn_c_check_func "$LINENO" "pthread_spin_lock" "ac_cv_func_pthread_spin_lock"
 if test "x$ac_cv_func_pthread_spin_lock" = xyes; then :
@@ -7812,6 +7859,315 @@ _ACEOF
 fi
 done
 
+fi
+
+#--------------------------------------------------------------------
+# Check Win32 lock sizes
+#--------------------------------------------------------------------
+if test $HAVE_WIN32_THREADS_AND_LOCKS = 1; then
+  # The cast to long int works around a bug in the HP C Compiler
+# version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
+# declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
+# This bug is HP SR number 8606223364.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking size of gs_mutex_t" >&5
+$as_echo_n "checking size of gs_mutex_t... " >&6; }
+if ${ac_cv_sizeof_gs_mutex_t+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (gs_mutex_t))" "ac_cv_sizeof_gs_mutex_t"        "$ac_includes_default
+    #define GS_USE_WIN32_THREADS_AND_LOCKS 1
+    #include \"Source/GSPThread.h\"
+"; then :
+
+else
+  if test "$ac_cv_type_gs_mutex_t" = yes; then
+     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error 77 "cannot compute sizeof (gs_mutex_t)
+See \`config.log' for more details" "$LINENO" 5; }
+   else
+     ac_cv_sizeof_gs_mutex_t=0
+   fi
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof_gs_mutex_t" >&5
+$as_echo "$ac_cv_sizeof_gs_mutex_t" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define SIZEOF_GS_MUTEX_T $ac_cv_sizeof_gs_mutex_t
+_ACEOF
+
+
+  GS_SIZEOF_MUTEX_T=$ac_cv_sizeof_gs_mutex_t
+  if test $ac_cv_sizeof_gs_mutex_t = 0 ; then
+    as_fn_error $? "Unable to find size of gs_mutex_t (required)." "$LINENO" 5
+  fi
+
+
+  # The cast to long int works around a bug in the HP C Compiler,
+# see AC_CHECK_SIZEOF for more information.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking alignment of gs_mutex_t" >&5
+$as_echo_n "checking alignment of gs_mutex_t... " >&6; }
+if ${ac_cv_alignof_gs_mutex_t+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(long int) offsetof (ac__type_alignof_, y)" "ac_cv_alignof_gs_mutex_t"        "$ac_includes_default
+    #define GS_USE_WIN32_THREADS_AND_LOCKS 1
+    #include \"Source/GSPThread.h\"
+
+#ifndef offsetof
+# define offsetof(type, member) ((char *) &((type *) 0)->member - (char *) 0)
+#endif
+typedef struct { char x; gs_mutex_t y; } ac__type_alignof_;"; then :
+
+else
+  if test "$ac_cv_type_gs_mutex_t" = yes; then
+     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error 77 "cannot compute alignment of gs_mutex_t
+See \`config.log' for more details" "$LINENO" 5; }
+   else
+     ac_cv_alignof_gs_mutex_t=0
+   fi
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_alignof_gs_mutex_t" >&5
+$as_echo "$ac_cv_alignof_gs_mutex_t" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define ALIGNOF_GS_MUTEX_T $ac_cv_alignof_gs_mutex_t
+_ACEOF
+
+
+  GS_ALIGNOF_MUTEX_T=$ac_cv_alignof_gs_mutex_t
+  if test $ac_cv_alignof_gs_mutex_t = 0 ; then
+    as_fn_error $? "Unable to find align of gs_mutex_t (required)." "$LINENO" 5
+  fi
+
+
+  # The cast to long int works around a bug in the HP C Compiler
+# version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
+# declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
+# This bug is HP SR number 8606223364.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking size of CONDITION_VARIABLE" >&5
+$as_echo_n "checking size of CONDITION_VARIABLE... " >&6; }
+if ${ac_cv_sizeof_CONDITION_VARIABLE+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (CONDITION_VARIABLE))" "ac_cv_sizeof_CONDITION_VARIABLE"        "$ac_includes_default
+    #include <windows.h>
+"; then :
+
+else
+  if test "$ac_cv_type_CONDITION_VARIABLE" = yes; then
+     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error 77 "cannot compute sizeof (CONDITION_VARIABLE)
+See \`config.log' for more details" "$LINENO" 5; }
+   else
+     ac_cv_sizeof_CONDITION_VARIABLE=0
+   fi
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof_CONDITION_VARIABLE" >&5
+$as_echo "$ac_cv_sizeof_CONDITION_VARIABLE" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define SIZEOF_CONDITION_VARIABLE $ac_cv_sizeof_CONDITION_VARIABLE
+_ACEOF
+
+
+  GS_SIZEOF_COND_T=$ac_cv_sizeof_CONDITION_VARIABLE
+  if test $ac_cv_sizeof_CONDITION_VARIABLE = 0 ; then
+    as_fn_error $? "Unable to find size of CONDITION_VARIABLE (required)." "$LINENO" 5
+  fi
+
+
+  # The cast to long int works around a bug in the HP C Compiler,
+# see AC_CHECK_SIZEOF for more information.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking alignment of CONDITION_VARIABLE" >&5
+$as_echo_n "checking alignment of CONDITION_VARIABLE... " >&6; }
+if ${ac_cv_alignof_CONDITION_VARIABLE+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(long int) offsetof (ac__type_alignof_, y)" "ac_cv_alignof_CONDITION_VARIABLE"        "$ac_includes_default
+    #include <windows.h>
+
+#ifndef offsetof
+# define offsetof(type, member) ((char *) &((type *) 0)->member - (char *) 0)
+#endif
+typedef struct { char x; CONDITION_VARIABLE y; } ac__type_alignof_;"; then :
+
+else
+  if test "$ac_cv_type_CONDITION_VARIABLE" = yes; then
+     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error 77 "cannot compute alignment of CONDITION_VARIABLE
+See \`config.log' for more details" "$LINENO" 5; }
+   else
+     ac_cv_alignof_CONDITION_VARIABLE=0
+   fi
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_alignof_CONDITION_VARIABLE" >&5
+$as_echo "$ac_cv_alignof_CONDITION_VARIABLE" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define ALIGNOF_CONDITION_VARIABLE $ac_cv_alignof_CONDITION_VARIABLE
+_ACEOF
+
+
+  GS_ALIGNOF_COND_T=$ac_cv_alignof_CONDITION_VARIABLE
+  if test $ac_cv_alignof_CONDITION_VARIABLE = 0 ; then
+    as_fn_error $? "Unable to find align of CONDITION_VARIABLE (required)." "$LINENO" 5
+  fi
+
+
+  # The cast to long int works around a bug in the HP C Compiler
+# version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
+# declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
+# This bug is HP SR number 8606223364.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking size of SRWLOCK" >&5
+$as_echo_n "checking size of SRWLOCK... " >&6; }
+if ${ac_cv_sizeof_SRWLOCK+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (SRWLOCK))" "ac_cv_sizeof_SRWLOCK"        "$ac_includes_default
+    #include <windows.h>
+"; then :
+
+else
+  if test "$ac_cv_type_SRWLOCK" = yes; then
+     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error 77 "cannot compute sizeof (SRWLOCK)
+See \`config.log' for more details" "$LINENO" 5; }
+   else
+     ac_cv_sizeof_SRWLOCK=0
+   fi
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof_SRWLOCK" >&5
+$as_echo "$ac_cv_sizeof_SRWLOCK" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define SIZEOF_SRWLOCK $ac_cv_sizeof_SRWLOCK
+_ACEOF
+
+
+  GS_SIZEOF_COND_MUTEX_T=$ac_cv_sizeof_SRWLOCK
+  if test $ac_cv_sizeof_SRWLOCK = 0 ; then
+    as_fn_error $? "Unable to find size of SRWLOCK (required)." "$LINENO" 5
+  fi
+
+
+  # The cast to long int works around a bug in the HP C Compiler,
+# see AC_CHECK_SIZEOF for more information.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking alignment of SRWLOCK" >&5
+$as_echo_n "checking alignment of SRWLOCK... " >&6; }
+if ${ac_cv_alignof_SRWLOCK+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(long int) offsetof (ac__type_alignof_, y)" "ac_cv_alignof_SRWLOCK"        "$ac_includes_default
+    #include <windows.h>
+
+#ifndef offsetof
+# define offsetof(type, member) ((char *) &((type *) 0)->member - (char *) 0)
+#endif
+typedef struct { char x; SRWLOCK y; } ac__type_alignof_;"; then :
+
+else
+  if test "$ac_cv_type_SRWLOCK" = yes; then
+     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error 77 "cannot compute alignment of SRWLOCK
+See \`config.log' for more details" "$LINENO" 5; }
+   else
+     ac_cv_alignof_SRWLOCK=0
+   fi
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_alignof_SRWLOCK" >&5
+$as_echo "$ac_cv_alignof_SRWLOCK" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define ALIGNOF_SRWLOCK $ac_cv_alignof_SRWLOCK
+_ACEOF
+
+
+  GS_ALIGNOF_COND_MUTEX_T=$ac_cv_alignof_SRWLOCK
+  if test $ac_cv_alignof_SRWLOCK = 0 ; then
+    as_fn_error $? "Unable to find align of SRWLOCK (required)." "$LINENO" 5
+  fi
+
+fi
+
+#--------------------------------------------------------------------
+# One of these function needed by NSThread.m and objc initialize test
+#--------------------------------------------------------------------
+for ac_func in nanosleep usleep Sleep
+do :
+  as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
+ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
+if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+done
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for objc_root_class attribute support" >&5
+$as_echo_n "checking for objc_root_class attribute support... " >&6; }
+saved_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -Werror $OBJCFLAGS -x objective-c"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+  __attribute__((objc_root_class)) @interface RootObject
+  @end
+  @implementation RootObject
+  @end
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: found" >&5
+$as_echo "found" >&6; }
+  gs_objc_root_class_attr=1
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: not present" >&5
+$as_echo "not present" >&6; }
+  gs_objc_root_class_attr=0
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+GS_HAVE_OBJC_ROOT_CLASS_ATTR=$gs_objc_root_class_attr
+
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_OBJC_ROOT_CLASS_ATTRIBUTE $gs_objc_root_class_attr
+_ACEOF
+
+CFLAGS=$saved_CFLAGS
 
 #--------------------------------------------------------------------
 # Check whether we can get the system thread ID
@@ -8018,7 +8374,15 @@ fi
 #--------------------------------------------------------------------
 # Check for thread synchronisation support in runtime
 #--------------------------------------------------------------------
-for ac_func in objc_sync_enter
+if test "$host_os" = windows -a "$OBJC_RUNTIME_LIB" = "ng"; then
+  # On Windows MSVC, AC_CHECK_FUNCS() will throw linker errors ("relocation
+  # against symbol in discarded section") as the file won't contain any actual
+  # ObjC code, so we just assume the function is there.
+  { $as_echo "$as_me:${as_lineno-$LINENO}: assuming objc_sync_enter() on Windows MSVC" >&5
+$as_echo "$as_me: assuming objc_sync_enter() on Windows MSVC" >&6;}
+  OBJCSYNC=1
+else
+  for ac_func in objc_sync_enter
 do :
   ac_fn_c_check_func "$LINENO" "objc_sync_enter" "ac_cv_func_objc_sync_enter"
 if test "x$ac_cv_func_objc_sync_enter" = xyes; then :
@@ -8029,12 +8393,13 @@ _ACEOF
 fi
 done
 
-if test $ac_cv_func_objc_sync_enter = yes ; then
-  OBJCSYNC=1
-else
-  OBJCSYNC=0
-  if test "$OBJC_RUNTIME_LIB" = "ng"; then
-    as_fn_error $? "The objc runtime library does not appear to have synchronisation support.  Try re-configuring gnustep-make with a CPPFLAGS variable containing a -L point to specify the directory containing the correct libobjc, or using the --with-objc-lib-flag=... option." "$LINENO" 5
+  if test $ac_cv_func_objc_sync_enter = yes ; then
+    OBJCSYNC=1
+  else
+    OBJCSYNC=0
+    if test "$OBJC_RUNTIME_LIB" = "ng"; then
+      as_fn_error $? "The objc runtime library does not appear to have synchronisation support.  Try re-configuring gnustep-make with a CPPFLAGS variable containing a -L point to specify the directory containing the correct libobjc, or using the --with-objc-lib-flag=... option." "$LINENO" 5
+    fi
   fi
 fi
 
@@ -8048,6 +8413,13 @@ if test "$cross_compiling" = "yes"; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: \"Cross compiling! Using predefined OBJC2RUNTIME variable\"" >&5
 $as_echo "$as_me: \"Cross compiling! Using predefined OBJC2RUNTIME variable\"" >&6;}
   OBJC2RUNTIME="$cross_objc2_runtime"
+elif test "$host_os" = windows -a "$OBJC_RUNTIME_LIB" = "ng"; then
+  # On Windows MSVC, AC_CHECK_FUNCS() will throw linker errors ("relocation
+  # against symbol in discarded section") as the file won't contain any actual
+  # ObjC code, so we just assume the function is there.
+  { $as_echo "$as_me:${as_lineno-$LINENO}: assuming objc_setProperty() on Windows MSVC" >&5
+$as_echo "$as_me: assuming objc_setProperty() on Windows MSVC" >&6;}
+  OBJC2RUNTIME=1
 else
   for ac_func in objc_setProperty
 do :
@@ -8074,7 +8446,15 @@ fi
 #--------------------------------------------------------------------
 # Check for blocks support in runtime
 #--------------------------------------------------------------------
-for ac_func in _Block_copy
+if test "$host_os" = windows -a "$OBJC_RUNTIME_LIB" = "ng"; then
+  # On Windows MSVC, AC_CHECK_FUNCS() will throw linker errors ("relocation
+  # against symbol in discarded section") as the file won't contain any actual
+  # ObjC code, so we just assume the function is there.
+  { $as_echo "$as_me:${as_lineno-$LINENO}: assuming _Block_copy() on Windows MSVC" >&5
+$as_echo "$as_me: assuming _Block_copy() on Windows MSVC" >&6;}
+  HAVE_BLOCKS=1
+else
+  for ac_func in _Block_copy
 do :
   ac_fn_c_check_func "$LINENO" "_Block_copy" "ac_cv_func__Block_copy"
 if test "x$ac_cv_func__Block_copy" = xyes; then :
@@ -8085,12 +8465,13 @@ _ACEOF
 fi
 done
 
-if test $ac_cv_func__Block_copy = yes ; then
-  HAVE_BLOCKS=1
-else
-  HAVE_BLOCKS=0
-  if test "$OBJC_RUNTIME_LIB" = "ng"; then
-    as_fn_error $? "The objc runtime library does not appear to have blocks support.  Try re-configuring gnustep-make with a CPPFLAGS variable containing a -L point to specify the directory containing the correct libobjc, or using the --with-objc-lib-flag=... option." "$LINENO" 5
+  if test $ac_cv_func__Block_copy = yes ; then
+    HAVE_BLOCKS=1
+  else
+    HAVE_BLOCKS=0
+    if test "$OBJC_RUNTIME_LIB" = "ng"; then
+      as_fn_error $? "The objc runtime library does not appear to have blocks support.  Try re-configuring gnustep-make with a CPPFLAGS variable containing a -L point to specify the directory containing the correct libobjc, or using the --with-objc-lib-flag=... option." "$LINENO" 5
+    fi
   fi
 fi
 
@@ -8099,11 +8480,19 @@ fi
 
 GS_NONFRAGILE=0
 if test "$nonfragile" = "yes"; then
-  saved_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $OBJCFLAGS -x objective-c"
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for non-fragile-abi support" >&5
+  if test "$host_os" = windows -a "$OBJC_RUNTIME_LIB" = "ng"; then
+    # On Windows MSVC, AC_CHECK_FUNCS() will throw linker errors ("relocation
+    # against symbol in discarded section") as the file won't contain any actual
+    # ObjC code, so we just assume the function is there.
+    { $as_echo "$as_me:${as_lineno-$LINENO}: assuming non-fragile-abi support on Windows MSVC" >&5
+$as_echo "$as_me: assuming non-fragile-abi support on Windows MSVC" >&6;}
+    GS_NONFRAGILE=1
+  else
+    saved_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$CPPFLAGS $OBJCFLAGS -x objective-c"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for non-fragile-abi support" >&5
 $as_echo_n "checking for non-fragile-abi support... " >&6; }
-  if test "$cross_compiling" = yes; then :
+    if test "$cross_compiling" = yes; then :
   non_fragile="$cross_non_fragile"
 else
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -8119,12 +8508,13 @@ rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
   conftest.$ac_objext conftest.beam conftest.$ac_ext
 fi
 
-  CPPFLAGS="$saved_CPPFLAGS"
-  if test $non_fragile = yes; then
-    GS_NONFRAGILE=1
-  fi
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $non_fragile" >&5
+    CPPFLAGS="$saved_CPPFLAGS"
+    if test $non_fragile = yes; then
+      GS_NONFRAGILE=1
+    fi
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $non_fragile" >&5
 $as_echo "$non_fragile" >&6; }
+  fi
 fi
 
 
@@ -8236,7 +8626,15 @@ $as_echo "$have_set_unexpected" >&6; }
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for _objc_unexpected_exception in runtime" >&5
 $as_echo_n "checking for _objc_unexpected_exception in runtime... " >&6; }
-if test "$cross_compiling" = yes; then :
+if test "$host_os" = windows -a "$OBJC_RUNTIME_LIB" = "ng"; then
+  # On Windows MSVC, AC_CHECK_FUNCS() will throw linker errors ("relocation
+  # against symbol in discarded section") as the file won't contain any actual
+  # ObjC code, so we just assume the function is there.
+  { $as_echo "$as_me:${as_lineno-$LINENO}: assuming _objc_unexpected_exception() on Windows MSVC" >&5
+$as_echo "$as_me: assuming _objc_unexpected_exception() on Windows MSVC" >&6;}
+  have_unexpected=yes
+else
+  if test "$cross_compiling" = yes; then :
   have_unexpected="$cross_have_unexpected"
 else
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -8252,6 +8650,7 @@ rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
   conftest.$ac_objext conftest.beam conftest.$ac_ext
 fi
 
+fi
 if test $have_unexpected = yes; then
 
 $as_echo "#define HAVE_UNEXPECTED 1" >>confdefs.h
@@ -8297,7 +8696,16 @@ fi
 #--------------------------------------------------------------------
 # Function needed by @synchronize directive
 #--------------------------------------------------------------------
-for ac_func in objc_sync_enter
+HAVE_OBJC_SYNC_ENTER=no
+if test "$host_os" = windows -a "$OBJC_RUNTIME_LIB" = "ng"; then
+  # On Windows MSVC, AC_CHECK_FUNCS() will throw linker errors ("relocation
+  # against symbol in discarded section") as the file won't contain any actual
+  # ObjC code, so we just assume the function is there.
+  { $as_echo "$as_me:${as_lineno-$LINENO}: assuming objc_sync_enter() on Windows MSVC" >&5
+$as_echo "$as_me: assuming objc_sync_enter() on Windows MSVC" >&6;}
+  HAVE_OBJC_SYNC_ENTER=yes
+else
+  for ac_func in objc_sync_enter
 do :
   ac_fn_c_check_func "$LINENO" "objc_sync_enter" "ac_cv_func_objc_sync_enter"
 if test "x$ac_cv_func_objc_sync_enter" = xyes; then :
@@ -8308,10 +8716,9 @@ _ACEOF
 fi
 done
 
-
-HAVE_OBJC_SYNC_ENTER=no
-if test $ac_cv_func_objc_sync_enter = yes ; then
-  HAVE_OBJC_SYNC_ENTER=yes
+  if test $ac_cv_func_objc_sync_enter = yes ; then
+    HAVE_OBJC_SYNC_ENTER=yes
+  fi
 fi
 
 
@@ -8806,23 +9213,6 @@ fi
 done
 
 
-# Check if tzfile contains the proper definitions
-if test $ac_cv_header_tzfile_h = yes; then
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <tzfile.h>
-
-_ACEOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "tzhead" >/dev/null 2>&1; then :
-
-$as_echo "#define HAVE_TZHEAD 1" >>confdefs.h
-
-fi
-rm -f conftest*
-
-fi
-
 #--------------------------------------------------------------------
 # These headers/functions needed by GSTcpPort.m
 #--------------------------------------------------------------------
@@ -9015,8 +9405,38 @@ _ACEOF
 
 fi
 
-if test $ismingw = yes ; then
-  for ac_header in dbghelp.h
+
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+  #include <bfd.h>
+
+int
+main ()
+{
+bfd_section_vma(0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  bfd_section_vma=1
+else
+  bfd_section_vma=0
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+if test $bfd_section_vma = 1; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: bfd_section_vma found" >&5
+$as_echo "bfd_section_vma found" >&6; }
+
+$as_echo "#define HAVE_BFD_SECTION_VMA 1" >>confdefs.h
+
+fi
+
+
+case "$target_os" in
+  mingw*)
+    for ac_header in dbghelp.h
 do :
   ac_fn_c_check_header_mongrel "$LINENO" "dbghelp.h" "ac_cv_header_dbghelp_h" "$ac_includes_default"
 if test "x$ac_cv_header_dbghelp_h" = xyes; then :
@@ -9028,8 +9448,9 @@ fi
 
 done
 
-else
-  for ac_header in execinfo.h
+    ;;
+  *)
+    for ac_header in execinfo.h
 do :
   ac_fn_c_check_header_mongrel "$LINENO" "execinfo.h" "ac_cv_header_execinfo_h" "$ac_includes_default"
 if test "x$ac_cv_header_execinfo_h" = xyes; then :
@@ -9041,7 +9462,7 @@ fi
 
 done
 
-  for ac_func in backtrace
+    for ac_func in backtrace
 do :
   ac_fn_c_check_func "$LINENO" "backtrace" "ac_cv_func_backtrace"
 if test "x$ac_cv_func_backtrace" = xyes; then :
@@ -9052,7 +9473,8 @@ _ACEOF
 fi
 done
 
-fi
+    ;;
+esac
 
 for ac_func in __builtin_extract_return_address
 do :
@@ -9477,7 +9899,17 @@ fi
 fi
 
 
-# Look for file creation date on NetBSD, FreeBSD, Darwin
+# Look for file creation and modification date on NetBSD, FreeBSD, Darwin
+ac_fn_c_check_member "$LINENO" "struct stat" "st_mtim" "ac_cv_member_struct_stat_st_mtim" "#include <sys/stat.h>
+"
+if test "x$ac_cv_member_struct_stat_st_mtim" = xyes; then :
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_STRUCT_STAT_ST_MTIM 1
+_ACEOF
+
+
+fi
 ac_fn_c_check_member "$LINENO" "struct stat" "st_birthtime" "ac_cv_member_struct_stat_st_birthtime" "#include <sys/stat.h>
 "
 if test "x$ac_cv_member_struct_stat_st_birthtime" = xyes; then :
@@ -10638,7 +11070,7 @@ $as_echo "$as_me: WARNING: Using libkvm which is known to be buggy on some syste
   fi
 fi
 case "$target_os" in
-    mingw*)	enable_fake_main=no; GS_FAKE_MAIN=0;;
+    mingw*|windows)	enable_fake_main=no; GS_FAKE_MAIN=0;;
 esac
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $enable_fake_main" >&5
@@ -10762,8 +11194,8 @@ case "$target_os" in
 		LDFLAGS="$LDFLAGS -L${ffi_libdir} -Wl,-R${ffi_libdir}"
 		LDIR_FLAGS="$LDIR_FLAGS -Wl,-R${ffi_libdir} -L${ffi_libdir}";;
 	*)
-		LDFLAGS="$LDFLAGS -L${ffi_libdir}"
-		LDIR_FLAGS="$LDIR_FLAGS -L${ffi_libdir}";;
+		LDFLAGS="$LDFLAGS -Wl,-rpath,${ffi_libdir} -L${ffi_libdir}"
+		LDIR_FLAGS="$LDIR_FLAGS -Wl,-rpath,${ffi_libdir} -L${ffi_libdir}";;
 esac
 
 fi
@@ -11093,8 +11525,8 @@ case "$target_os" in
 		LDFLAGS="$LDFLAGS -L${libiconv_libdir} -Wl,-R${libiconv_libdir}"
 		LDIR_FLAGS="$LDIR_FLAGS -Wl,-R${libiconv_libdir} -L${libiconv_libdir}";;
 	*)
-		LDFLAGS="$LDFLAGS -L${libiconv_libdir}"
-		LDIR_FLAGS="$LDIR_FLAGS -L${libiconv_libdir}";;
+		LDFLAGS="$LDFLAGS -Wl,-rpath,${libiconv_libdir} -L${libiconv_libdir}"
+		LDIR_FLAGS="$LDIR_FLAGS -Wl,-rpath,${libiconv_libdir} -L${libiconv_libdir}";;
 esac
 
   fi
@@ -11251,8 +11683,8 @@ case "$target_os" in
 		LDFLAGS="$LDFLAGS -L${libiconv_libdir} -Wl,-R${libiconv_libdir}"
 		LDIR_FLAGS="$LDIR_FLAGS -Wl,-R${libiconv_libdir} -L${libiconv_libdir}";;
 	*)
-		LDFLAGS="$LDFLAGS -L${libiconv_libdir}"
-		LDIR_FLAGS="$LDIR_FLAGS -L${libiconv_libdir}";;
+		LDFLAGS="$LDFLAGS -Wl,-rpath,${libiconv_libdir} -L${libiconv_libdir}"
+		LDIR_FLAGS="$LDIR_FLAGS -Wl,-rpath,${libiconv_libdir} -L${libiconv_libdir}";;
 esac
 
   fi
@@ -12139,74 +12571,108 @@ fi
 
 
     if test $enable_xslt = yes; then
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for xsltApplyStylesheet in -lxslt" >&5
-$as_echo_n "checking for xsltApplyStylesheet in -lxslt... " >&6; }
-if ${ac_cv_lib_xslt_xsltApplyStylesheet+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lxslt  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
 
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char xsltApplyStylesheet ();
-int
-main ()
-{
-return xsltApplyStylesheet ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_xslt_xsltApplyStylesheet=yes
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for XSLT" >&5
+$as_echo_n "checking for XSLT... " >&6; }
+
+if test -n "$XSLT_CFLAGS"; then
+    pkg_cv_XSLT_CFLAGS="$XSLT_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libxslt >= 1.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libxslt >= 1.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_XSLT_CFLAGS=`$PKG_CONFIG --cflags "libxslt >= 1.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
 else
-  ac_cv_lib_xslt_xsltApplyStylesheet=no
+  pkg_failed=yes
 fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
+ else
+    pkg_failed=untried
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_xslt_xsltApplyStylesheet" >&5
-$as_echo "$ac_cv_lib_xslt_xsltApplyStylesheet" >&6; }
-if test "x$ac_cv_lib_xslt_xsltApplyStylesheet" = xyes; then :
-  xslt_ok=yes
+if test -n "$XSLT_LIBS"; then
+    pkg_cv_XSLT_LIBS="$XSLT_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libxslt >= 1.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libxslt >= 1.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_XSLT_LIBS=`$PKG_CONFIG --libs "libxslt >= 1.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        XSLT_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libxslt >= 1.0" 2>&1`
+        else
+	        XSLT_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libxslt >= 1.0" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$XSLT_PKG_ERRORS" >&5
+
+	xslt_ok=no
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+	xslt_ok=no
+else
+	XSLT_CFLAGS=$pkg_cv_XSLT_CFLAGS
+	XSLT_LIBS=$pkg_cv_XSLT_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	xslt_ok=yes
+fi
+      if test "$xslt_ok" = "yes"; then
+        for ac_header in libxslt/xslt.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "libxslt/xslt.h" "ac_cv_header_libxslt_xslt_h" "$ac_includes_default"
+if test "x$ac_cv_header_libxslt_xslt_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBXSLT_XSLT_H 1
+_ACEOF
+ xslt_ok=yes
 else
   xslt_ok=no
 fi
 
-      if test "$xslt_ok" = "yes"; then
-	ac_fn_c_check_header_mongrel "$LINENO" "libxslt/xslt.h" "ac_cv_header_libxslt_xslt_h" "$ac_includes_default"
-if test "x$ac_cv_header_libxslt_xslt_h" = xyes; then :
-  xslthdr_ok=yes
-else
-  xslthdr_ok=no
-fi
+done
 
-
-	if test "$xslthdr_ok" = "no"; then
-	  xslt_ok=no
-	fi
       fi
       if test "$xslt_ok" = "yes"; then
-	HAVE_LIBXSLT=1
+        CPPFLAGS="$CPPFLAGS $XSLT_CFLAGS"
+        INCLUDE_FLAGS="$INCLUDE_FLAGS $XSLT_CFLAGS"
+        LIBS="$XSLT_LIBS $LIBS"
+        HAVE_LIBXSLT=1
 
 $as_echo "#define HAVE_LIBXSLT 1" >>confdefs.h
 
-	LIBS="-lxslt $LIBS"
       else
-	echo
-	echo "You do not appear to have usable libxslt headers/library."
-	echo "Building without them will disable the XSLT extensions."
-	echo "If you really want to build gnustep-base without XSLT support,"
-	echo "add --disable-xslt to the configure arguments to avoid warning."
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Missing support for XSLT functionality." >&5
+        echo
+        echo "You do not appear to have usable libxslt headers/library."
+        echo "Building without them will disable the XSLT extensions."
+        echo "If you really want to build gnustep-base without XSLT support,"
+        echo "add --disable-xslt to the configure arguments to avoid warning."
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Missing support for XSLT functionality." >&5
 $as_echo "$as_me: WARNING: Missing support for XSLT functionality." >&2;}
       fi
     else
@@ -12771,7 +13237,70 @@ else
 fi
 
 
-if test "$enable_icu" = "yes"; then
+if test "x$enable_icu" = "xyes"; then :
+
+  case "$target_os" in
+    mingw*|windows)
+      # check for ICU bundled with Windows 10
+      for ac_header in icu.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "icu.h" "ac_cv_header_icu_h" "$ac_includes_default"
+if test "x$ac_cv_header_icu_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_ICU_H 1
+_ACEOF
+ { $as_echo "$as_me:${as_lineno-$LINENO}: checking for udat_open in -licu" >&5
+$as_echo_n "checking for udat_open in -licu... " >&6; }
+if ${ac_cv_lib_icu_udat_open+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-licu  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char udat_open ();
+int
+main ()
+{
+return udat_open ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_icu_udat_open=yes
+else
+  ac_cv_lib_icu_udat_open=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_icu_udat_open" >&5
+$as_echo "$ac_cv_lib_icu_udat_open" >&6; }
+if test "x$ac_cv_lib_icu_udat_open" = xyes; then :
+  HAVE_ICU=1
+fi
+
+fi
+
+done
+
+      if test $HAVE_ICU = 1; then
+        ICU_LIBS=-licu
+        { $as_echo "$as_me:${as_lineno-$LINENO}: Using ICU DLL from Windows 10 (requires version 1903 or later)" >&5
+$as_echo "$as_me: Using ICU DLL from Windows 10 (requires version 1903 or later)" >&6;}
+      fi
+    ;;
+  esac
+  if test $HAVE_ICU = 0; then
 
 pkg_failed=no
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ICU" >&5
@@ -12831,39 +13360,18 @@ fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$ICU_PKG_ERRORS" >&5
 
-	as_fn_error $? "Package requirements (icu-i18n > 49.0) were not met:
-
-$ICU_PKG_ERRORS
-
-Consider adjusting the PKG_CONFIG_PATH environment variable if you
-installed software in a non-standard prefix.
-
-Alternatively, you may set the environment variables ICU_CFLAGS
-and ICU_LIBS to avoid the need to call pkg-config.
-See the pkg-config man page for more details." "$LINENO" 5
+	HAVE_ICU=0
 elif test $pkg_failed = untried; then
      	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-	{ { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
-$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "The pkg-config script could not be found or is too old.  Make sure it
-is in your PATH or set the PKG_CONFIG environment variable to the full
-path to pkg-config.
-
-Alternatively, you may set the environment variables ICU_CFLAGS
-and ICU_LIBS to avoid the need to call pkg-config.
-See the pkg-config man page for more details.
-
-To get pkg-config, see <http://pkg-config.freedesktop.org/>.
-See \`config.log' for more details" "$LINENO" 5; }
+	HAVE_ICU=0
 else
 	ICU_CFLAGS=$pkg_cv_ICU_CFLAGS
 	ICU_LIBS=$pkg_cv_ICU_LIBS
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
-fi
-  for ac_header in unicode/uloc.h unicode/ulocdata.h unicode/ucol.h unicode/ucurr.h unicode/uregex.h unicode/ucal.h unicode/unorm2.h unicode/unum.h unicode/udat.h unicode/udatpg.h unicode/ustring.h unicode/usearch.h unicode/ucnv.h
+      for ac_header in unicode/uloc.h unicode/ulocdata.h unicode/ucol.h unicode/ucurr.h unicode/uregex.h unicode/ucal.h unicode/unorm2.h unicode/unum.h unicode/udat.h unicode/udatpg.h unicode/ustring.h unicode/usearch.h unicode/ucnv.h unicode/utext.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -12871,13 +13379,18 @@ if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
   cat >>confdefs.h <<_ACEOF
 #define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
 _ACEOF
-
+ HAVE_ICU=1
 fi
 
 done
 
+fi
+  fi
+  if test $HAVE_ICU = 0; then
+    as_fn_error $? "No useable ICU installation found" "$LINENO" 5
+  fi
   LIBS="$LIBS $ICU_LIBS"
-  HAVE_ICU=1
+
 fi
 
 
@@ -12885,6 +13398,7 @@ fi
 # Check for libdispatch
 # See DEPENDENCIES POLICY at the start of this file.
 #--------------------------------------------------------------------
+
 HAVE_LIBDISPATCH=0
 # Check whether --enable-libdispatch was given.
 if test "${enable_libdispatch+set}" = set; then :
@@ -12895,22 +13409,41 @@ fi
 
 
 if test $enable_libdispatch = yes; then
-  for ac_header in dispatch.h
-do :
-  ac_fn_c_check_header_mongrel "$LINENO" "dispatch.h" "ac_cv_header_dispatch_h" "$ac_includes_default"
-if test "x$ac_cv_header_dispatch_h" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_DISPATCH_H 1
-_ACEOF
- have_dispatch=yes
+
+# Check whether --with-dispatch-include was given.
+if test "${with_dispatch_include+set}" = set; then :
+  withval=$with_dispatch_include; dispatch_incdir="$withval"
 else
-  have_dispatch=no
+  dispatch_incdir="no"
 fi
 
-done
+  if test ${dispatch_incdir} != "no"; then
+      CPPFLAGS="$CPPFLAGS -I${dispatch_incdir}"
+      INCLUDE_FLAGS="$INCLUDE_FLAGS -I${dispatch_incdir}"
+  fi
 
-  if test "$have_dispatch" = "no"; then
-    for ac_header in dispatch/dispatch.h
+
+# Check whether --with-dispatch-library was given.
+if test "${with_dispatch_library+set}" = set; then :
+  withval=$with_dispatch_library; dispatch_libdir="$withval"
+else
+  dispatch_libdir="no"
+fi
+
+  if test ${dispatch_libdir} != "no"; then
+
+case "$target_os" in
+	netbsd*)
+		LDFLAGS="$LDFLAGS -L${dispatch_libdir} -Wl,-R${dispatch_libdir}"
+		LDIR_FLAGS="$LDIR_FLAGS -Wl,-R${dispatch_libdir} -L${dispatch_libdir}";;
+	*)
+		LDFLAGS="$LDFLAGS -Wl,-rpath,${dispatch_libdir} -L${dispatch_libdir}"
+		LDIR_FLAGS="$LDIR_FLAGS -Wl,-rpath,${dispatch_libdir} -L${dispatch_libdir}";;
+esac
+
+  fi
+
+  for ac_header in dispatch/dispatch.h
 do :
   ac_fn_c_check_header_mongrel "$LINENO" "dispatch/dispatch.h" "ac_cv_header_dispatch_dispatch_h" "$ac_includes_default"
 if test "x$ac_cv_header_dispatch_dispatch_h" = xyes; then :
@@ -12924,6 +13457,7 @@ fi
 
 done
 
+  if test "$have_dispatch" = "yes"; then
     # check for private header which includes runloop integration functions in
     # the Swift corelibs libdispatch release
     for ac_header in dispatch/private.h
@@ -12934,6 +13468,21 @@ if test "x$ac_cv_header_dispatch_private_h" = xyes; then :
 #define HAVE_DISPATCH_PRIVATE_H 1
 _ACEOF
 
+fi
+
+done
+
+  else
+    for ac_header in dispatch.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "dispatch.h" "ac_cv_header_dispatch_h" "$ac_includes_default"
+if test "x$ac_cv_header_dispatch_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_DISPATCH_H 1
+_ACEOF
+ have_dispatch=yes
+else
+  have_dispatch=no
 fi
 
 done
@@ -13019,8 +13568,8 @@ $as_echo "no" >&6; };
       fi
     fi
   else
-  HAVE_LIBDISPATCH=0;
-  # just ignore libdispatch if it's not there
+    HAVE_LIBDISPATCH=0;
+    # just ignore libdispatch if it's not there
   fi
 fi
 
@@ -13064,6 +13613,218 @@ done
 fi
 
 
+
+#--------------------------------------------------------------------
+# Check for libcurl
+# See DEPENDENCIES POLICY at the start of this file.
+#--------------------------------------------------------------------
+CURL_CONFIG="curl-config"
+
+# Check whether --with-curl was given.
+if test "${with_curl+set}" = set; then :
+  withval=$with_curl;
+fi
+
+if test "$with_curl" != ""; then
+  CURL_CONFIG="$with_curl/bin/curl-config"
+fi
+
+HAVE_LIBCURL=0
+curl_all=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libcurl" >&5
+$as_echo_n "checking for libcurl... " >&6; }
+if eval $CURL_CONFIG --version 2>/dev/null >/dev/null; then
+  curl_ver=`$CURL_CONFIG --version | sed -e "s/libcurl //g"`
+  curl_maj=`echo $curl_ver | sed -e "s/^\(.*\)\.\(.*\)\.\(.*\)$/\1/"`
+  curl_min=`echo $curl_ver | sed -e "s/^\(.*\)\.\(.*\)\.\(.*\)$/\2/"`
+  if test $curl_maj -lt 7 -o \( $curl_maj -eq 7 -a $curl_min -lt 49 \); then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: FAILED (version too old to use" >&5
+$as_echo "FAILED (version too old to use" >&6; }
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes ... version $curl_ver" >&5
+$as_echo "yes ... version $curl_ver" >&6; }
+    for ac_header in curl/curl.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "curl/curl.h" "ac_cv_header_curl_curl_h" "$ac_includes_default"
+if test "x$ac_cv_header_curl_curl_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_CURL_CURL_H 1
+_ACEOF
+ curl_ok=yes
+else
+  curl_ok=no
+fi
+
+done
+
+    if test "$curl_ok" = yes; then
+      HAVE_LIBCURL=1
+      CURLCFLAGS=`$CURL_CONFIG --cflags`
+      CURLLIBS=`$CURL_CONFIG --libs`
+      CFLAGS="$CFLAGS $CURLCFLAGS"
+      LIBS="$LIBS $CURLLIBS"
+      curl_all=yes
+      if test \( $curl_maj -eq 7 -a $curl_min -lt 56 \); then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: LOSS OF FUNCTIONALITY (version too old for SSL backend control)" >&5
+$as_echo "$as_me: WARNING: LOSS OF FUNCTIONALITY (version too old for SSL backend control)" >&2;}
+        curl_all=no
+      elif test \( $curl_maj -eq 7 -a $curl_min -lt 65 \); then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: LOSS OF FUNCTIONALITY (version too old for connection lifetime control)" >&5
+$as_echo "$as_me: WARNING: LOSS OF FUNCTIONALITY (version too old for connection lifetime control)" >&2;}
+        curl_all=no
+      fi
+    fi
+  fi
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: FAILED (curl-config not found)" >&5
+$as_echo "FAILED (curl-config not found)" >&6; }
+fi
+
+if test $HAVE_LIBCURL = 1; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for libcurl TLS support with gnutls" >&5
+$as_echo_n "checking for libcurl TLS support with gnutls... " >&6; }
+  if $CURL_CONFIG --configure | grep -q with-gnutls; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+    curl_all=no
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: LOSS OF FUNCTIONALITY (curl lacks gnutls support)" >&5
+$as_echo "$as_me: WARNING: LOSS OF FUNCTIONALITY (curl lacks gnutls support)" >&2;}
+  fi
+fi
+
+if test $HAVE_LIBCURL = 1; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for curl_multi_perform in -lcurl" >&5
+$as_echo_n "checking for curl_multi_perform in -lcurl... " >&6; }
+if ${ac_cv_lib_curl_curl_multi_perform+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lcurl  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char curl_multi_perform ();
+int
+main ()
+{
+return curl_multi_perform ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_curl_curl_multi_perform=yes
+else
+  ac_cv_lib_curl_curl_multi_perform=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_curl_curl_multi_perform" >&5
+$as_echo "$ac_cv_lib_curl_curl_multi_perform" >&6; }
+if test "x$ac_cv_lib_curl_curl_multi_perform" = xyes; then :
+  curl_ok=yes
+else
+  curl_ok=no
+fi
+
+fi
+if test $HAVE_LIBCURL = 1; then
+  ac_fn_c_check_decl "$LINENO" "CURLOPT_CONNECT_TO" "ac_cv_have_decl_CURLOPT_CONNECT_TO" "#include <curl/curl.h>
+"
+if test "x$ac_cv_have_decl_CURLOPT_CONNECT_TO" = xyes; then :
+  curl_ok=yes
+else
+  curl_ok=no
+fi
+
+fi
+if test $HAVE_LIBCURL = 1; then
+  # Check for Curl capabilities we may use in NSURLSession
+  ac_fn_c_check_decl "$LINENO" "CURLOPT_MAXAGE_CONN" "ac_cv_have_decl_CURLOPT_MAXAGE_CONN" "#include <curl/curl.h>
+"
+if test "x$ac_cv_have_decl_CURLOPT_MAXAGE_CONN" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_CURLOPT_MAXAGE_CONN $ac_have_decl
+_ACEOF
+
+
+  # If curl supports runtime selection of the TLS module we will need
+  # to use curl_global_sslset to pick GNUTLS
+  for ac_func in curl_global_sslset
+do :
+  ac_fn_c_check_func "$LINENO" "curl_global_sslset" "ac_cv_func_curl_global_sslset"
+if test "x$ac_cv_func_curl_global_sslset" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_CURL_GLOBAL_SSLSET 1
+_ACEOF
+
+fi
+done
+
+fi
+
+
+#--------------------------------------------------------------------
+# Check dependencies of NSURLSession API
+#--------------------------------------------------------------------
+nsurlsessiondefault=no
+if test "$OBJC_RUNTIME_LIB" = "ng" -a $HAVE_BLOCKS = 1 -a $HAVE_LIBDISPATCH = 1 -a $HAVE_LIBCURL = 1; then
+  nsurlsessiondefault=yes
+fi
+
+GS_HAVE_NSURLSESSION=0
+# Check whether --enable-nsurlsession was given.
+if test "${enable_nsurlsession+set}" = set; then :
+  enableval=$enable_nsurlsession;
+else
+  enable_nsurlsession=$nsurlsessiondefault
+fi
+
+if test $enable_nsurlsession = yes; then
+  if test "$OBJC_RUNTIME_LIB" != "ng"; then
+    as_fn_error $? "Missing ng runtime (needed for NSURLSession). To build without NSURLSession support, please run configure again with the --disable-nsurlsession option." "$LINENO" 5
+  fi
+  if test $HAVE_BLOCKS = 0; then
+    as_fn_error $? "Missing blocks support (needed for NSURLSession).  To build without NSURLSession support, please run configure again with the --disable-nsurlsession option." "$LINENO" 5
+  fi
+  if test $HAVE_LIBDISPATCH = 0; then
+    as_fn_error $? "Missing libdispatch (needed for NSURLSession).  To build without NSURLSession support, please run configure again with the --disable-nsurlsession option." "$LINENO" 5
+   fi
+  # Check for dispatch_queue_create_with_target needed for NSURLSession
+  for ac_func in dispatch_queue_create_with_target
+do :
+  ac_fn_c_check_func "$LINENO" "dispatch_queue_create_with_target" "ac_cv_func_dispatch_queue_create_with_target"
+if test "x$ac_cv_func_dispatch_queue_create_with_target" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_DISPATCH_QUEUE_CREATE_WITH_TARGET 1
+_ACEOF
+
+fi
+done
+
+  if test $HAVE_LIBCURL = 0; then
+    as_fn_error $? "Missing libcurl (needed for NSURLSession). To build without NSURLSession support, please run configure again with the --disable-nsurlsession option." "$LINENO" 5
+  fi
+  GS_HAVE_NSURLSESSION=1
+fi
+
+
 #--------------------------------------------------------------------
 # Check GMP for NSDecimal
 #--------------------------------------------------------------------
@@ -13098,8 +13859,8 @@ case "$target_os" in
 		LDFLAGS="$LDFLAGS -L${gmp_libdir} -Wl,-R${gmp_libdir}"
 		LDIR_FLAGS="$LDIR_FLAGS -Wl,-R${gmp_libdir} -L${gmp_libdir}";;
 	*)
-		LDFLAGS="$LDFLAGS -L${gmp_libdir}"
-		LDIR_FLAGS="$LDIR_FLAGS -L${gmp_libdir}";;
+		LDFLAGS="$LDFLAGS -Wl,-rpath,${gmp_libdir} -L${gmp_libdir}"
+		LDIR_FLAGS="$LDIR_FLAGS -Wl,-rpath,${gmp_libdir} -L${gmp_libdir}";;
 esac
 
 fi

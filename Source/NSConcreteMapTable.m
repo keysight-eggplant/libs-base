@@ -132,10 +132,10 @@ typedef GSIMapNode_t *GSIMapNode;
 	  (IS_WEAK_VALUE(M) ? pointerFunctionsAssign(&M->cb.pf.v, (void**)addr, (x).obj) : (*(id*)(addr) = (x).obj));
 #define GSI_MAP_READ_KEY(M,addr) \
 	(M->legacy ? *(addr)\
-	  : (typeof(*addr))pointerFunctionsRead(&M->cb.pf.k, (void**)addr))
+	  : (__typeof__(*addr))pointerFunctionsRead(&M->cb.pf.k, (void**)addr))
 #define GSI_MAP_READ_VALUE(M,addr) \
 	(M->legacy ? *(addr)\
-	  : (typeof(*addr))pointerFunctionsRead(&M->cb.pf.v, (void**)addr))
+	  : (__typeof__(*addr))pointerFunctionsRead(&M->cb.pf.v, (void**)addr))
 #define GSI_MAP_ZEROED(M)\
         (M->legacy ? 0\
 	  : (IS_WEAK_KEY(M) || IS_WEAK_VALUE(M)) ? YES : NO)
@@ -974,7 +974,7 @@ NSResetMapTable(NSMapTable *table)
  * is appended.  The appropriate describe functions are used to generate
  * the strings for each key and value.
  */
-NSString *
+GS_DECLARE NSString *
 NSStringFromMapTable(NSMapTable *table)
 {
   if (table == nil)
@@ -1206,7 +1206,7 @@ const NSMapTableValueCallBacks NSOwnedPointerMapValueCallBacks =
 				   objects: (id*)stackbuf
 				     count: (NSUInteger)len
 {
-  state->mutationsPtr = (unsigned long *)&version;
+  state->mutationsPtr = &version;
   return GSIMapCountByEnumeratingWithStateObjectsCount
     (self, state, stackbuf, len);
 }

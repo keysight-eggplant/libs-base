@@ -416,25 +416,33 @@ static void find_address (bfd *abfd, asection *section,
     {
       return;
     }
-  if (!(bfd_get_section_flags (abfd, section) & SEC_ALLOC))
+  address = (bfd_vma) (uintptr_t)info->theAddress;
+
+  /* bfd_get_section_vma() was changed to bfd_section_vma() together with
+   * changes to a couple of other inline functions.
+   */
+#if     defined(HAVE_BFD_SECTION_VMA)
+  if (!(bfd_section_flags(section) & SEC_ALLOC))
     {
       return;	// Only debug in this section
     }
-  if (bfd_get_section_flags (abfd, section) & SEC_DATA)
+  if (bfd_section_flags(section) & SEC_DATA)
     {
       return;	// Only data in this section
     }
-
-  address = (bfd_vma) (uintptr_t)info->theAddress;
-
-  vma = bfd_get_section_vma (abfd, section);
-
-#if     defined(bfd_get_section_size_before_reloc)
-  size = bfd_get_section_size_before_reloc (section);        // recent
-#elif     defined(bfd_get_section_size)
-  size = bfd_get_section_size (section);        // less recent
+  vma = bfd_section_vma(section);
+  size = bfd_section_size(section);
 #else                                
-  size = bfd_section_size (abfd, section);      // older version
+  if (!(bfd_get_section_flags(abfd, section) & SEC_ALLOC))
+    {
+      return;	// Only debug in this section
+    }
+  if (bfd_get_section_flags(abfd, section) & SEC_DATA)
+    {
+      return;	// Only data in this section
+    }
+  vma = bfd_get_section_vma(abfd, section);
+  size = bfd_section_size(abfd, section);
 #endif                               
 
   if (address < vma || address >= vma + size)
@@ -483,7 +491,7 @@ static void find_address (bfd *abfd, asection *section,
 
 @end
 
-static pthread_mutex_t	        modLock;
+static gs_mutex_t	  modLock;
 static NSMutableDictionary	*stackModules = nil;
 
 // initialize stack trace info
@@ -492,7 +500,7 @@ GSLoadModule(NSString *fileName)
 {
   GSBinaryFileInfo	*module = nil;
 
-  (void)pthread_mutex_lock(&modLock);
+  GS_MUTEX_LOCK(modLock);
 
   if (stackModules == nil)
     {
@@ -541,7 +549,7 @@ GSLoadModule(NSString *fileName)
 	    }
 	}
     }
-  (void)pthread_mutex_unlock(&modLock);
+  GS_MUTEX_UNLOCK(modLock);
 
   if (module == (id)[NSNull null])
     {
@@ -556,9 +564,9 @@ GSListModules()
   NSArray	*result;
 
   GSLoadModule(nil);	// initialise
-  (void)pthread_mutex_lock(&modLock);
+  GS_MUTEX_LOCK(modLock);
   result = [stackModules allValues];
-  (void)pthread_mutex_unlock(&modLock);
+  GS_MUTEX_UNLOCK(modLock);
   return result;
 }
 
@@ -607,7 +615,7 @@ static SymInitializeType initSym = 0;
 static SymSetOptionsType optSym = 0;
 static SymFromAddrType fromSym = 0;
 static HANDLE	hProcess = 0;
-static	pthread_mutex_t	traceLock;
+static	gs_mutex_t	traceLock;
 #define	MAXFRAMES 62	/* Limitation of windows-xp */
 #else
 #define MAXFRAMES 128   /* 1KB buffer on 64bit machine */
@@ -686,6 +694,14 @@ recover(int sig)
 {
   siglongjmp(jbuf()->buf, 1);
 }
+
+#ifdef	__clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wframe-address"
+#else
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wframe-address"
+#endif
 
 void *
 NSFrameAddress(NSUInteger offset)
@@ -873,35 +889,20 @@ NSReturnAddress(NSUInteger offset)
   return env->addr;
 }
 
+#ifdef	__clang__
+#pragma clang diagnostic pop
+#else
+#pragma GCC diagnostic pop
+#endif
+
 unsigned
 GSPrivateReturnAddresses(NSUInteger **returns)
 {
   unsigned      numReturns;
-#if	defined(HAVE_BACKTRACE)
-  void          *addr[MAXFRAMES*sizeof(void*)];
-
-  numReturns = backtrace(addr, MAXFRAMES);
-  if (numReturns > 0)
-    {
-      *returns = malloc(numReturns * sizeof(void*));
-      memcpy(*returns, addr, numReturns * sizeof(void*));
-    }
-#elif	defined(HAVE_UNWIND_H)
-  void          *addr[MAXFRAMES];
-  
-  struct GSBacktraceState state = {addr, addr + MAXFRAMES};
-  _Unwind_Backtrace(GSUnwindCallback, &state);
-
-  numReturns = state.current - addr;
-  if (numReturns > 0)
-    {
-      *returns = malloc(numReturns * sizeof(void*));
-      memcpy(*returns, addr, numReturns * sizeof(void*));
-    }
-#elif	defined(_WIN32) && !defined(USE_BFD)
+#if	defined(_WIN32) && !defined(USE_BFD)
   NSUInteger	addr[MAXFRAMES];
 
-  (void)pthread_mutex_lock(&traceLock);
+  GS_MUTEX_LOCK(traceLock);
   if (0 == hProcess)
     {
       hProcess = GetCurrentProcess();
@@ -915,7 +916,7 @@ GSPrivateReturnAddresses(NSUInteger **returns)
 	    {
 	      fprintf(stderr, "Failed to load kernel32.dll with error: %d\n",
 		(int)GetLastError());
-	      (void)pthread_mutex_unlock(&traceLock);
+	      GS_MUTEX_UNLOCK(traceLock);
 	      return 0;
 	    }
 	  capture = (CaptureStackBackTraceType)GetProcAddress(
@@ -924,7 +925,7 @@ GSPrivateReturnAddresses(NSUInteger **returns)
 	    {
 	      fprintf(stderr, "Failed to find RtlCaptureStackBackTrace: %d\n",
 		(int)GetLastError());
-	      (void)pthread_mutex_unlock(&traceLock);
+	      GS_MUTEX_UNLOCK(traceLock);
 	      return 0;
 	    }
 	  hModule = LoadLibrary("dbghelp.dll");
@@ -932,7 +933,7 @@ GSPrivateReturnAddresses(NSUInteger **returns)
 	    {
 	      fprintf(stderr, "Failed to load dbghelp.dll with error: %d\n",
 		(int)GetLastError());
-	      (void)pthread_mutex_unlock(&traceLock);
+	      GS_MUTEX_UNLOCK(traceLock);
 	      return 0;
 	    }
 	  optSym = (SymSetOptionsType)GetProcAddress(
@@ -941,7 +942,7 @@ GSPrivateReturnAddresses(NSUInteger **returns)
 	    {
 	      fprintf(stderr, "Failed to find SymSetOptions: %d\n",
 		(int)GetLastError());
-	      (void)pthread_mutex_unlock(&traceLock);
+	      GS_MUTEX_UNLOCK(traceLock);
 	      return 0;
 	    }
 	  initSym = (SymInitializeType)GetProcAddress(
@@ -950,7 +951,7 @@ GSPrivateReturnAddresses(NSUInteger **returns)
 	    {
 	      fprintf(stderr, "Failed to find SymInitialize: %d\n",
 		(int)GetLastError());
-	      (void)pthread_mutex_unlock(&traceLock);
+	      GS_MUTEX_UNLOCK(traceLock);
 	      return 0;
 	    }
 	  fromSym = (SymFromAddrType)GetProcAddress(
@@ -959,7 +960,7 @@ GSPrivateReturnAddresses(NSUInteger **returns)
 	    {
 	      fprintf(stderr, "Failed to find SymFromAddr: %d\n",
 		(int)GetLastError());
-	      (void)pthread_mutex_unlock(&traceLock);
+	      GS_MUTEX_UNLOCK(traceLock);
 	      return 0;
 	    }
 	}
@@ -971,13 +972,13 @@ GSPrivateReturnAddresses(NSUInteger **returns)
 	  fprintf(stderr, "SymInitialize failed with error: %d\n",
 	    (int)GetLastError());
 	  fromSym = 0;
-	  (void)pthread_mutex_unlock(&traceLock);
+	  GS_MUTEX_UNLOCK(traceLock);
 	  return 0;
 	}
     }
   if (0 == capture)
     {
-      (void)pthread_mutex_unlock(&traceLock);
+      GS_MUTEX_UNLOCK(traceLock);
       return 0;
     }
 
@@ -988,8 +989,29 @@ GSPrivateReturnAddresses(NSUInteger **returns)
       memcpy(*returns, addr, numReturns * sizeof(void*));
     }
   
-  (void)pthread_mutex_unlock(&traceLock);
+  GS_MUTEX_UNLOCK(traceLock);
 
+#elif	defined(HAVE_BACKTRACE)
+  void          *addr[MAXFRAMES*sizeof(void*)];
+
+  numReturns = backtrace(addr, MAXFRAMES);
+  if (numReturns > 0)
+    {
+      *returns = malloc(numReturns * sizeof(void*));
+      memcpy(*returns, addr, numReturns * sizeof(void*));
+    }
+#elif defined(WITH_UNWIND)
+  void          *addr[MAXFRAMES];
+  
+  struct GSBacktraceState state = {addr, addr + MAXFRAMES};
+  _Unwind_Backtrace(GSUnwindCallback, &state);
+
+  numReturns = state.current - addr;
+  if (numReturns > 0)
+    {
+      *returns = malloc(numReturns * sizeof(void*));
+      memcpy(*returns, addr, numReturns * sizeof(void*));
+    }
 #else
   int   n;
 
@@ -1090,10 +1112,10 @@ GSPrivateReturnAddresses(NSUInteger **returns)
 + (void) initialize
 {
 #if	defined(_WIN32) && !defined(USE_BFD)
-  GS_INIT_RECURSIVE_MUTEX(traceLock);
+  GS_MUTEX_INIT_RECURSIVE(traceLock);
 #endif
 #if     defined(USE_BFD)
-  GS_INIT_RECURSIVE_MUTEX(modLock);
+  GS_MUTEX_INIT_RECURSIVE(modLock);
 #endif
 }
 
@@ -1235,7 +1257,7 @@ GSPrivateReturnAddresses(NSUInteger **returns)
       symbol->MaxNameLen = 1024;
       symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
 
-      (void)pthread_mutex_lock(&traceLock);
+      GS_MUTEX_LOCK(traceLock);
       for (i = 0; i < count; i++)
         {
           NSUInteger	addr = (NSUInteger)*ptrs++; 
@@ -1251,7 +1273,7 @@ GSPrivateReturnAddresses(NSUInteger **returns)
                 @"unknown - %p", symbol->Name, addr];
             }
         }
-      (void)pthread_mutex_unlock(&traceLock);
+      GS_MUTEX_UNLOCK(traceLock);
       free(symbol);
 
       symbols = [[NSArray alloc] initWithObjects: syms count: count];
@@ -1268,7 +1290,7 @@ GSPrivateReturnAddresses(NSUInteger **returns)
         }
       symbols = [[NSArray alloc] initWithObjects: symbolArray count: count];
       free(strs);
-#elif	defined(HAVE_UNWIND_H)
+#elif defined(WITH_UNWIND)
       void              **ptrs = (void**)&returns[FrameOffset];
       NSString	        **symbolArray;
 
@@ -1331,28 +1353,28 @@ GSPrivateReturnAddresses(NSUInteger **returns)
 @end
 
 
-NSString* const NSCharacterConversionException
+GS_DECLARE NSString* const NSCharacterConversionException
   = @"NSCharacterConversionException";
 
-NSString* const NSGenericException
+GS_DECLARE NSString* const NSGenericException
   = @"NSGenericException";
 
-NSString* const NSInternalInconsistencyException
+GS_DECLARE NSString* const NSInternalInconsistencyException
   = @"NSInternalInconsistencyException";
 
-NSString* const NSInvalidArgumentException
+GS_DECLARE NSString* const NSInvalidArgumentException
   = @"NSInvalidArgumentException";
 
-NSString* const NSMallocException
+GS_DECLARE NSString* const NSMallocException
   = @"NSMallocException";
 
-NSString* const NSOldStyleException
+GS_DECLARE NSString* const NSOldStyleException
   = @"NSOldStyleException";
 
-NSString* const NSParseErrorException
+GS_DECLARE NSString* const NSParseErrorException
   = @"NSParseErrorException";
 
-NSString* const NSRangeException
+GS_DECLARE NSString* const NSRangeException
  = @"NSRangeException";
 
 static void _terminate()

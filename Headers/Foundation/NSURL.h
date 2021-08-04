@@ -68,6 +68,7 @@ enum
  * Handling of the underlying resources is carried out by NSURLHandle
  * objects, but NSURL provides a simplified API wrapping these objects.
  */
+GS_EXPORT_CLASS
 @interface NSURL: NSObject <NSCoding, NSCopying, NSURLHandleClient>
 {
 #if	GS_EXPOSE(NSURL)
@@ -411,7 +412,23 @@ enum
 
 #endif
 
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_7, GS_API_LATEST) 
+/** Returns a URL formed by adding a path component to the path of the
+ * receiver, along with a trailing slash if the component is designated a
+ * directory.<br />
+ * See [NSString-stringByAppendingPathComponent:].
+ */
+- (NSURL *) URLByAppendingPathComponent:(NSString *)pathComponent
+                            isDirectory:(BOOL)isDirectory;
+#endif
+
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_6, GS_API_LATEST)
+- (BOOL) isFileReferenceURL;
+
+- (NSURL *) fileReferenceURL;
+
+- (NSURL *) filePathURL;
+
 - (BOOL) getResourceValue: (id*)value 
                    forKey: (NSString *)key 
                     error: (NSError**)error;
@@ -594,6 +611,7 @@ GS_EXPORT NSString* const NSURLUbiquitousItemDownloadingStatusCurrent;
 
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_10, GS_API_LATEST)
 
+GS_EXPORT_CLASS
 @interface NSURLQueryItem : NSObject <NSCopying, NSCoding>
 {
 #if	GS_EXPOSE(NSURLQueryItem)
@@ -627,7 +645,8 @@ GS_NSURLQueryItem_IVARS;
 #endif // OS_API_VERSION
 
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_9, GS_API_LATEST)
-  
+
+GS_EXPORT_CLASS
 @interface NSURLComponents : NSObject <NSCopying>
 {
 #if	GS_EXPOSE(NSURLComponents)

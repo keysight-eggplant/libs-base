@@ -153,7 +153,7 @@ static	errbuf[BUFSIZ];
 #define	MAX_EXTRA	((GDO_NAME_MAX_LEN - 2 * IASIZE)/IASIZE)
 
 #define ROUND(V, A) \
-  ({ typeof(V) __v=(V); typeof(A) __a=(A); \
+  ({ __typeof__(V) __v=(V); __typeof__(A) __a=(A); \
 	 __a*((__v+__a-1)/__a); })
 
 typedef	unsigned char	*uptr;
@@ -1191,7 +1191,7 @@ init_iface()
 {
 #if	defined(__MINGW__)
   INTERFACE_INFO InterfaceList[20];
-  uint32_t nBytesReturned;
+  DWORD nBytesReturned;
   int i, countActive, nNumInterfaces;
   SOCKET desc = WSASocket(PF_INET, SOCK_RAW, AF_INET, 0, 0, 0);
 
@@ -1787,7 +1787,7 @@ init_ports()
   int		r;
   struct sockaddr_in	sa;
 #if	defined(__MINGW__)
-  uint32_t dummy;
+  DWORD dummy;
 #endif /* __MINGW__ */
 
   /*
@@ -2338,7 +2338,7 @@ handle_accept()
     {
       RInfo		*ri;
 #if	defined(__MINGW__)
-      uint32_t	dummy = 1;
+      DWORD	dummy = 1;
 #else
       int		r;
 #endif /* !__MINGW__ */
@@ -3759,7 +3759,7 @@ int ptype, struct sockaddr_in *addr, unsigned short *p, uptr *v)
   gdo_req	msg;
   struct sockaddr_in sin;
 #if	defined(__MINGW__)
-  uint32_t dummy;
+  DWORD dummy;
 #endif /* __MINGW__ */
 
   *p = 0;

@@ -92,6 +92,7 @@ GS_EXPORT NSString* const NSConnectionProxyCount;	/* Objects received */
  *
  *	A few methods are in the specification but not yet implemented.
  */
+GS_EXPORT_CLASS
 @interface NSConnection : NSObject
 {
 #if	GS_NONFRAGILE
@@ -276,6 +277,10 @@ GS_EXPORT NSString * const NSConnectionDidInitializeNotification; /* OPENSTEP */
  * cannot authenticate.
  */
 GS_EXPORT NSString * const NSFailedAuthenticationException; /* MacOS-X  */
+
+GS_EXPORT NSString * const NSDestinationInvalidException;
+GS_EXPORT NSString * const NSObjectInaccessibleException;
+GS_EXPORT NSString * const NSObjectNotAvailableException;
 
 #if	defined(__cplusplus)
 }

@@ -110,6 +110,7 @@ extern "C" {
    message before the program terminates.
    </p>
 */
+GS_EXPORT_CLASS
 @interface NSException : NSObject <NSCoding, NSCopying>
 {    
 #if	GS_EXPOSE(NSException)
@@ -420,6 +421,7 @@ GS_EXPORT void _NSRemoveHandler( NSHandler *handler );
  * The numbered macros arre obsolete, dating from a time when NSAssert() and
  * NSCAssert() did not support a variable number of arguments.
  */
+GS_EXPORT_CLASS
 @interface NSAssertionHandler : NSObject
 
 + (NSAssertionHandler*) currentHandler;
@@ -436,7 +438,8 @@ GS_EXPORT void _NSRemoveHandler( NSHandler *handler );
 		   description: (NSString*)format,... GS_NORETURN_METHOD;
 
 @end
-extern NSString *const NSAssertionHandlerKey;
+
+GS_EXPORT NSString *const NSAssertionHandlerKey;
 
 #ifdef	NS_BLOCK_ASSERTIONS
 #define NSAssert(condition, desc, args...)		

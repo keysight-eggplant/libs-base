@@ -146,13 +146,12 @@
 @end
 
 // Preview support
-NSString * const NSItemProviderPreferredImageSizeKey = @"NSItemProviderPreferredImageSizeKey";
 
 @implementation NSItemProvider (NSPreviewSupport)
 
 - (NSItemProviderLoadHandler) previewImageHandler
 {
-  return nil;
+  return (NSItemProviderLoadHandler)0;
 }
 
 - (void) setPreviewImageHandler: (NSItemProviderLoadHandler) previewImageHandler
@@ -165,11 +164,3 @@ NSString * const NSItemProviderPreferredImageSizeKey = @"NSItemProviderPreferred
 }
 
 @end
-
-NSString * const NSExtensionJavaScriptPreprocessingResultsKey = @"NSExtensionJavaScriptPreprocessingResultsKey"; 
-
-NSString * const NSExtensionJavaScriptFinalizeArgumentKey = @"NSExtensionJavaScriptFinalizeArgumentKey";
-
-NSString * const NSItemProviderErrorDomain = @"NSItemProviderErrorDomain" ;
-
-

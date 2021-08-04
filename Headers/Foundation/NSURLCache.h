@@ -54,6 +54,7 @@ typedef enum
 /**
  * Encapsulates a cached response to a URL load request.
  */
+GS_EXPORT_CLASS
 @interface NSCachedURLResponse : NSObject <NSCoding, NSCopying>
 {
 #if	GS_EXPOSE(NSCachedURLResponse)
@@ -100,6 +101,7 @@ typedef enum
 @end
 
 
+GS_EXPORT_CLASS
 @interface NSURLCache : NSObject
 {
 #if	GS_EXPOSE(NSURLCache)
@@ -193,6 +195,19 @@ typedef enum
  */
 - (void) storeCachedResponse: (NSCachedURLResponse *)cachedResponse
 		  forRequest: (NSURLRequest *)request;
+
+@end
+
+@class NSURLSessionDataTask;
+
+@interface NSURLCache (NSURLSessionTaskAdditions)
+
+- (void) storeCachedResponse: (NSCachedURLResponse*)cachedResponse 
+                 forDataTask: (NSURLSessionDataTask*)dataTask;
+
+- (NSCachedURLResponse*) cachedResponseForDataTask: (NSURLSessionDataTask*)dataTask;
+
+- (void) removeCachedResponseForDataTask: (NSURLSessionDataTask*)dataTask;
 
 @end
 

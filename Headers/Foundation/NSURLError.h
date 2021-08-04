@@ -39,12 +39,12 @@ extern "C" {
 /**
  * The domain for a URL error.
  */
-extern NSString * const NSURLErrorDomain;
+GS_EXPORT NSString * const NSURLErrorDomain;
 
 /**
  * Obtain the URL which caused the failure
  */
-extern NSString * const NSErrorFailingURLStringKey;
+GS_EXPORT NSString * const NSErrorFailingURLStringKey;
 
 /**
  * Error codes for URL errors
@@ -71,6 +71,7 @@ enum
   NSURLErrorFileDoesNotExist = 			-1100,
   NSURLErrorFileIsDirectory = 			-1101,
   NSURLErrorNoPermissionsToReadFile = 		-1102,
+  NSURLErrorDataLengthExceedsMaximum =    -1103,
   NSURLErrorSecureConnectionFailed = 		-1200,
   NSURLErrorServerCertificateHasBadDate = 	-1201,
   NSURLErrorServerCertificateUntrusted = 	-1202,

@@ -101,7 +101,7 @@ typedef GSIMapNode_t *GSIMapNode;
 	 pointerFunctionsAssign(&M->cb.pf, (void**)addr, (x).obj);
 #define GSI_MAP_READ_KEY(M,addr) \
 	(M->legacy ? *(addr) :\
-	 (typeof(*addr))pointerFunctionsRead(&M->cb.pf, (void**)addr))
+	 (__typeof__(*addr))pointerFunctionsRead(&M->cb.pf, (void**)addr))
 
 #define	GSI_MAP_ENUMERATOR	NSHashEnumerator
 
@@ -680,7 +680,7 @@ NSResetHashTable(NSHashTable *table)
  * is appended.  The appropriate describe function is used to generate
  * the strings for each item.
  */
-NSString *
+GS_DECLARE NSString *
 NSStringFromHashTable(NSHashTable *table)
 {
   GSIMapTable		t = (GSIMapTable)table;
@@ -918,7 +918,7 @@ const NSHashTableCallBacks NSPointerToStructHashCallBacks =
 				   objects: (id*)stackbuf
 				     count: (NSUInteger)len
 {
-  state->mutationsPtr = (unsigned long *)&version;
+  state->mutationsPtr = &version;
   return GSIMapCountByEnumeratingWithStateObjectsCount
     (self, state, stackbuf, len);
 }

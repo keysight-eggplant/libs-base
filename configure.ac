@@ -235,7 +235,7 @@ then
 fi
 if test x"$GNUSTEP_TARGET_CONFIG_FILE" = x""; then
   case "$target_os" in
-    mingw*)
+    mingw*|windows)
       GNUSTEP_TARGET_CONFIG_FILE=./GNUstep.conf ;;
     *)
       GNUSTEP_TARGET_CONFIG_FILE="$GNUSTEP_MAKE_CONFIG" ;;
@@ -252,7 +252,7 @@ AC_MSG_RESULT($GNUSTEP_TARGET_CONFIG_FILE)
 # location (used by gnustep-make when building).
 #-----------------------------------------------------------------
 case "$target_os" in
-    mingw*)	enable_env_config=no;;
+    mingw*|windows)	enable_env_config=no;;
     *)		enable_env_config=yes;;
 esac
 AC_MSG_CHECKING([whether the GNUstep.conf file path can be set in the environment])
@@ -534,7 +534,7 @@ AC_SUBST(GNUSTEP_BASE_DOMAIN)
 # paths (relative to libgnustep-base.dll).
 #
 case "$target_os" in
-  mingw*)
+  mingw*|windows)
     # TODO: Improve this hack.
     # According to Wikipedia, this is the default for Windows 2000,
     # Windows XP and Windows Server 2003.  For Windows Vista this will
@@ -1295,7 +1295,7 @@ else
 fi
 
 if test -f "$GNUSTEP_HDIR/objc/objc.h"; then
-  if test -f "$GNUSTEP_LDIR/libobjc.a" -o -f "$GNUSTEP_LDIR/libobjc.so" -o -f "$GNUSTEP_LDIR/libobjc.dll.a" -o -f "$GNUSTEP_LDIR/libobjc-gnu.dylib" -o -f "$GNUSTEP_LDIR/libobjc_gc.a" -o -f "$GNUSTEP_LDIR/libobjc_gc.so" -o -f "$GNUSTEP_LDIR/libobjc_gc.dll.a" -o -f "$GNUSTEP_LDIR/libobjc_gc-gnu.dylib"; then
+  if test -f "$GNUSTEP_LDIR/libobjc.a" -o -f "$GNUSTEP_LDIR/libobjc.so" -o -f "$GNUSTEP_LDIR/libobjc.dll.a" -o -f "$GNUSTEP_LDIR/libobjc-gnu.dylib" -o -f "$GNUSTEP_LDIR/objc.lib"; then
     gs_cv_objc_libdir="$GNUSTEP_LDIR"
     gs_cv_objc_incdir="$GNUSTEP_HDIR"
   fi
@@ -1312,7 +1312,7 @@ else
 fi
 
 if test -f "$GNUSTEP_HDIR/objc/objc.h"; then
-  if test -f "$GNUSTEP_LDIR/libobjc.a" -o -f "$GNUSTEP_LDIR/libobjc.so" -o -f "$GNUSTEP_LDIR/libobjc.dll.a" -o -f "$GNUSTEP_LDIR/libobjc-gnu.dylib" -o -f "$GNUSTEP_LDIR/libobjc_gc.a" -o -f "$GNUSTEP_LDIR/libobjc_gc.so" -o -f "$GNUSTEP_LDIR/libobjc_gc.dll.a" -o -f "$GNUSTEP_LDIR/libobjc_gc-gnu.dylib"; then
+  if test -f "$GNUSTEP_LDIR/libobjc.a" -o -f "$GNUSTEP_LDIR/libobjc.so" -o -f "$GNUSTEP_LDIR/libobjc.dll.a" -o -f "$GNUSTEP_LDIR/libobjc-gnu.dylib" -o -f "$GNUSTEP_LDIR/objc.lib"; then
     gs_cv_objc_libdir="$GNUSTEP_LDIR"
     gs_cv_objc_incdir="$GNUSTEP_HDIR"
   fi
@@ -1329,7 +1329,7 @@ else
 fi
 
 if test -f "$GNUSTEP_HDIR/objc/objc.h"; then
-  if test -f "$GNUSTEP_LDIR/libobjc.a" -o -f "$GNUSTEP_LDIR/libobjc.so" -o -f "$GNUSTEP_LDIR/libobjc.dll.a" -o -f "$GNUSTEP_LDIR/libobjc-gnu.dylib" -o -f "$GNUSTEP_LDIR/libobjc_gc.a" -o -f "$GNUSTEP_LDIR/libobjc_gc.so" -o -f "$GNUSTEP_LDIR/libobjc_gc.dll.a" -o -f "$GNUSTEP_LDIR/libobjc_gc-gnu.dylib"; then
+  if test -f "$GNUSTEP_LDIR/libobjc.a" -o -f "$GNUSTEP_LDIR/libobjc.so" -o -f "$GNUSTEP_LDIR/libobjc.dll.a" -o -f "$GNUSTEP_LDIR/libobjc-gnu.dylib" -o -f "$GNUSTEP_LDIR/objc.lib"; then
     gs_cv_objc_libdir="$GNUSTEP_LDIR"
     gs_cv_objc_incdir="$GNUSTEP_HDIR"
   fi
@@ -1346,6 +1346,11 @@ if test "$gs_cv_objc_libdir" != "NONE"; then
   LDIR_FLAGS="$LDIR_FLAGS -L$gs_cv_objc_libdir/$LIBRARY_COMBO -L$gs_cv_objc_libdir"
   CPPFLAGS="$CPPFLAGS -I$gs_cv_objc_incdir"
   LDFLAGS="$LDFLAGS -L$gs_cv_objc_libdir"
+
+  # add to path on Windows for config checks to find DLL at runtime
+  case $host_os in
+    mingw*|windows) PATH=$PATH:$gs_cv_objc_libdir;;
+  esac
 fi
 
 #--------------------------------------------------------------------
@@ -1698,91 +1703,208 @@ fi
 AC_CHECK_FUNCS(getaddrinfo)
 
 #--------------------------------------------------------------------
+# Windows: check if we have native threading APIs and SRW locks
+#--------------------------------------------------------------------
+HAVE_WIN32_THREADS_AND_LOCKS=0
+case "$target_os" in
+  mingw*|windows)
+    AC_MSG_CHECKING(for native Windows threads and locks)
+    AC_COMPILE_IFELSE(
+      [AC_LANG_SOURCE([
+        #define GS_USE_WIN32_THREADS_AND_LOCKS 1
+        #include "$srcdir/Source/GSPThread.h"
+      ])],
+      AC_MSG_RESULT([yes])
+      HAVE_WIN32_THREADS_AND_LOCKS=1,
+      AC_MSG_RESULT([no]))
+    ;;
+esac
+AC_SUBST(HAVE_WIN32_THREADS_AND_LOCKS)
+
+#--------------------------------------------------------------------
 # Check for pthread.h
 #--------------------------------------------------------------------
-AC_CHECK_HEADERS([pthread.h])
-AC_CHECK_HEADERS([pthread_np.h],[],[],[AC_INCLUDES_DEFAULT
-		  #ifdef HAVE_PTHREAD_H
-		  #include <pthread.h>
-		  #endif
-		  ])
-if test $ac_cv_header_pthread_h = yes ; then
-  AC_CHECK_SIZEOF(pthread_mutex_t,,[AC_INCLUDES_DEFAULT
-#include <pthread.h>])
-  GS_SIZEOF_MUTEX_T=$ac_cv_sizeof_pthread_mutex_t
-  if test $ac_cv_sizeof_pthread_mutex_t = 0 ; then
-    AC_MSG_ERROR([Unable to find size of pthread_mutex_t (required).])
+if test $HAVE_WIN32_THREADS_AND_LOCKS = 0; then
+  AC_CHECK_HEADERS([pthread.h])
+  AC_CHECK_HEADERS([pthread_np.h],[],[],[AC_INCLUDES_DEFAULT
+    #ifdef HAVE_PTHREAD_H
+    #include <pthread.h>
+    #endif
+  ])
+  if test $ac_cv_header_pthread_h = yes ; then
+    AC_CHECK_SIZEOF(pthread_mutex_t,,[AC_INCLUDES_DEFAULT
+      #include <pthread.h>])
+    GS_SIZEOF_MUTEX_T=$ac_cv_sizeof_pthread_mutex_t
+    if test $ac_cv_sizeof_pthread_mutex_t = 0 ; then
+      AC_MSG_ERROR([Unable to find size of pthread_mutex_t (required).])
+    fi
+    AC_SUBST(GS_SIZEOF_MUTEX_T)
+    GS_SIZEOF_COND_MUTEX_T=$ac_cv_sizeof_pthread_mutex_t
+    AC_SUBST(GS_SIZEOF_COND_MUTEX_T)
+
+    # pthread_mutex_t.__data.__owner is non-standard since pthread_mutex_t is
+    # nominally an opaque type.  We must not rely on this for anything other
+    # than debug output!
+    AC_CHECK_MEMBER([pthread_mutex_t.__data.__owner],,,[AC_INCLUDES_DEFAULT
+      #include <pthread.h>])
+    if test $ac_cv_member_pthread_mutex_t___data___owner = yes ; then
+      AC_DEFINE(HAVE_PTHREAD_MUTEX_OWNER, 1,
+        [Define if you have pthread_mutex_t.__data.__owner])
+    fi
+
+    AC_CHECK_SIZEOF(pthread_cond_t,,[AC_INCLUDES_DEFAULT
+      #include <pthread.h>])
+    if test $ac_cv_sizeof_pthread_cond_t = 0 ; then
+      AC_MSG_ERROR([Unable to find size of pthread_cond_t (required).])
+    fi
+    GS_SIZEOF_COND_T=$ac_cv_sizeof_pthread_cond_t
+    AC_SUBST(GS_SIZEOF_COND_T)
+
+    AC_CHECK_ALIGNOF(pthread_mutex_t,[AC_INCLUDES_DEFAULT
+      #include <pthread.h>])
+    GS_ALIGNOF_MUTEX_T=$ac_cv_alignof_pthread_mutex_t
+    if test $ac_cv_alignof_pthread_mutex_t = 0 ; then
+      AC_MSG_ERROR([Unable to find align of pthread_mutex_t (required).])
+    fi
+    AC_SUBST(GS_ALIGNOF_MUTEX_T)
+    GS_ALIGNOF_COND_MUTEX_T=$ac_cv_alignof_pthread_mutex_t
+    AC_SUBST(GS_ALIGNOF_COND_MUTEX_T)
+
+    AC_CHECK_ALIGNOF(pthread_cond_t,[AC_INCLUDES_DEFAULT
+      #include <pthread.h>])
+    if test $ac_cv_alignof_pthread_cond_t = 0 ; then
+      AC_MSG_ERROR([Unable to find align of pthread_cond_t (required).])
+    fi
+    GS_ALIGNOF_COND_T=$ac_cv_alignof_pthread_cond_t
+    AC_SUBST(GS_ALIGNOF_COND_T)
+  else
+    AC_MSG_ERROR([Unable to find pthread.h (needed for thread support).])
+  fi
+  AC_CHECK_LIB(pthread, pthread_join, pthread_ok=yes, pthread_ok=no)
+
+  if test $pthread_ok = yes ; then
+    LIBS="$LIBS -lpthread"
+  else
+    case "$target_os" in
+      mingw*)
+        AC_CHECK_LIB(pthreadGC2, pthread_join, pthread_ok=yes, pthread_ok=no)
+        if test $pthread_ok = yes ; then
+          LIBS="$LIBS -lpthreadGC2"
+        fi
+        ;;
+      windows)
+        AC_CHECK_LIB(pthreadVC2, pthread_join, pthread_ok=yes, pthread_ok=no)
+        if test $pthread_ok = yes ; then
+          LIBS="$LIBS -lpthreadVC2"
+        fi
+        ;;
+      nto*|qnx*|*android*)
+        # Android and QNX have pthread in libc instead of libpthread
+        AC_CHECK_LIB(c, pthread_join, pthread_ok=yes, pthread_ok=no)
+        if test $pthread_ok = yes ; then
+           LIBS="$LIBS -lc"
+        fi
+        ;;
+    esac
+  fi
+  if test $pthread_ok = no ; then
+    AC_MSG_ERROR([Unable to find pthread library (needed for thread support).])
+  fi
+
+  # Check threading extensions
+  AC_CHECK_FUNCS(pthread_getthreadid_np pthread_main_np)
+
+  # Typically need librt on Solaris for sched_yield
+  AC_CHECK_LIB(rt, sched_yield)
+  
+  # Check if we can name pthreads
+  AC_CACHE_CHECK([for pthread_setname_np()], gs_cv_pthread_setname_np,
+  [AC_LINK_IFELSE(
+    [AC_LANG_PROGRAM([#include <pthread.h>],
+      [pthread_setname_np("name");])],
+    [gs_cv_pthread_setname_np=darwin],
+    [AC_LINK_IFELSE(
+      [AC_LANG_PROGRAM([#include <pthread.h>],
+        [pthread_setname_np(pthread_self(), "name");])],
+      [gs_cv_pthread_setname_np=glibc],
+      [AC_LINK_IFELSE(
+        [AC_LANG_PROGRAM([#include <pthread.h>],
+          [pthread_setname_np(pthread_self(), "%s", "name");])],
+        [gs_cv_pthread_setname_np=netbsd],
+        [gs_cv_pthread_setname_np=none])])])])
+  case $gs_cv_pthread_setname_np in
+    darwin)
+      AC_DEFINE(PTHREAD_SETNAME(a), pthread_setname_np(a),
+        [Description: Define set name function for pthread with one arg])
+      ;;
+    glibc)
+      AC_DEFINE(PTHREAD_SETNAME(a), pthread_setname_np(pthread_self(),a),
+        [Description: Define setname function for pthread with two args])
+      ;;
+    netbsd)
+      AC_DEFINE(PTHREAD_SETNAME(a), pthread_setname_np(pthread_self(),"%s",a),
+        [Description: Define setname function for pthread with three args])
+      ;;
+  esac
+  
+  # Check if we have spinlock support
+  AC_CHECK_FUNCS(pthread_spin_lock)
+fi
+
+#--------------------------------------------------------------------
+# Check Win32 lock sizes
+#--------------------------------------------------------------------
+if test $HAVE_WIN32_THREADS_AND_LOCKS = 1; then
+  AC_CHECK_SIZEOF(gs_mutex_t,,[AC_INCLUDES_DEFAULT
+    #define GS_USE_WIN32_THREADS_AND_LOCKS 1
+    #include "Source/GSPThread.h"])
+  GS_SIZEOF_MUTEX_T=$ac_cv_sizeof_gs_mutex_t
+  if test $ac_cv_sizeof_gs_mutex_t = 0 ; then
+    AC_MSG_ERROR([Unable to find size of gs_mutex_t (required).])
   fi
   AC_SUBST(GS_SIZEOF_MUTEX_T)
-# pthread_mutex_t.__data.__owner is non-standard since pthread_mutex_t is
-# nominally an opaque type.  We must not rely on this for anything other
-# than debug output!
-  AC_CHECK_MEMBER([pthread_mutex_t.__data.__owner],,,[AC_INCLUDES_DEFAULT
-#include <pthread.h>])
-  if test $ac_cv_member_pthread_mutex_t___data___owner = yes ; then
-    AC_DEFINE(HAVE_PTHREAD_MUTEX_OWNER, 1,
-      [Define if you have pthread_mutex_t.__data.__owner])
-  fi
-  AC_CHECK_SIZEOF(pthread_cond_t,,[AC_INCLUDES_DEFAULT
-#include <pthread.h>])
-  if test $ac_cv_sizeof_pthread_cond_t = 0 ; then
-    AC_MSG_ERROR([Unable to find size of pthread_cond_t (required).])
-  fi
-  GS_SIZEOF_COND_T=$ac_cv_sizeof_pthread_cond_t
-  AC_SUBST(GS_SIZEOF_COND_T)
-  AC_CHECK_ALIGNOF(pthread_mutex_t,[AC_INCLUDES_DEFAULT
-#include <pthread.h>])
-  GS_ALIGNOF_MUTEX_T=$ac_cv_alignof_pthread_mutex_t
-  if test $ac_cv_alignof_pthread_mutex_t = 0 ; then
-    AC_MSG_ERROR([Unable to find align of pthread_mutex_t (required).])
+  
+  AC_CHECK_ALIGNOF(gs_mutex_t,[AC_INCLUDES_DEFAULT
+    #define GS_USE_WIN32_THREADS_AND_LOCKS 1
+    #include "Source/GSPThread.h"])
+  GS_ALIGNOF_MUTEX_T=$ac_cv_alignof_gs_mutex_t
+  if test $ac_cv_alignof_gs_mutex_t = 0 ; then
+    AC_MSG_ERROR([Unable to find align of gs_mutex_t (required).])
   fi
   AC_SUBST(GS_ALIGNOF_MUTEX_T)
-  AC_CHECK_ALIGNOF(pthread_cond_t,[AC_INCLUDES_DEFAULT
-#include <pthread.h>])
-  if test $ac_cv_alignof_pthread_cond_t = 0 ; then
-    AC_MSG_ERROR([Unable to find align of pthread_cond_t (required).])
+  
+  AC_CHECK_SIZEOF(CONDITION_VARIABLE,,[AC_INCLUDES_DEFAULT
+    #include <windows.h>])
+  GS_SIZEOF_COND_T=$ac_cv_sizeof_CONDITION_VARIABLE
+  if test $ac_cv_sizeof_CONDITION_VARIABLE = 0 ; then
+    AC_MSG_ERROR([Unable to find size of CONDITION_VARIABLE (required).])
   fi
-  GS_ALIGNOF_COND_T=$ac_cv_alignof_pthread_cond_t
+  AC_SUBST(GS_SIZEOF_COND_T)
+  
+  AC_CHECK_ALIGNOF(CONDITION_VARIABLE,[AC_INCLUDES_DEFAULT
+    #include <windows.h>])
+  GS_ALIGNOF_COND_T=$ac_cv_alignof_CONDITION_VARIABLE
+  if test $ac_cv_alignof_CONDITION_VARIABLE = 0 ; then
+    AC_MSG_ERROR([Unable to find align of CONDITION_VARIABLE (required).])
+  fi
   AC_SUBST(GS_ALIGNOF_COND_T)
-else
-  AC_MSG_ERROR([Unable to find pthread.h (needed for thread support).])
-fi
-AC_CHECK_LIB(pthread, pthread_join, pthread_ok=yes, pthread_ok=no)
-ismingw=no
-checkinlibc=no
-case "$target_os" in
-  mingw*)	ismingw=yes;;
-  nto*)		checkinlibc=yes;;
-  qnx*)		checkinlibc=yes;;
-  *android*)   checkinlibc=yes;;
-esac
-if test $pthread_ok = yes ; then
-  LIBS="$LIBS -lpthread"
-else
-  if test $ismingw = yes ; then
-    AC_CHECK_LIB(pthreadGC2, pthread_join, pthread_ok=yes, pthread_ok=no)
-    if test $pthread_ok = yes ; then
-      LIBS="$LIBS -lpthreadGC2"
-    fi
+  
+  AC_CHECK_SIZEOF(SRWLOCK,,[AC_INCLUDES_DEFAULT
+    #include <windows.h>])
+  GS_SIZEOF_COND_MUTEX_T=$ac_cv_sizeof_SRWLOCK
+  if test $ac_cv_sizeof_SRWLOCK = 0 ; then
+    AC_MSG_ERROR([Unable to find size of SRWLOCK (required).])
   fi
-  # Android and QNX have pthread in libc instead of libpthread
-  if test $checkinlibc = yes ; then
-    AC_CHECK_LIB(c, pthread_join, pthread_ok=yes, pthread_ok=no)
-    if test $pthread_ok = yes ; then
-       LIBS="$LIBS -lc"
-    fi
+  AC_SUBST(GS_SIZEOF_COND_MUTEX_T)
+  
+  AC_CHECK_ALIGNOF(SRWLOCK,[AC_INCLUDES_DEFAULT
+    #include <windows.h>])
+  GS_ALIGNOF_COND_MUTEX_T=$ac_cv_alignof_SRWLOCK
+  if test $ac_cv_alignof_SRWLOCK = 0 ; then
+    AC_MSG_ERROR([Unable to find align of SRWLOCK (required).])
   fi
+  AC_SUBST(GS_ALIGNOF_COND_MUTEX_T)
 fi
-if test $pthread_ok = no ; then
-  AC_MSG_ERROR([Unable to find pthread library (needed for thread support).])
-fi
-
-# Check threading extensions
-AC_CHECK_FUNCS(pthread_getthreadid_np pthread_main_np)
-
-# Typically need librt on Solaris for sched_yield
-AC_CHECK_LIB(rt, sched_yield)
-
 
 #--------------------------------------------------------------------
 # One of these function needed by NSThread.m and objc initialize test
@@ -1808,45 +1930,6 @@ AC_SUBST(GS_HAVE_OBJC_ROOT_CLASS_ATTR)
 AC_DEFINE_UNQUOTED(HAVE_OBJC_ROOT_CLASS_ATTRIBUTE,$gs_objc_root_class_attr,
   [Says whether the objc_root_class attribute works])
 CFLAGS=$saved_CFLAGS
-
-
-#--------------------------------------------------------------------
-# Check if we can name pthreads
-#--------------------------------------------------------------------
-
-AC_CACHE_CHECK([for pthread_setname_np()], gs_cv_pthread_setname_np,
-[AC_LINK_IFELSE(
-  [AC_LANG_PROGRAM([#include <pthread.h>],
-    [pthread_setname_np("name");])],
-  [gs_cv_pthread_setname_np=darwin],
-  [AC_LINK_IFELSE(
-    [AC_LANG_PROGRAM([#include <pthread.h>],
-      [pthread_setname_np(pthread_self(), "name");])],
-    [gs_cv_pthread_setname_np=glibc],
-    [AC_LINK_IFELSE(
-      [AC_LANG_PROGRAM([#include <pthread.h>],
-        [pthread_setname_np(pthread_self(), "%s", "name");])],
-      [gs_cv_pthread_setname_np=netbsd],
-      [gs_cv_pthread_setname_np=none])])])])
-case $gs_cv_pthread_setname_np in
-  darwin)
-    AC_DEFINE(PTHREAD_SETNAME(a), pthread_setname_np(a),
-      [Description: Define set name function for pthread with one arg])
-    ;;
-  glibc)
-    AC_DEFINE(PTHREAD_SETNAME(a), pthread_setname_np(pthread_self(),a),
-      [Description: Define setname function for pthread with two args])
-    ;;
-  netbsd)
-    AC_DEFINE(PTHREAD_SETNAME(a), pthread_setname_np(pthread_self(),"%s",a),
-      [Description: Define setname function for pthread with three args])
-    ;;
-esac
-
-#--------------------------------------------------------------------
-# Check if we have spinlock support
-#--------------------------------------------------------------------
-AC_CHECK_FUNCS(pthread_spin_lock)
 
 #--------------------------------------------------------------------
 # Check whether we can get the system thread ID
@@ -1968,13 +2051,21 @@ fi
 #--------------------------------------------------------------------
 # Check for thread synchronisation support in runtime
 #--------------------------------------------------------------------
-AC_CHECK_FUNCS(objc_sync_enter)
-if test $ac_cv_func_objc_sync_enter = yes ; then
+if test "$host_os" = windows -a "$OBJC_RUNTIME_LIB" = "ng"; then
+  # On Windows MSVC, AC_CHECK_FUNCS() will throw linker errors ("relocation
+  # against symbol in discarded section") as the file won't contain any actual
+  # ObjC code, so we just assume the function is there.
+  AC_MSG_NOTICE([assuming objc_sync_enter() on Windows MSVC])
   OBJCSYNC=1
 else
-  OBJCSYNC=0
-  if test "$OBJC_RUNTIME_LIB" = "ng"; then
-    AC_MSG_ERROR([The objc runtime library does not appear to have synchronisation support.  Try re-configuring gnustep-make with a CPPFLAGS variable containing a -L point to specify the directory containing the correct libobjc, or using the --with-objc-lib-flag=... option.])
+  AC_CHECK_FUNCS(objc_sync_enter)
+  if test $ac_cv_func_objc_sync_enter = yes ; then
+    OBJCSYNC=1
+  else
+    OBJCSYNC=0
+    if test "$OBJC_RUNTIME_LIB" = "ng"; then
+      AC_MSG_ERROR([The objc runtime library does not appear to have synchronisation support.  Try re-configuring gnustep-make with a CPPFLAGS variable containing a -L point to specify the directory containing the correct libobjc, or using the --with-objc-lib-flag=... option.])
+    fi
   fi
 fi
 AC_SUBST(OBJCSYNC)
@@ -1987,6 +2078,12 @@ AC_SUBST(OBJCSYNC)
 if test "$cross_compiling" = "yes"; then
   AC_MSG_NOTICE(["Cross compiling! Using predefined OBJC2RUNTIME variable"])
   OBJC2RUNTIME="$cross_objc2_runtime"
+elif test "$host_os" = windows -a "$OBJC_RUNTIME_LIB" = "ng"; then
+  # On Windows MSVC, AC_CHECK_FUNCS() will throw linker errors ("relocation
+  # against symbol in discarded section") as the file won't contain any actual
+  # ObjC code, so we just assume the function is there.
+  AC_MSG_NOTICE([assuming objc_setProperty() on Windows MSVC])
+  OBJC2RUNTIME=1
 else
   AC_CHECK_FUNCS(objc_setProperty)
   if test $ac_cv_func_objc_setProperty = yes ; then
@@ -2003,13 +2100,21 @@ AC_SUBST(OBJC2RUNTIME)
 #--------------------------------------------------------------------
 # Check for blocks support in runtime
 #--------------------------------------------------------------------
-AC_CHECK_FUNCS(_Block_copy)
-if test $ac_cv_func__Block_copy = yes ; then
+if test "$host_os" = windows -a "$OBJC_RUNTIME_LIB" = "ng"; then
+  # On Windows MSVC, AC_CHECK_FUNCS() will throw linker errors ("relocation
+  # against symbol in discarded section") as the file won't contain any actual
+  # ObjC code, so we just assume the function is there.
+  AC_MSG_NOTICE([assuming _Block_copy() on Windows MSVC])
   HAVE_BLOCKS=1
 else
-  HAVE_BLOCKS=0
-  if test "$OBJC_RUNTIME_LIB" = "ng"; then
-    AC_MSG_ERROR([The objc runtime library does not appear to have blocks support.  Try re-configuring gnustep-make with a CPPFLAGS variable containing a -L point to specify the directory containing the correct libobjc, or using the --with-objc-lib-flag=... option.])
+  AC_CHECK_FUNCS(_Block_copy)
+  if test $ac_cv_func__Block_copy = yes ; then
+    HAVE_BLOCKS=1
+  else
+    HAVE_BLOCKS=0
+    if test "$OBJC_RUNTIME_LIB" = "ng"; then
+      AC_MSG_ERROR([The objc runtime library does not appear to have blocks support.  Try re-configuring gnustep-make with a CPPFLAGS variable containing a -L point to specify the directory containing the correct libobjc, or using the --with-objc-lib-flag=... option.])
+    fi
   fi
 fi
 AC_SUBST(HAVE_BLOCKS)
@@ -2018,18 +2123,26 @@ AC_SUBST(HAVE_BLOCKS)
 
 GS_NONFRAGILE=0
 if test "$nonfragile" = "yes"; then
-  saved_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $OBJCFLAGS -x objective-c"
-  AC_MSG_CHECKING(for non-fragile-abi support)
-  AC_RUN_IFELSE([AC_LANG_SOURCE(
-    [[#include "$srcdir/config/config.non-fragile-ivars.m"]])],
-    non_fragile=yes, non_fragile=no,
-    non_fragile="$cross_non_fragile")
-  CPPFLAGS="$saved_CPPFLAGS"
-  if test $non_fragile = yes; then
+  if test "$host_os" = windows -a "$OBJC_RUNTIME_LIB" = "ng"; then
+    # On Windows MSVC, AC_CHECK_FUNCS() will throw linker errors ("relocation
+    # against symbol in discarded section") as the file won't contain any actual
+    # ObjC code, so we just assume the function is there.
+    AC_MSG_NOTICE([assuming non-fragile-abi support on Windows MSVC])
     GS_NONFRAGILE=1
+  else
+    saved_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$CPPFLAGS $OBJCFLAGS -x objective-c"
+    AC_MSG_CHECKING(for non-fragile-abi support)
+    AC_RUN_IFELSE([AC_LANG_SOURCE(
+      [[#include "$srcdir/config/config.non-fragile-ivars.m"]])],
+      non_fragile=yes, non_fragile=no,
+      non_fragile="$cross_non_fragile")
+    CPPFLAGS="$saved_CPPFLAGS"
+    if test $non_fragile = yes; then
+      GS_NONFRAGILE=1
+    fi
+    AC_MSG_RESULT($non_fragile)
   fi
-  AC_MSG_RESULT($non_fragile)
 fi
 AC_SUBST(GS_NONFRAGILE)
 
@@ -2108,11 +2221,19 @@ AC_MSG_RESULT($have_set_unexpected)
 # Don't revert any Objective-C flags as they are used in the next test
 
 AC_MSG_CHECKING(for _objc_unexpected_exception in runtime)
-AC_RUN_IFELSE(
-  [AC_LANG_SOURCE([[#include "$srcdir/config/config.unexpected.m"]])],
-    have_unexpected=yes,
-    have_unexpected=no,
-    have_unexpected="$cross_have_unexpected")
+if test "$host_os" = windows -a "$OBJC_RUNTIME_LIB" = "ng"; then
+  # On Windows MSVC, AC_CHECK_FUNCS() will throw linker errors ("relocation
+  # against symbol in discarded section") as the file won't contain any actual
+  # ObjC code, so we just assume the function is there.
+  AC_MSG_NOTICE([assuming _objc_unexpected_exception() on Windows MSVC])
+  have_unexpected=yes
+else
+  AC_RUN_IFELSE(
+    [AC_LANG_SOURCE([[#include "$srcdir/config/config.unexpected.m"]])],
+      have_unexpected=yes,
+      have_unexpected=no,
+      have_unexpected="$cross_have_unexpected")
+fi
 if test $have_unexpected = yes; then
   AC_DEFINE(HAVE_UNEXPECTED,1,
 	    [Define if libobjc has the _objc_unexpected_exception callback])
@@ -2150,11 +2271,18 @@ AC_SUBST(BASE_NATIVE_OBJC_EXCEPTIONS)
 #--------------------------------------------------------------------
 # Function needed by @synchronize directive
 #--------------------------------------------------------------------
-AC_CHECK_FUNCS(objc_sync_enter)
-
 HAVE_OBJC_SYNC_ENTER=no
-if test $ac_cv_func_objc_sync_enter = yes ; then
+if test "$host_os" = windows -a "$OBJC_RUNTIME_LIB" = "ng"; then
+  # On Windows MSVC, AC_CHECK_FUNCS() will throw linker errors ("relocation
+  # against symbol in discarded section") as the file won't contain any actual
+  # ObjC code, so we just assume the function is there.
+  AC_MSG_NOTICE([assuming objc_sync_enter() on Windows MSVC])
   HAVE_OBJC_SYNC_ENTER=yes
+else
+  AC_CHECK_FUNCS(objc_sync_enter)
+  if test $ac_cv_func_objc_sync_enter = yes ; then
+    HAVE_OBJC_SYNC_ENTER=yes
+  fi
 fi
 AC_SUBST(HAVE_OBJC_SYNC_ENTER)
 
@@ -2265,13 +2393,6 @@ dnl AC_REPLACE_FUNCS(getrusage gettimeofday)
 AC_CHECK_HEADERS(time.h sys/time.h tzfile.h sys/rusage.h ucbinclude/sys/resource.h)
 AC_CHECK_FUNCS(time ctime tzset)
 
-# Check if tzfile contains the proper definitions
-if test $ac_cv_header_tzfile_h = yes; then
-  AC_EGREP_HEADER(tzhead, tzfile.h,
-	AC_DEFINE(HAVE_TZHEAD,1,
-                  [ Define if tzfile.h includes the proper definitions]),)
-fi
-
 #--------------------------------------------------------------------
 # These headers/functions needed by GSTcpPort.m
 #--------------------------------------------------------------------
@@ -2300,12 +2421,27 @@ AC_CHECK_HEADERS(bfd.h)
 AC_CHECK_LIB(intl, libintl_fprintf)
 AC_CHECK_LIB(iberty, dyn_string_append)
 AC_CHECK_LIB(bfd, bfd_openr)
-if test $ismingw = yes ; then
-  AC_CHECK_HEADERS(dbghelp.h)
-else
-  AC_CHECK_HEADERS(execinfo.h)
-  AC_CHECK_FUNCS(backtrace)
+
+AC_TRY_COMPILE([
+  #include <bfd.h>
+  ],
+  [bfd_section_vma(0);],
+  bfd_section_vma=1, bfd_section_vma=0)
+if test $bfd_section_vma = 1; then
+  AC_MSG_RESULT([bfd_section_vma found])
+  AC_DEFINE([HAVE_BFD_SECTION_VMA], [1], [Have bfd_section_vma])
 fi
+
+
+case "$target_os" in
+  mingw*)
+    AC_CHECK_HEADERS(dbghelp.h)
+    ;;
+  *)
+    AC_CHECK_HEADERS(execinfo.h)
+    AC_CHECK_FUNCS(backtrace)
+    ;;
+esac
 
 AC_CHECK_FUNCS(__builtin_extract_return_address)
 
@@ -2394,8 +2530,8 @@ fi
 AC_CHECK_FUNCS(getcwd)
 AC_HEADER_DIRENT
 
-# Look for file creation date on NetBSD, FreeBSD, Darwin
-AC_CHECK_MEMBERS([struct stat.st_birthtime, struct stat.st_birthtimespec, struct stat.st_birthtim, struct stat64.st_birthtimespec],
+# Look for file creation and modification date on NetBSD, FreeBSD, Darwin
+AC_CHECK_MEMBERS([struct stat.st_mtim, struct stat.st_birthtime, struct stat.st_birthtimespec, struct stat.st_birthtim, struct stat64.st_birthtimespec],
 		 ,,[#include <sys/stat.h>])
 
 #--------------------------------------------------------------------
@@ -2753,7 +2889,7 @@ elif test "$enable_pass_arguments" = "no"; then
   fi
 fi
 case "$target_os" in
-    mingw*)	enable_fake_main=no; GS_FAKE_MAIN=0;;
+    mingw*|windows)	enable_fake_main=no; GS_FAKE_MAIN=0;;
 esac
 AC_SUBST(GS_FAKE_MAIN)
 AC_MSG_RESULT($enable_fake_main)
@@ -2837,7 +2973,7 @@ AC_ARG_WITH(ffi-library,
 [  --with-ffi-library=PATH       Library path for ffi libs],
     ffi_libdir="$withval", ffi_libdir="no")
 if test ${ffi_libdir} != "no"; then
-GS_ADD_LIBRARY_PATH([${ffi_libdir}])
+  GS_ADD_LIBRARY_PATH([${ffi_libdir}])
 fi
 
 if test "$do_broken_libffi" = "no"; then
@@ -3190,24 +3326,23 @@ if test $enable_xml = yes; then
       enable_xslt=yes)
 
     if test $enable_xslt = yes; then
-      AC_CHECK_LIB(xslt, xsltApplyStylesheet, xslt_ok=yes, xslt_ok=no)
+      PKG_CHECK_MODULES([XSLT], [libxslt >= 1.0], [xslt_ok=yes], [xslt_ok=no])
       if test "$xslt_ok" = "yes"; then
-	AC_CHECK_HEADER(libxslt/xslt.h, xslthdr_ok=yes, xslthdr_ok=no)
-	if test "$xslthdr_ok" = "no"; then
-	  xslt_ok=no
-	fi
+        AC_CHECK_HEADERS(libxslt/xslt.h, xslt_ok=yes, xslt_ok=no)
       fi
       if test "$xslt_ok" = "yes"; then
-	HAVE_LIBXSLT=1
-	AC_DEFINE(HAVE_LIBXSLT,1,[Define if libxslt available])
-	LIBS="-lxslt $LIBS"
+        CPPFLAGS="$CPPFLAGS $XSLT_CFLAGS"
+        INCLUDE_FLAGS="$INCLUDE_FLAGS $XSLT_CFLAGS"
+        LIBS="$XSLT_LIBS $LIBS"
+        HAVE_LIBXSLT=1
+        AC_DEFINE(HAVE_LIBXSLT,1,[Define if libxslt available])
       else
-	echo
-	echo "You do not appear to have usable libxslt headers/library."
-	echo "Building without them will disable the XSLT extensions."
-	echo "If you really want to build gnustep-base without XSLT support,"
-	echo "add --disable-xslt to the configure arguments to avoid warning."
-	AC_MSG_WARN([Missing support for XSLT functionality.])
+        echo
+        echo "You do not appear to have usable libxslt headers/library."
+        echo "Building without them will disable the XSLT extensions."
+        echo "If you really want to build gnustep-base without XSLT support,"
+        echo "add --disable-xslt to the configure arguments to avoid warning."
+        AC_MSG_WARN([Missing support for XSLT functionality.])
       fi
     else
       HAVE_LIBXSLT=0
@@ -3357,18 +3492,35 @@ AC_ARG_ENABLE(icu,
   [  --disable-icu			Disable International Components for Unicode],,
   enable_icu=yes)
 
-if test "$enable_icu" = "yes"; then
-  PKG_CHECK_MODULES([ICU], [icu-i18n > 49.0])
-  AC_CHECK_HEADERS(unicode/uloc.h unicode/ulocdata.h unicode/ucol.h unicode/ucurr.h unicode/uregex.h unicode/ucal.h unicode/unorm2.h unicode/unum.h unicode/udat.h unicode/udatpg.h unicode/ustring.h unicode/usearch.h unicode/ucnv.h)
+AS_IF([test "x$enable_icu" = "xyes"], [
+  case "$target_os" in
+    mingw*|windows)
+      # check for ICU bundled with Windows 10
+      AC_CHECK_HEADERS([icu.h],
+        AC_CHECK_LIB(icu, udat_open, HAVE_ICU=1))
+      if test $HAVE_ICU = 1; then
+        ICU_LIBS=-licu
+        AC_MSG_NOTICE([Using ICU DLL from Windows 10 (requires version 1903 or later)])
+      fi
+    ;;
+  esac
+  if test $HAVE_ICU = 0; then
+    PKG_CHECK_MODULES([ICU], [icu-i18n > 49.0], [
+      AC_CHECK_HEADERS([unicode/uloc.h unicode/ulocdata.h unicode/ucol.h unicode/ucurr.h unicode/uregex.h unicode/ucal.h unicode/unorm2.h unicode/unum.h unicode/udat.h unicode/udatpg.h unicode/ustring.h unicode/usearch.h unicode/ucnv.h unicode/utext.h],
+        HAVE_ICU=1)], [HAVE_ICU=0])
+  fi
+  if test $HAVE_ICU = 0; then
+    AC_MSG_ERROR([No useable ICU installation found])
+  fi
   LIBS="$LIBS $ICU_LIBS"
-  HAVE_ICU=1
-fi
+])
 AC_SUBST(HAVE_ICU)
 
 #--------------------------------------------------------------------
 # Check for libdispatch
 # See DEPENDENCIES POLICY at the start of this file.
 #--------------------------------------------------------------------
+
 HAVE_LIBDISPATCH=0
 AC_ARG_ENABLE(libdispatch,
   [  --disable-libdispatch		Disable dispatching blocks via libdispatch],
@@ -3376,12 +3528,28 @@ AC_ARG_ENABLE(libdispatch,
   enable_libdispatch=yes)
 
 if test $enable_libdispatch = yes; then
-  AC_CHECK_HEADERS(dispatch.h, have_dispatch=yes, have_dispatch=no)
-  if test "$have_dispatch" = "no"; then
-    AC_CHECK_HEADERS(dispatch/dispatch.h, have_dispatch=yes, have_dispatch=no)
+  AC_ARG_WITH(dispatch-include,
+  [  --with-dispatch-include=PATH       Include path for dispatch header],
+      dispatch_incdir="$withval", dispatch_incdir="no")
+  if test ${dispatch_incdir} != "no"; then
+      CPPFLAGS="$CPPFLAGS -I${dispatch_incdir}"
+      INCLUDE_FLAGS="$INCLUDE_FLAGS -I${dispatch_incdir}"
+  fi
+
+  AC_ARG_WITH(dispatch-library,
+  [  --with-dispatch-library=PATH       Library path for dispatch lib],
+      dispatch_libdir="$withval", dispatch_libdir="no")
+  if test ${dispatch_libdir} != "no"; then
+    GS_ADD_LIBRARY_PATH([${dispatch_libdir}])
+  fi
+
+  AC_CHECK_HEADERS(dispatch/dispatch.h, have_dispatch=yes, have_dispatch=no)
+  if test "$have_dispatch" = "yes"; then
     # check for private header which includes runloop integration functions in
     # the Swift corelibs libdispatch release
     AC_CHECK_HEADERS(dispatch/private.h)
+  else
+    AC_CHECK_HEADERS(dispatch.h, have_dispatch=yes, have_dispatch=no)
   fi
   if test "$have_dispatch" = "yes"; then
     AC_CHECK_LIB(dispatch, dispatch_queue_create, have_dispatch=yes, have_dispatch=no)
@@ -3402,8 +3570,8 @@ if test $enable_libdispatch = yes; then
       fi
     fi
   else
-  HAVE_LIBDISPATCH=0;
-  # just ignore libdispatch if it's not there
+    HAVE_LIBDISPATCH=0;
+    # just ignore libdispatch if it's not there
   fi
 fi
 AC_SUBST(HAVE_LIBDISPATCH)
@@ -3424,6 +3592,109 @@ if test $HAVE_LIBDISPATCH = 1; then
   fi
 fi
 AC_SUBST(HAVE_LIBDISPATCH_RUNLOOP)
+
+
+#--------------------------------------------------------------------
+# Check for libcurl
+# See DEPENDENCIES POLICY at the start of this file.
+#--------------------------------------------------------------------
+CURL_CONFIG="curl-config"
+AC_ARG_WITH(curl, AS_HELP_STRING([--with-curl=<DIR>],
+  [use curl installed in directory <DIR>]))
+if test "$with_curl" != ""; then
+  CURL_CONFIG="$with_curl/bin/curl-config"
+fi
+
+HAVE_LIBCURL=0
+curl_all=no
+AC_MSG_CHECKING([for libcurl])
+if eval $CURL_CONFIG --version 2>/dev/null >/dev/null; then
+  curl_ver=`$CURL_CONFIG --version | sed -e "s/libcurl //g"`
+  curl_maj=`echo $curl_ver | sed -e "s/^\(.*\)\.\(.*\)\.\(.*\)$/\1/"`
+  curl_min=`echo $curl_ver | sed -e "s/^\(.*\)\.\(.*\)\.\(.*\)$/\2/"`
+  if test $curl_maj -lt 7 -o \( $curl_maj -eq 7 -a $curl_min -lt 49 \); then
+    AC_MSG_RESULT([FAILED (version too old to use])
+  else
+    AC_MSG_RESULT(yes ... version $curl_ver)
+    AC_CHECK_HEADERS(curl/curl.h, curl_ok=yes, curl_ok=no)
+    if test "$curl_ok" = yes; then
+      HAVE_LIBCURL=1
+      CURLCFLAGS=`$CURL_CONFIG --cflags`
+      CURLLIBS=`$CURL_CONFIG --libs`
+      CFLAGS="$CFLAGS $CURLCFLAGS"
+      LIBS="$LIBS $CURLLIBS"
+      curl_all=yes
+      if test \( $curl_maj -eq 7 -a $curl_min -lt 56 \); then
+        AC_MSG_WARN([LOSS OF FUNCTIONALITY (version too old for SSL backend control)])
+        curl_all=no
+      elif test \( $curl_maj -eq 7 -a $curl_min -lt 65 \); then
+        AC_MSG_WARN([LOSS OF FUNCTIONALITY (version too old for connection lifetime control)])
+        curl_all=no
+      fi
+    fi
+  fi
+else
+  AC_MSG_RESULT([FAILED (curl-config not found)])
+fi
+
+if test $HAVE_LIBCURL = 1; then
+  AC_MSG_CHECKING([for libcurl TLS support with gnutls])
+  if $CURL_CONFIG --configure | grep -q with-gnutls; then
+    AC_MSG_RESULT(yes)
+  else
+    AC_MSG_RESULT(no)
+    curl_all=no
+    AC_MSG_WARN([LOSS OF FUNCTIONALITY (curl lacks gnutls support)])
+  fi
+fi
+
+if test $HAVE_LIBCURL = 1; then
+  AC_CHECK_LIB(curl, curl_multi_perform, curl_ok=yes, curl_ok=no)
+fi
+if test $HAVE_LIBCURL = 1; then
+  AC_CHECK_DECL(CURLOPT_CONNECT_TO, curl_ok=yes, curl_ok=no,
+    [#include <curl/curl.h>])
+fi
+if test $HAVE_LIBCURL = 1; then
+  # Check for Curl capabilities we may use in NSURLSession
+  AC_CHECK_DECLS(CURLOPT_MAXAGE_CONN,,, [#include <curl/curl.h>])
+
+  # If curl supports runtime selection of the TLS module we will need
+  # to use curl_global_sslset to pick GNUTLS
+  AC_CHECK_FUNCS(curl_global_sslset)
+fi
+AC_SUBST(HAVE_LIBCURL)
+
+#--------------------------------------------------------------------
+# Check dependencies of NSURLSession API
+#--------------------------------------------------------------------
+nsurlsessiondefault=no
+if test "$OBJC_RUNTIME_LIB" = "ng" -a $HAVE_BLOCKS = 1 -a $HAVE_LIBDISPATCH = 1 -a $HAVE_LIBCURL = 1; then
+  nsurlsessiondefault=yes
+fi
+
+GS_HAVE_NSURLSESSION=0
+AC_ARG_ENABLE(nsurlsession,
+  [  --disable-nsurlsession  		Disable support for NSURLSession],,
+  enable_nsurlsession=$nsurlsessiondefault)
+if test $enable_nsurlsession = yes; then
+  if test "$OBJC_RUNTIME_LIB" != "ng"; then
+    AC_MSG_ERROR([Missing ng runtime (needed for NSURLSession). To build without NSURLSession support, please run configure again with the --disable-nsurlsession option.])
+  fi
+  if test $HAVE_BLOCKS = 0; then
+    AC_MSG_ERROR([Missing blocks support (needed for NSURLSession).  To build without NSURLSession support, please run configure again with the --disable-nsurlsession option.])
+  fi
+  if test $HAVE_LIBDISPATCH = 0; then
+    AC_MSG_ERROR([Missing libdispatch (needed for NSURLSession).  To build without NSURLSession support, please run configure again with the --disable-nsurlsession option.])
+   fi
+  # Check for dispatch_queue_create_with_target needed for NSURLSession
+  AC_CHECK_FUNCS(dispatch_queue_create_with_target)
+  if test $HAVE_LIBCURL = 0; then
+    AC_MSG_ERROR([Missing libcurl (needed for NSURLSession). To build without NSURLSession support, please run configure again with the --disable-nsurlsession option.])
+  fi
+  GS_HAVE_NSURLSESSION=1
+fi
+AC_SUBST(GS_HAVE_NSURLSESSION)
 
 #--------------------------------------------------------------------
 # Check GMP for NSDecimal
