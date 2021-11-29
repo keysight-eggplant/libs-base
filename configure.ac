@@ -2420,6 +2420,7 @@ fi
 AC_CHECK_HEADERS(bfd.h)
 AC_CHECK_LIB(intl, libintl_fprintf)
 AC_CHECK_LIB(iberty, dyn_string_append)
+AC_CHECK_LIB(z, gzseek)
 AC_CHECK_LIB(bfd, bfd_openr)
 
 AC_TRY_COMPILE([
@@ -2597,6 +2598,7 @@ AC_CHECK_HEADERS(dnl
 	unistd.h dnl
 	utime.h dnl
         stdlib.h dnl
+        stdbool.h dnl
 	)
 
 if test $ac_cv_header_inttypes_h = yes; then
@@ -3168,6 +3170,14 @@ if test $found_iconv = no ; then
     GS_ADD_LIBRARY_PATH([${libiconv_libdir}])
   fi
 
+  AC_ARG_WITH(libiconv-include,
+    [  --with-libiconv-include=PATH  Include path for libiconv header],
+    libiconv_incdir="$withval", libiconv_incdir="no")
+  if test ${libiconv_incdir} != "no"; then
+      CPPFLAGS="$CPPFLAGS -I${libiconv_incdir}"
+      INCLUDE_FLAGS="$INCLUDE_FLAGS -I${libiconv_incdir}"
+  fi
+
   old_LIBS="$LIBS"
   LIBS="-liconv $LIBS"
   AC_RUN_IFELSE([AC_LANG_SOURCE([#include <iconv.h>
@@ -3496,11 +3506,18 @@ AS_IF([test "x$enable_icu" = "xyes"], [
   case "$target_os" in
     mingw*|windows)
       # check for ICU bundled with Windows 10
+      old_LIBS="$LIBS"
+      LIBS="-licu $LIBS"
       AC_CHECK_HEADERS([icu.h],
-        AC_CHECK_LIB(icu, udat_open, HAVE_ICU=1))
+        AC_RUN_IFELSE([AC_LANG_SOURCE([
+          #include <icu.h>
+          int main () {
+            return udat_countAvailable() > 0 ? 0 : 1;
+          }])], HAVE_ICU=1))
+      LIBS="$old_LIBS"
       if test $HAVE_ICU = 1; then
         ICU_LIBS=-licu
-        AC_MSG_NOTICE([Using ICU DLL from Windows 10 (requires version 1903 or later)])
+        AC_MSG_NOTICE([Using system-provided ICU DLL (requires Windows 10 version 1903 or later)])
       fi
     ;;
   esac

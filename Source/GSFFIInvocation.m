@@ -208,8 +208,8 @@ gs_objc_msg_forward3(id receiver, SEL op)
 }
 
 /** Hidden by legacy API define.  Declare it locally */
-BOOL class_isMetaClass(Class cls);
-BOOL class_respondsToSelector(Class cls, SEL sel);
+GS_IMPORT BOOL class_isMetaClass(Class cls);
+GS_IMPORT BOOL class_respondsToSelector(Class cls, SEL sel);
 
 /**
  * Runtime hook used to provide message redirections with libobjc2.
@@ -256,10 +256,18 @@ static id gs_objc_proxy_lookup(id receiver, SEL op)
 }
 #endif
 
+#ifdef __GNUSTEP_RUNTIME__
+static void GS_WINAPI
+exitedThread(void *slot)
+{
+  free(slot);
+}
+#endif
+
 + (void) load
 {
 #ifdef __GNUSTEP_RUNTIME__
-  GS_THREAD_KEY_INIT(thread_slot_key, free);
+  GS_THREAD_KEY_INIT(thread_slot_key, exitedThread);
   __objc_msg_forward3 = gs_objc_msg_forward3;
   __objc_msg_forward2 = gs_objc_msg_forward2;
   objc_proxy_lookup = gs_objc_proxy_lookup;

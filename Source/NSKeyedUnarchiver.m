@@ -427,7 +427,7 @@ static NSMapTable	*globalClassMap = 0;
 		  format: @"[%@ +%@]: count mismatch for %@",
 	NSStringFromClass([self class]), NSStringFromSelector(_cmd), o];
     }
-  NSGetSizeAndAlignment(type, 0, &size);
+  NSGetSizeAndAlignment(type, &size, NULL);
   memcpy(buf, [o bytes], expected * size);
 }
 
@@ -752,7 +752,7 @@ static NSMapTable	*globalClassMap = 0;
 	*(double*)address = [o doubleValue];
 	return;
 
-#if __GNUC__ > 2 && defined(_C_BOOL)
+#if defined(_C_BOOL) && (!defined(__GNUC__) || __GNUC__ > 2)
       case _C_BOOL:
 	*(_Bool*)address = (_Bool)[o unsignedCharValue];
 	return;
@@ -853,7 +853,7 @@ static NSMapTable	*globalClassMap = 0;
 	  // Add markers for unencoded objects.
 	  for (i = 1; i < count; i++)
 	    {
-	      GSIArrayAddItem(_objMap, (GSIArrayItem)nil);
+	      GSIArrayAddItem(_objMap, (GSIArrayItem)(id)nil);
 	    }
 	}
     }

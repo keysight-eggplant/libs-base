@@ -1,3 +1,96 @@
+2021-11-23 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* configure.ac: check for zlib before bfd
+	* configure: regenerate
+	libbfd may need libz, so we must check for one before checking for
+	the other.
+
+2021-11-21 Gregory John Casamento <greg.casamento@gmail.com>
+
+	* Headers/Foundation/NSURLConnection.h: Add
+        NSURLConnectionDataDelegate protocol.
+	* Headers/Foundation/NSURLRequest.h: Add enum for
+        NSURLNetworkServiceType.
+
+2021-11-19 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Helpers/Launch.h:
+	* Helpers/capture.m:
+	* Helpers/keepalive.m:
+	* Helpers/respond.m:
+	* test00.m:
+	* test01.m:
+	* test02.m:
+	Rewrite helper launching so that the test process waits for up to
+	ten seconds for the helper to tell it that it's ready to accept
+	requests.  This should make tests run a bit quicker (no longer
+	waiting a fixed interval for the helper to start) while allowing
+	longer for the helpers to start on slow systems, and thus making
+	the tests more reliable.
+
+2021-11-11 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSBundle.h:
+	Annotate NSBundle localized string function with NS_FORMAT_ARGUMENT.
+
+2021-09-20 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSFileManager.m:
+	Fix -[NSFileManager URLForDirectory:...] using incorrect NSURL
+	initializer and simplified implementation.
+
+2021-09-16 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSJSONSerialization.m:
+	* Source/NSURL.m:
+	Fix minor potential leaks.
+
+2021-08-27 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/nstzfile.h: deleted (merged into tzdb.h)
+	* Source/tzdb.h: updated (includes nstzfile.h)
+	* Source/NSTimeZone.h: some cleanups
+	Tidies up as suggested by Fred
+
+2021-08-14 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/nstzfile.h: Fix by Emmanuel Dreyfus - increase number of
+	transitions allowed, so that we can handle dates further into the
+	future (since v2+ files support that).
+	* Tests/base/NSTimeZone/ParisV1-noMagic.tzdb:
+	* Tests/base/NSTimeZone/ParisV1.tzdb:
+	* Tests/base/NSTimeZone/ParisV2-missingHeader.tzdb:
+	* Tests/base/NSTimeZone/ParisV2.tzdb:
+	* Tests/base/NSTimeZone/localtime.m:
+	Increase the range of testcases
+
+2021-08-11 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/tzdb.h: Public domain time zone file parsing etc
+	* Source/NSTimeZone.m: Use code from tzdb.h
+	* Headers/Foundation/NSTimeZone.h: Remove some obsolete comments
+	* configure.ac:  check for stdbool.h needed by tzdb.h
+	* configure: regenerate
+	* Headers/GNUstepBase/config.h.in: define for stdbool check
+	* Tests/base/NSTimeZone/Paris.tzdbv1: test timezone file (version 1)
+	* Tests/base/NSTimeZone/Paris.tzdbv2: test timezone file (version 2)
+	* Tests/base/NSTimeZone/localtime.m: Some testcases for v1/v2
+	Incorporate work by Emmanuel Dreyfus to use public domain tzfile
+	parsing code supporting times too large to fit in 32bit value.
+	The public domain code has some support for the Posix TZ environment
+	variable style string used by version2 to support times after the last
+	transition in the file, but I'm not convinced it works properly, so
+	this may need to be revisited.
+
+2021-08-10 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSObject:
+	* Source/NSProcessInfo.m:
+	* Source/NSSocketPort.m:
+	* Source:libgnustep-base-entry.m:
+	Initialize Windows Sockets in NSObject only and update to Windows
+	Socket version 2.2.
+
 2021-08-03 Frederik Seiffert <frederik@algoriddim.com>
 
 	* Headers/GNUstepBase/config.h.in:
