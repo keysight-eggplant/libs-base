@@ -247,7 +247,7 @@ static BOOL     traceLocks = NO;
 {\
   if (0 != pthread_mutex_unlock(&_mutex))\
     {\
-      NSLog(@"****THIS WAS AN EXCEPTION FOR NSLOCK")\
+      NSLog(@"****THIS WAS AN EXCEPTION FOR NSLOCK");\
     }\
   CHK(Drop) \
 }
