@@ -162,8 +162,8 @@
     }
   else if (locked == NO)
     {
-      [NSException raise: NSGenericException
-		  format: @"unlock: when already unlocked"];
+      // [NSException raise: NSGenericException
+		  // format: @"unlock: when already unlocked"];
     }
   else
     {
