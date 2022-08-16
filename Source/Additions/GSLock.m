@@ -289,8 +289,8 @@
     }
   else if (counter == 0)
     {
-      [NSException raise: NSGenericException
-		  format: @"unlock: failed to unlock mutex"];
+      // [NSException raise: NSGenericException
+		  // format: @"unlock: failed to unlock mutex"];
     }
   else
     {
