@@ -52,8 +52,14 @@
 #import "../GSPrivate.h"
 #import "../GSNetwork.h"
 
+// #if defined(HAVE_SYS_FCNTL_H)
 #include <fcntl.h>
+// #endif
+
+#if defined(HAVE_SYS_FILE_H)
 #include <sys/file.h>
+#endif
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <io.h>

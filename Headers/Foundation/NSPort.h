@@ -33,7 +33,7 @@
 #import	<Foundation/NSObject.h>
 #import	<Foundation/NSMapTable.h>
 
-#if	defined(__MINGW__)
+#if	defined(__MINGW__) || defined(_WIN32)
 #include	<winsock2.h>
 #include	<wininet.h>
 #else
