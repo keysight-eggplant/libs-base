@@ -31,12 +31,6 @@
 #import "Foundation/NSRunLoop.h"
 
 
-// Testplant-MAL-09142016: does not compile on MINGW32 without this include...
-#if defined(_WIN32) && defined(__clang__)
-#import <windows.h>
-#import <winsock2.h>
-#endif
-
 #if	USE_ZLIB
 #include <zlib.h>
 #endif
@@ -58,6 +52,9 @@ struct sockaddr_in;
   int			descriptor;
   BOOL			closeOnDealloc;
   BOOL			isStandardFile;
+  // stdin, stdout, and stderr
+  BOOL			isStandardStream;
+  BOOL			isStandardInput;
   BOOL			isNullDevice;
   BOOL			isSocket;
   BOOL			isNonBlocking;

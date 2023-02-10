@@ -351,19 +351,19 @@ static GSTcpTune        *tune = nil;
 {
   if (self == fh_stdin)
     {
-      RETAIN(self);
+      fh_stdin = nil;
       [NSException raise: NSGenericException
                   format: @"Attempt to deallocate standard input handle"];
     }
   if (self == fh_stdout)
     {
-      RETAIN(self);
+      fh_stdout = nil;
       [NSException raise: NSGenericException
                   format: @"Attempt to deallocate standard output handle"];
     }
   if (self == fh_stderr)
     {
-      RETAIN(self);
+      fh_stderr = nil;
       [NSException raise: NSGenericException
                   format: @"Attempt to deallocate standard error handle"];
     }
@@ -2150,10 +2150,10 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
 	  h->isSocket = YES;
 	  if (getpeername(desc, &sin, &size) >= 0)
             {
-	  [h setAddr: &sin];
+              [h setAddr: &sin];
             }
 	  [readInfo setObject: h
-		   forKey: NSFileHandleNotificationFileHandleItem];
+                       forKey: NSFileHandleNotificationFileHandleItem];
 	  RELEASE(h);
 	}
       [self postReadNotification];
@@ -2218,7 +2218,7 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
 
 - (void) receivedEventWrite
 {
-  NSString	*operation;
+  NSString		*operation;
   NSMutableDictionary	*info;
 
   info = [writeInfo objectAtIndex: 0];
@@ -2257,14 +2257,14 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
     }
   else
     {
-      NSData	*item;
+      NSData		*item;
       int		length;
       const void	*ptr;
 
       item = [info objectForKey: NSFileHandleNotificationDataItem];
       length = [item length];
       ptr = [item bytes];
-      if (writePos < length)
+      while (writePos < length)
         {
           int	written;
 
@@ -2272,7 +2272,7 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
                          length: length-writePos];
           if (written <= 0)
             {
-	      if (written < 0 && errno != EAGAIN && errno != EINTR)
+	      if (errno != EAGAIN && errno != EINTR)
 	        {
 	          NSString	*s;
 
@@ -2281,6 +2281,7 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
 	          [info setObject: s forKey: GSFileHandleNotificationError];
 	          [self postWriteNotification];
 	        }
+	      break;
 	    }
 	  else
             {
