@@ -709,8 +709,6 @@ _find_main_bundle_for_tool(NSString *toolName)
             }
           return bundle;
         }
-
-      NSWarnLog(@"\t *** frameworkClass = %@, _byClass = %@", _frameworkClass, _byClass);
       
       name = [NSString stringWithUTF8String: &frameworkClassName[12]];
       /* Important - gnustep-make mangles framework names to encode
