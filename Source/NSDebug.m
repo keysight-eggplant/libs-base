@@ -16,12 +16,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSDebug utilities reference</title>
    $Date$ $Revision$
@@ -30,6 +30,7 @@
 #import "common.h"
 #include <stdio.h>
 #import "GSPrivate.h"
+#import "GSPThread.h"
 #import "GNUstepBase/GSLock.h"
 #import "Foundation/NSArray.h"
 #import "Foundation/NSData.h"
@@ -47,24 +48,33 @@
 #include        <execinfo.h>
 #endif
 
+#ifdef HAVE_MALLOC_H
+#include        <malloc.h>
+#endif
+
 typedef struct {
-  Class	class;
+  Class		class;
   /* The following are used for statistical info */
-  unsigned int	count;
-  unsigned int	lastc;
-  unsigned int	total;
-  unsigned int   peak;
+  uint32_t	count;
+  uint32_t	lastc;
+  uint32_t	totalc;
+  uint32_t   	peak;
+  uint64_t	bytes;
+  uint64_t	totalb;
+  uint64_t	lastb;
+  uint32_t	nominal_size;
   /* The following are used to record actual objects */
-  BOOL  is_recording;
-  id    *recorded_objects;
-  id    *recorded_tags;
-  unsigned int   num_recorded_objects;
-  unsigned int   stack_size;
+  BOOL  	is_recording;
+  id    	*recorded_objects;
+  id    	*recorded_tags;
+  uint32_t   	num_recorded_objects;
+  uint32_t   	stack_size;
 } table_entry;
 
 typedef struct {
   const char    *name;
   int           count;
+  long		bytes;
 } list_entry;
 
 static NSInteger itemComp(id v0, id v1, void *ctxt)
@@ -81,12 +91,10 @@ static	unsigned int	table_size = 0;
 static table_entry*	the_table = 0;
 
 static BOOL	debug_allocation = NO;
+static BOOL	debug_byte_size = NO;
+BOOL NSDebugEnabled = NO;
 
-static NSRecursiveLock	*uniqueLock = nil;
-static SEL              doLockSel = 0;
-static SEL              unLockSel = 0;
-static IMP              doLockImp = 0;
-static IMP              unLockImp = 0;
+static gs_mutex_t	uniqueLock;
 
 static void     _GSDebugAllocationFetch(list_entry *items, BOOL difference);
 static void     _GSDebugAllocationFetchAll(list_entry *items);
@@ -99,8 +107,8 @@ static void (*_GSDebugAllocationAddFunc)(Class c, id o)
 static void (*_GSDebugAllocationRemoveFunc)(Class c, id o)
   = _GSDebugAllocationRemove;
 
-#define doLock() (*doLockImp)(uniqueLock, doLockSel)
-#define unLock() (*unLockImp)(uniqueLock, unLockSel)
+#define doLock() GS_MUTEX_LOCK(uniqueLock)
+#define unLock() GS_MUTEX_UNLOCK(uniqueLock)
 
 @interface GSDebugAlloc : NSObject
 + (void) initialize;
@@ -109,19 +117,10 @@ static void (*_GSDebugAllocationRemoveFunc)(Class c, id o)
 @implementation GSDebugAlloc
 + (void) initialize
 {
-  uniqueLock = [NSRecursiveLock new];
-  doLockSel = @selector(lock);
-  unLockSel = @selector(unlock);
-  doLockImp = [uniqueLock methodForSelector: doLockSel];
-  unLockImp = [uniqueLock methodForSelector: unLockSel];
-  [[NSObject leakAt: &uniqueLock] release];
+  GS_MUTEX_INIT_RECURSIVE(uniqueLock);
 }
 @end
 
-/**
- * This functions allows to set own function callbacks for debugging allocation
- * of objects. Useful if you intend to write your own object allocation code.
- */
 void
 GSSetDebugAllocationFunctions(void (*newAddObjectFunc)(Class c, id o),
   void (*newRemoveObjectFunc)(Class c, id o))
@@ -143,18 +142,6 @@ GSSetDebugAllocationFunctions(void (*newAddObjectFunc)(Class c, id o),
   unLock();
 }
 
-/**
- * This function activates or deactivates object allocation debugging.<br />
- * Returns the previous state.<br />
- * You should call this function to activate
- * allocation debugging before using any of the other allocation
- * debugging functions such as GSDebugAllocationList() or
- * GSDebugAllocationTotal().<br />
- * Object allocation debugging
- * should not affect performance too much, and is very useful
- * as it allows you to monitor how many objects of each class
- * your application has allocated.
- */
 BOOL
 GSDebugAllocationActive(BOOL active)
 {
@@ -166,6 +153,15 @@ GSDebugAllocationActive(BOOL active)
 }
 
 BOOL
+GSDebugAllocationBytes(BOOL active)
+{
+  BOOL	old = debug_byte_size;
+
+  debug_byte_size = active ? YES : NO;
+  return old;
+}
+
+BOOL
 GSDebugAllocationRecordObjects(Class c, BOOL newState)
 {
   BOOL oldState = NO;
@@ -173,7 +169,7 @@ GSDebugAllocationRecordObjects(Class c, BOOL newState)
 
   if (newState)
     {
-  GSDebugAllocationActive(YES);
+      GSDebugAllocationActive(YES);
     }
 
   for (i = 0; i < num_classes; i++)
@@ -184,8 +180,8 @@ GSDebugAllocationRecordObjects(Class c, BOOL newState)
           oldState = (YES == the_table[i].is_recording) ? YES : NO;
           if (newState)
             {
-	  the_table[i].is_recording = YES;
-	}
+              the_table[i].is_recording = YES;
+            }
           else if (YES == oldState)
             {
               while (the_table[i].num_recorded_objects > 0)
@@ -197,7 +193,7 @@ GSDebugAllocationRecordObjects(Class c, BOOL newState)
                   the_table[i].recorded_objects[j] = nil;
                   [the_table[i].recorded_tags[j] release];
                   the_table[i].recorded_tags[j] = nil;
-    }
+                }
             }
 	  unLock();
 	  return oldState;
@@ -206,39 +202,43 @@ GSDebugAllocationRecordObjects(Class c, BOOL newState)
   if (YES == newState)
     {
       doLock();
-  if (num_classes >= table_size)
-    {
-      int		more = table_size + 128;
-      table_entry	*tmp;
+      if (num_classes >= table_size)
+        {
+          int		more = table_size + 128;
+          table_entry	*tmp;
 
-      tmp = NSZoneMalloc(NSDefaultMallocZone(), more * sizeof(table_entry));
+          tmp = NSZoneMalloc(NSDefaultMallocZone(), more * sizeof(table_entry));
 
-      if (tmp == 0)
-	{
+          if (tmp == 0)
+            {
               unLock();
               return NO;
-	}
-      if (the_table)
-	{
-	  memcpy(tmp, the_table, num_classes * sizeof(table_entry));
-	  NSZoneFree(NSDefaultMallocZone(), the_table);
-	}
-      the_table = tmp;
-      table_size = more;
-    }
-  the_table[num_classes].class = c;
-  the_table[num_classes].count = 0;
-  the_table[num_classes].lastc = 0;
-  the_table[num_classes].total = 0;
-  the_table[num_classes].peak = 0;
-  the_table[num_classes].is_recording = YES;
-  the_table[num_classes].recorded_objects = NULL;
-  the_table[num_classes].recorded_tags = NULL;
-  the_table[num_classes].num_recorded_objects = 0;
-  the_table[num_classes].stack_size = 0;
-  num_classes++;
+            }
+          if (the_table)
+            {
+              memcpy(tmp, the_table, num_classes * sizeof(table_entry));
+              NSZoneFree(NSDefaultMallocZone(), the_table);
+            }
+          the_table = tmp;
+          table_size = more;
+        }
+      the_table[num_classes].class = c;
+      the_table[num_classes].count = 0;
+      the_table[num_classes].lastc = 0;
+      the_table[num_classes].totalc = 0;
+      the_table[num_classes].peak = 0;
+      the_table[num_classes].bytes = 0;
+      the_table[num_classes].lastb = 0;
+      the_table[num_classes].totalb = 0;
+      the_table[num_classes].nominal_size = class_getInstanceSize(c);
+      the_table[num_classes].is_recording = YES;
+      the_table[num_classes].recorded_objects = NULL;
+      the_table[num_classes].recorded_tags = NULL;
+      the_table[num_classes].num_recorded_objects = 0;
+      the_table[num_classes].stack_size = 0;
+      num_classes++;
       unLock();
-}
+    }
   return oldState;
 }
 
@@ -260,6 +260,7 @@ _GSDebugAllocationAdd(Class c, id o)
   if (debug_allocation == YES)
     {
       unsigned int	i;
+      unsigned		bytes;
 
       for (i = 0; i < num_classes; i++)
 	{
@@ -267,7 +268,17 @@ _GSDebugAllocationAdd(Class c, id o)
 	    {
 	      doLock();
 	      the_table[i].count++;
-	      the_table[i].total++;
+	      the_table[i].totalc++;
+	      if (YES == debug_byte_size)
+		{
+		  bytes = [o sizeOfInstance];
+		}
+	      else
+		{
+		  bytes = the_table[i].nominal_size;
+		}
+	      the_table[i].bytes += bytes;
+	      the_table[i].totalb += bytes;
 	      if (the_table[i].count > the_table[i].peak)
 		{
 		  the_table[i].peak = the_table[i].count;
@@ -350,8 +361,20 @@ _GSDebugAllocationAdd(Class c, id o)
 	}
       the_table[num_classes].class = c;
       the_table[num_classes].count = 1;
+      the_table[num_classes].nominal_size = class_getInstanceSize(c);
+      if (YES == debug_byte_size)
+	{
+	  bytes = [o sizeOfInstance];
+	}
+      else
+	{
+	  bytes = the_table[num_classes].nominal_size;
+	}
+      the_table[num_classes].bytes = bytes;
+      the_table[num_classes].totalb = bytes;
+      the_table[num_classes].lastb = 0;
       the_table[num_classes].lastc = 0;
-      the_table[num_classes].total = 1;
+      the_table[num_classes].totalc = 1;
       the_table[num_classes].peak = 1;
       the_table[num_classes].is_recording = NO;
       the_table[num_classes].recorded_objects = NULL;
@@ -378,23 +401,6 @@ GSDebugAllocationCount(Class c)
   return 0;
 }
 
-/**
- * Returns the total
- * number of instances of the specified class c which have been
- * allocated - basically the number of times you have
- * allocated an object of this class.  If this number is very
- * high, it means you are creating a lot of objects of this
- * class; even if you are releasing them correctly, you must
- * not forget that allocating and deallocating objects is
- * usually one of the slowest things you can do, so you might
- * want to consider whether you can reduce the number of
- * allocations and deallocations that you are doing - for
- * example, by recycling objects of this class, uniquing
- * them, and/or using some sort of flyweight pattern.  It
- * might also be possible that you are unnecessarily creating
- * too many objects of this class.  Well - of course some times
- * there is nothing you can do about it.
- */
 int
 GSDebugAllocationTotal(Class c)
 {
@@ -404,24 +410,12 @@ GSDebugAllocationTotal(Class c)
     {
       if (the_table[i].class == c)
 	{
-	  return the_table[i].total;
+	  return the_table[i].totalc;
 	}
     }
   return 0;
 }
 
-/**
- * Returns the peak
- * number of instances of the specified class which have been
- * concurrently allocated.  If this number is very high, it
- * means at some point in time you had a situation with a
- * huge number of objects of this class allocated - this is
- * an indicator that probably at some point in time your
- * application was using a lot of memory - so you might want
- * to investigate whether you can prevent this problem by
- * inserting autorelease pools in your application's
- * processing loops.
- */
 int
 GSDebugAllocationPeak(Class c)
 {
@@ -437,15 +431,6 @@ GSDebugAllocationPeak(Class c)
   return 0;
 }
 
-/**
- * This function returns a NULL
- * terminated array listing all the classes for which
- * statistical information has been collected.  Usually, you
- * call this function, and then loop on all the classes returned,
- * and for each one you get current, peak and total count by
- * using GSDebugAllocationCount(), GSDebugAllocationPeak() and
- * GSDebugAllocationTotal().
- */
 Class *
 GSDebugAllocationClassList()
 {
@@ -469,16 +454,6 @@ GSDebugAllocationClassList()
   return ans;
 }
 
-/**
- * This function returns a newline
- * separated list of the classes which have instances
- * allocated, and the instance counts.  If the 'changeFlag'
- * argument is YES then the list gives the number of
- * instances allocated/deallocated since the function was
- * last called.  This function only returns the current count
- * of instances (not the peak or total count), but its output
- * is ready to be displayed or logged.
- */
 const char*
 GSDebugAllocationList(BOOL changeFlag)
 {
@@ -540,22 +515,21 @@ GSDebugAllocationList(BOOL changeFlag)
         {
           list_entry    *item = (list_entry*)order[index];
 
-          [result appendFormat: @"%d\t%s\n", item->count, item->name];
+	  if (YES == debug_byte_size)
+	    {
+	      [result appendFormat: @"%d\t%-32s\t%ld\n",
+		item->count, item->name, item->bytes];
+	    }
+	  else
+	    {
+	      [result appendFormat: @"%d\t%s\n", item->count, item->name];
+	    }
         }
       free(items);
       return [result UTF8String];
     }
 }
 
-/**
- * This function returns a newline
- * separated list of the classes which have had instances
- * allocated at any point, and the total count of the number
- * of instances allocated for each class.  The difference with
- * GSDebugAllocationList() is that this function returns also
- * classes which have no objects allocated at the moment, but
- * which had in the past.
- */
 const char*
 GSDebugAllocationListAll()
 {
@@ -573,7 +547,7 @@ GSDebugAllocationListAll()
     {
       items = malloc(sizeof(list_entry) * size);
       _GSDebugAllocationFetchAll(items);
-}
+    }
   else
     {
       items = 0;
@@ -581,7 +555,7 @@ GSDebugAllocationListAll()
   unLock();
 
   if (0 == items)
-{
+    {
       return "I can find NO allocated object!\n";
     }
   else
@@ -591,7 +565,7 @@ GSDebugAllocationListAll()
       unsigned          index;
 
       for (index = 0; index < size; index++)
-    {
+        {
           order[index] = (id)&items[index];
         }
       GSSortUnstable(order, NSMakeRange(0,size), (id)itemComp,
@@ -599,57 +573,71 @@ GSDebugAllocationListAll()
 
       result = [NSMutableString stringWithCapacity: 1000];
       for (index = 0; index < size; index++)
-	{
+        {
           list_entry    *item = (list_entry*)order[index];
 
-          [result appendFormat: @"%d\t%s\n", item->count, item->name];
-	}
+	  if (YES == debug_byte_size)
+	    {
+	      [result appendFormat: @"%d\t%-32s\t%ld\n",
+		item->count, item->name, item->bytes];
+	    }
+	  else
+	    {
+	      [result appendFormat: @"%d\t%s\n", item->count, item->name];
+	    }
+        }
       free(items);
       return [result UTF8String];
     }
-    }
+}
 
 static void
 _GSDebugAllocationFetch(list_entry *items, BOOL difference)
-    {
+{
   unsigned      i;
   unsigned      pos;
 
   for (i = pos = 0; i < num_classes; i++)
-	{
-      int	val = the_table[i].count;
+    {
+      int	count = the_table[i].count;
+      long	bytes = the_table[i].bytes;
 
       if (difference)
 	{
-	  val -= the_table[i].lastc;
+	  count -= the_table[i].lastc;
+	  bytes -= the_table[i].lastb;
           the_table[i].lastc = the_table[i].count;
+          the_table[i].lastb = the_table[i].bytes;
 	}
-      if (val)
-	{
+      if (count || (bytes && debug_byte_size))
+        {
           items[pos].name = class_getName(the_table[i].class);
-          items[pos].count = val;
+          items[pos].count = count;
+          items[pos].bytes = bytes;
           pos++;
-	}
+        }
     }
   while (pos < num_classes)
     {
       items[pos].name = 0;
       items[pos].count = 0;
+      items[pos].bytes = 0;
       pos++;
     }
 }
 
 static void
 _GSDebugAllocationFetchAll(list_entry *items)
-    {
+{
   unsigned      i;
 
   for (i = 0; i < num_classes; i++)
-	{
+    {
       items[i].name = class_getName(the_table[i].class);
-      items[i].count = the_table[i].total;
-	}
+      items[i].count = the_table[i].totalc;
+      items[i].bytes = the_table[i].totalb;
     }
+}
 
 void
 GSDebugAllocationRemove(Class c, id o)
@@ -669,9 +657,19 @@ _GSDebugAllocationRemove(Class c, id o)
 	  if (the_table[i].class == c)
 	    {
 	      id	tag = nil;
+	      unsigned	bytes;
 
 	      doLock();
+	      if (YES == debug_byte_size)
+		{
+		  bytes = [o sizeOfInstance];
+		}
+	      else
+		{
+		  bytes = the_table[i].nominal_size;
+		}
 	      the_table[i].count--;
+	      the_table[i].bytes -= bytes;
 	      if (the_table[i].is_recording)
 		{
 		  unsigned j, k;
@@ -687,8 +685,8 @@ _GSDebugAllocationRemove(Class c, id o)
 		  if (j < the_table[i].num_recorded_objects)
 		    {
 		      for (k = j;
-			   k + 1 < the_table[i].num_recorded_objects;
-			   k++)
+                        k + 1 < the_table[i].num_recorded_objects;
+			k++)
 			{
 			  (the_table[i].recorded_objects)[k] =
 			    (the_table[i].recorded_objects)[k + 1];
@@ -713,13 +711,6 @@ _GSDebugAllocationRemove(Class c, id o)
     }
 }
 
-/**
- * This function associates the supplied tag with a recorded
- * object and returns the tag which was previously associated
- * with it (if any).<br />
- * If the object was not recorded, the method returns nil<br />
- * The tag is retained while it is associated with the object.
- */
 id
 GSDebugAllocationTagRecordedObject(id object, id tag)
 {
@@ -737,7 +728,7 @@ GSDebugAllocationTagRecordedObject(id object, id tag)
   for (i = 0; i < num_classes; i++)
     {
       if (the_table[i].class == c)
-      {
+        {
 	  break;
 	}
     }
@@ -764,16 +755,6 @@ GSDebugAllocationTagRecordedObject(id object, id tag)
   return AUTORELEASE(o);
 }
 
-/**
- * This function returns an array
- * containing all the allocated objects of a certain class
- * which have been recorded ... to start the recording, you need
- * to invoke GSDebugAllocationActiveRecordingObjects().
- * Presumably, you will immediately call [NSObject-description] on them
- * to find out the objects you are leaking.  The objects are
- * returned in an array, so until the array is autoreleased,
- * the objects are not released.
- */
 NSArray *
 GSDebugAllocationListRecordedObjects(Class c)
 {
@@ -815,7 +796,7 @@ GSDebugAllocationListRecordedObjects(Class c)
     }
 
   tmp = NSZoneMalloc(NSDefaultMallocZone(),
-		     the_table[i].num_recorded_objects * sizeof(id));
+    the_table[i].num_recorded_objects * sizeof(id));
   if (tmp == 0)
     {
       unLock();
@@ -824,7 +805,7 @@ GSDebugAllocationListRecordedObjects(Class c)
 
   /* First, we copy the objects into a temporary buffer */
   memcpy(tmp, the_table[i].recorded_objects,
-	 the_table[i].num_recorded_objects * sizeof(id));
+    the_table[i].num_recorded_objects * sizeof(id));
 
   /* Retain all the objects - NB: if retaining one of the objects as a
    * side effect releases another one of them , we are broken ... */
@@ -839,7 +820,7 @@ GSDebugAllocationListRecordedObjects(Class c)
   /* Only then we create an array with them - this is now safe as we
    * have copied the objects out, unlocked, and retained them. */
   answer = [NSArray arrayWithObjects: tmp
-		    count: the_table[i].num_recorded_objects];
+    count: the_table[i].num_recorded_objects];
 
   /* Now we release all the objects to balance the retain */
   for (k = 0; k < the_table[i].num_recorded_objects; k++)
@@ -851,367 +832,6 @@ GSDebugAllocationListRecordedObjects(Class c)
   NSZoneFree(NSDefaultMallocZone(), tmp);
 
   return answer;
-}
-
-#if	!defined(HAVE_BUILTIN_EXTRACT_RETURN_ADDRESS)
-# define	__builtin_extract_return_address(X)	X
-#endif
-
-#define _NS_FRAME_HACK(a) \
-case a: env->addr = __builtin_frame_address(a + 1); break;
-#define _NS_RETURN_HACK(a) \
-case a: env->addr = (__builtin_frame_address(a + 1) ? \
-__builtin_extract_return_address(__builtin_return_address(a + 1)) : 0); break;
-
-/*
- * The following horrible signal handling code is a workaround for the fact
- * that the __builtin_frame_address() and __builtin_return_address()
- * functions are not reliable (at least not on my EM64T based system) and
- * will sometimes walk off the stack and access illegal memory locations.
- * In order to prevent such an occurrance from crashing the application,
- * we use sigsetjmp() and siglongjmp() to ensure that we can recover, and
- * we keep the jump buffer in thread-local memory to avoid possible thread
- * safety issues.
- * Of course this will fail horribly if an exception occurs in one of the
- * few methods we use to manage the per-thread jump buffer.
- */
-#if	defined(HAVE_SYS_SIGNAL_H)
-#  include	<sys/signal.h>
-#elif	defined(HAVE_SIGNAL_H)
-#  include	<signal.h>
-#endif
-
-#if	defined(_WIN32)
-#ifndef SIGBUS
-#define SIGBUS  SIGILL
-#endif
-#endif
-
-/* sigsetjmp may be a function or a macro.  The test for the function is
- * done at configure time so we can tell here if either is available.
- */
-#if	!defined(HAVE_SIGSETJMP) && !defined(sigsetjmp)
-#define	siglongjmp(A,B)	longjmp(A,B)
-#define	sigsetjmp(A,B)	setjmp(A)
-#define	sigjmp_buf	jmp_buf
-#endif
-
-typedef struct {
-  sigjmp_buf    buf;
-  void          *addr;
-  void          (*bus)(int);
-  void          (*segv)(int);
-} jbuf_type;
-
-static jbuf_type *
-jbuf()
-{
-  NSMutableData	*d;
-  NSMutableDictionary	*dict;
-
-  dict = [[NSThread currentThread] threadDictionary];
-  d = [dict objectForKey: @"GSjbuf"];
-  if (d == nil)
-    {
-      d = [[NSMutableData alloc] initWithLength: sizeof(jbuf_type)];
-      [dict setObject: d forKey: @"GSjbuf"];
-      RELEASE(d);
-    }
-  return (jbuf_type*)[d mutableBytes];
-}
-
-static void
-recover(int sig)
-{
-  siglongjmp(jbuf()->buf, 1);
-}
-
-void *
-NSFrameAddress(NSUInteger offset)
-{
-  jbuf_type     *env;
-
-  env = jbuf();
-  if (sigsetjmp(env->buf, 1) == 0)
-    {
-      env->segv = signal(SIGSEGV, recover);
-      env->bus = signal(SIGBUS, recover);
-      switch (offset)
-	{
-	  _NS_FRAME_HACK(0); _NS_FRAME_HACK(1); _NS_FRAME_HACK(2);
-	  _NS_FRAME_HACK(3); _NS_FRAME_HACK(4); _NS_FRAME_HACK(5);
-	  _NS_FRAME_HACK(6); _NS_FRAME_HACK(7); _NS_FRAME_HACK(8);
-	  _NS_FRAME_HACK(9); _NS_FRAME_HACK(10); _NS_FRAME_HACK(11);
-	  _NS_FRAME_HACK(12); _NS_FRAME_HACK(13); _NS_FRAME_HACK(14);
-	  _NS_FRAME_HACK(15); _NS_FRAME_HACK(16); _NS_FRAME_HACK(17);
-	  _NS_FRAME_HACK(18); _NS_FRAME_HACK(19); _NS_FRAME_HACK(20);
-	  _NS_FRAME_HACK(21); _NS_FRAME_HACK(22); _NS_FRAME_HACK(23);
-	  _NS_FRAME_HACK(24); _NS_FRAME_HACK(25); _NS_FRAME_HACK(26);
-	  _NS_FRAME_HACK(27); _NS_FRAME_HACK(28); _NS_FRAME_HACK(29);
-	  _NS_FRAME_HACK(30); _NS_FRAME_HACK(31); _NS_FRAME_HACK(32);
-	  _NS_FRAME_HACK(33); _NS_FRAME_HACK(34); _NS_FRAME_HACK(35);
-	  _NS_FRAME_HACK(36); _NS_FRAME_HACK(37); _NS_FRAME_HACK(38);
-	  _NS_FRAME_HACK(39); _NS_FRAME_HACK(40); _NS_FRAME_HACK(41);
-	  _NS_FRAME_HACK(42); _NS_FRAME_HACK(43); _NS_FRAME_HACK(44);
-	  _NS_FRAME_HACK(45); _NS_FRAME_HACK(46); _NS_FRAME_HACK(47);
-	  _NS_FRAME_HACK(48); _NS_FRAME_HACK(49); _NS_FRAME_HACK(50);
-	  _NS_FRAME_HACK(51); _NS_FRAME_HACK(52); _NS_FRAME_HACK(53);
-	  _NS_FRAME_HACK(54); _NS_FRAME_HACK(55); _NS_FRAME_HACK(56);
-	  _NS_FRAME_HACK(57); _NS_FRAME_HACK(58); _NS_FRAME_HACK(59);
-	  _NS_FRAME_HACK(60); _NS_FRAME_HACK(61); _NS_FRAME_HACK(62);
-	  _NS_FRAME_HACK(63); _NS_FRAME_HACK(64); _NS_FRAME_HACK(65);
-	  _NS_FRAME_HACK(66); _NS_FRAME_HACK(67); _NS_FRAME_HACK(68);
-	  _NS_FRAME_HACK(69); _NS_FRAME_HACK(70); _NS_FRAME_HACK(71);
-	  _NS_FRAME_HACK(72); _NS_FRAME_HACK(73); _NS_FRAME_HACK(74);
-	  _NS_FRAME_HACK(75); _NS_FRAME_HACK(76); _NS_FRAME_HACK(77);
-	  _NS_FRAME_HACK(78); _NS_FRAME_HACK(79); _NS_FRAME_HACK(80);
-	  _NS_FRAME_HACK(81); _NS_FRAME_HACK(82); _NS_FRAME_HACK(83);
-	  _NS_FRAME_HACK(84); _NS_FRAME_HACK(85); _NS_FRAME_HACK(86);
-	  _NS_FRAME_HACK(87); _NS_FRAME_HACK(88); _NS_FRAME_HACK(89);
-	  _NS_FRAME_HACK(90); _NS_FRAME_HACK(91); _NS_FRAME_HACK(92);
-	  _NS_FRAME_HACK(93); _NS_FRAME_HACK(94); _NS_FRAME_HACK(95);
-	  _NS_FRAME_HACK(96); _NS_FRAME_HACK(97); _NS_FRAME_HACK(98);
-	  _NS_FRAME_HACK(99);
-	  default: env->addr = NULL; break;
-	}
-      signal(SIGSEGV, env->segv);
-      signal(SIGBUS, env->bus);
-    }
-  else
-    {
-      env = jbuf();
-      signal(SIGSEGV, env->segv);
-      signal(SIGBUS, env->bus);
-      env->addr = NULL;
-    }
-  return env->addr;
-}
-
-NSUInteger NSCountFrames(void)
-{
-  jbuf_type	*env;
-
-  env = jbuf();
-  if (sigsetjmp(env->buf, 1) == 0)
-    {
-      env->segv = signal(SIGSEGV, recover);
-      env->bus = signal(SIGBUS, recover);
-      env->addr = 0;
-
-#define _NS_COUNT_HACK(X) if (__builtin_frame_address(X + 1) == 0) \
-        goto done; else env->addr = (void*)(X + 1);
-
-      _NS_COUNT_HACK(0); _NS_COUNT_HACK(1); _NS_COUNT_HACK(2);
-      _NS_COUNT_HACK(3); _NS_COUNT_HACK(4); _NS_COUNT_HACK(5);
-      _NS_COUNT_HACK(6); _NS_COUNT_HACK(7); _NS_COUNT_HACK(8);
-      _NS_COUNT_HACK(9); _NS_COUNT_HACK(10); _NS_COUNT_HACK(11);
-      _NS_COUNT_HACK(12); _NS_COUNT_HACK(13); _NS_COUNT_HACK(14);
-      _NS_COUNT_HACK(15); _NS_COUNT_HACK(16); _NS_COUNT_HACK(17);
-      _NS_COUNT_HACK(18); _NS_COUNT_HACK(19); _NS_COUNT_HACK(20);
-      _NS_COUNT_HACK(21); _NS_COUNT_HACK(22); _NS_COUNT_HACK(23);
-      _NS_COUNT_HACK(24); _NS_COUNT_HACK(25); _NS_COUNT_HACK(26);
-      _NS_COUNT_HACK(27); _NS_COUNT_HACK(28); _NS_COUNT_HACK(29);
-      _NS_COUNT_HACK(30); _NS_COUNT_HACK(31); _NS_COUNT_HACK(32);
-      _NS_COUNT_HACK(33); _NS_COUNT_HACK(34); _NS_COUNT_HACK(35);
-      _NS_COUNT_HACK(36); _NS_COUNT_HACK(37); _NS_COUNT_HACK(38);
-      _NS_COUNT_HACK(39); _NS_COUNT_HACK(40); _NS_COUNT_HACK(41);
-      _NS_COUNT_HACK(42); _NS_COUNT_HACK(43); _NS_COUNT_HACK(44);
-      _NS_COUNT_HACK(45); _NS_COUNT_HACK(46); _NS_COUNT_HACK(47);
-      _NS_COUNT_HACK(48); _NS_COUNT_HACK(49); _NS_COUNT_HACK(50);
-      _NS_COUNT_HACK(51); _NS_COUNT_HACK(52); _NS_COUNT_HACK(53);
-      _NS_COUNT_HACK(54); _NS_COUNT_HACK(55); _NS_COUNT_HACK(56);
-      _NS_COUNT_HACK(57); _NS_COUNT_HACK(58); _NS_COUNT_HACK(59);
-      _NS_COUNT_HACK(60); _NS_COUNT_HACK(61); _NS_COUNT_HACK(62);
-      _NS_COUNT_HACK(63); _NS_COUNT_HACK(64); _NS_COUNT_HACK(65);
-      _NS_COUNT_HACK(66); _NS_COUNT_HACK(67); _NS_COUNT_HACK(68);
-      _NS_COUNT_HACK(69); _NS_COUNT_HACK(70); _NS_COUNT_HACK(71);
-      _NS_COUNT_HACK(72); _NS_COUNT_HACK(73); _NS_COUNT_HACK(74);
-      _NS_COUNT_HACK(75); _NS_COUNT_HACK(76); _NS_COUNT_HACK(77);
-      _NS_COUNT_HACK(78); _NS_COUNT_HACK(79); _NS_COUNT_HACK(80);
-      _NS_COUNT_HACK(81); _NS_COUNT_HACK(82); _NS_COUNT_HACK(83);
-      _NS_COUNT_HACK(84); _NS_COUNT_HACK(85); _NS_COUNT_HACK(86);
-      _NS_COUNT_HACK(87); _NS_COUNT_HACK(88); _NS_COUNT_HACK(89);
-      _NS_COUNT_HACK(90); _NS_COUNT_HACK(91); _NS_COUNT_HACK(92);
-      _NS_COUNT_HACK(93); _NS_COUNT_HACK(94); _NS_COUNT_HACK(95);
-      _NS_COUNT_HACK(96); _NS_COUNT_HACK(97); _NS_COUNT_HACK(98);
-      _NS_COUNT_HACK(99);
-
-done:
-      signal(SIGSEGV, env->segv);
-      signal(SIGBUS, env->bus);
-    }
-  else
-    {
-      env = jbuf();
-      signal(SIGSEGV, env->segv);
-      signal(SIGBUS, env->bus);
-    }
-
-  return (uintptr_t)env->addr;
-}
-
-void *
-NSReturnAddress(NSUInteger offset)
-{
-  jbuf_type	*env;
-
-  env = jbuf();
-  if (sigsetjmp(env->buf, 1) == 0)
-    {
-      env->segv = signal(SIGSEGV, recover);
-      env->bus = signal(SIGBUS, recover);
-      switch (offset)
-	{
-	  _NS_RETURN_HACK(0); _NS_RETURN_HACK(1); _NS_RETURN_HACK(2);
-	  _NS_RETURN_HACK(3); _NS_RETURN_HACK(4); _NS_RETURN_HACK(5);
-	  _NS_RETURN_HACK(6); _NS_RETURN_HACK(7); _NS_RETURN_HACK(8);
-	  _NS_RETURN_HACK(9); _NS_RETURN_HACK(10); _NS_RETURN_HACK(11);
-	  _NS_RETURN_HACK(12); _NS_RETURN_HACK(13); _NS_RETURN_HACK(14);
-	  _NS_RETURN_HACK(15); _NS_RETURN_HACK(16); _NS_RETURN_HACK(17);
-	  _NS_RETURN_HACK(18); _NS_RETURN_HACK(19); _NS_RETURN_HACK(20);
-	  _NS_RETURN_HACK(21); _NS_RETURN_HACK(22); _NS_RETURN_HACK(23);
-	  _NS_RETURN_HACK(24); _NS_RETURN_HACK(25); _NS_RETURN_HACK(26);
-	  _NS_RETURN_HACK(27); _NS_RETURN_HACK(28); _NS_RETURN_HACK(29);
-	  _NS_RETURN_HACK(30); _NS_RETURN_HACK(31); _NS_RETURN_HACK(32);
-	  _NS_RETURN_HACK(33); _NS_RETURN_HACK(34); _NS_RETURN_HACK(35);
-	  _NS_RETURN_HACK(36); _NS_RETURN_HACK(37); _NS_RETURN_HACK(38);
-	  _NS_RETURN_HACK(39); _NS_RETURN_HACK(40); _NS_RETURN_HACK(41);
-	  _NS_RETURN_HACK(42); _NS_RETURN_HACK(43); _NS_RETURN_HACK(44);
-	  _NS_RETURN_HACK(45); _NS_RETURN_HACK(46); _NS_RETURN_HACK(47);
-	  _NS_RETURN_HACK(48); _NS_RETURN_HACK(49); _NS_RETURN_HACK(50);
-	  _NS_RETURN_HACK(51); _NS_RETURN_HACK(52); _NS_RETURN_HACK(53);
-	  _NS_RETURN_HACK(54); _NS_RETURN_HACK(55); _NS_RETURN_HACK(56);
-	  _NS_RETURN_HACK(57); _NS_RETURN_HACK(58); _NS_RETURN_HACK(59);
-	  _NS_RETURN_HACK(60); _NS_RETURN_HACK(61); _NS_RETURN_HACK(62);
-	  _NS_RETURN_HACK(63); _NS_RETURN_HACK(64); _NS_RETURN_HACK(65);
-	  _NS_RETURN_HACK(66); _NS_RETURN_HACK(67); _NS_RETURN_HACK(68);
-	  _NS_RETURN_HACK(69); _NS_RETURN_HACK(70); _NS_RETURN_HACK(71);
-	  _NS_RETURN_HACK(72); _NS_RETURN_HACK(73); _NS_RETURN_HACK(74);
-	  _NS_RETURN_HACK(75); _NS_RETURN_HACK(76); _NS_RETURN_HACK(77);
-	  _NS_RETURN_HACK(78); _NS_RETURN_HACK(79); _NS_RETURN_HACK(80);
-	  _NS_RETURN_HACK(81); _NS_RETURN_HACK(82); _NS_RETURN_HACK(83);
-	  _NS_RETURN_HACK(84); _NS_RETURN_HACK(85); _NS_RETURN_HACK(86);
-	  _NS_RETURN_HACK(87); _NS_RETURN_HACK(88); _NS_RETURN_HACK(89);
-	  _NS_RETURN_HACK(90); _NS_RETURN_HACK(91); _NS_RETURN_HACK(92);
-	  _NS_RETURN_HACK(93); _NS_RETURN_HACK(94); _NS_RETURN_HACK(95);
-	  _NS_RETURN_HACK(96); _NS_RETURN_HACK(97); _NS_RETURN_HACK(98);
-	  _NS_RETURN_HACK(99);
-	  default: env->addr = NULL; break;
-	}
-      signal(SIGSEGV, env->segv);
-      signal(SIGBUS, env->bus);
-    }
-  else
-    {
-      env = jbuf();
-      signal(SIGSEGV, env->segv);
-      signal(SIGBUS, env->bus);
-      env->addr = NULL;
-    }
-
-  return env->addr;
-}
-
-NSMutableArray *
-GSPrivateStackAddresses(void)
-{
-  NSMutableArray        *stack;
-  NSAutoreleasePool	*pool;
-
-#if HAVE_BACKTRACE
-  void                  *addresses[1024];
-  int                   n = backtrace(addresses, 1024);
-  int                   i;
-
-  stack = [NSMutableArray arrayWithCapacity: n];
-  pool = [NSAutoreleasePool new];
-  for (i = 0; i < n; i++)
-    {
-      [stack addObject: [NSValue valueWithPointer: addresses[i]]];
-    }
-
-#else
-  unsigned              n = NSCountFrames();
-  unsigned              i;
-  jbuf_type             *env;
-
-  stack = [NSMutableArray arrayWithCapacity: n];
-  pool = [NSAutoreleasePool new];
-  /* There should be more frame addresses than return addresses.
-   */
-  if (n > 0)
-    {
-      n--;
-    }
-  if (n > 0)
-    {
-      n--;
-    }
-
-  env = jbuf();
-  if (sigsetjmp(env->buf, 1) == 0)
-    {
-      env->segv = signal(SIGSEGV, recover);
-      env->bus = signal(SIGBUS, recover);
-
-      for (i = 0; i < n; i++)
-        {
-          switch (i)
-            {
-              _NS_RETURN_HACK(0); _NS_RETURN_HACK(1); _NS_RETURN_HACK(2);
-              _NS_RETURN_HACK(3); _NS_RETURN_HACK(4); _NS_RETURN_HACK(5);
-              _NS_RETURN_HACK(6); _NS_RETURN_HACK(7); _NS_RETURN_HACK(8);
-              _NS_RETURN_HACK(9); _NS_RETURN_HACK(10); _NS_RETURN_HACK(11);
-              _NS_RETURN_HACK(12); _NS_RETURN_HACK(13); _NS_RETURN_HACK(14);
-              _NS_RETURN_HACK(15); _NS_RETURN_HACK(16); _NS_RETURN_HACK(17);
-              _NS_RETURN_HACK(18); _NS_RETURN_HACK(19); _NS_RETURN_HACK(20);
-              _NS_RETURN_HACK(21); _NS_RETURN_HACK(22); _NS_RETURN_HACK(23);
-              _NS_RETURN_HACK(24); _NS_RETURN_HACK(25); _NS_RETURN_HACK(26);
-              _NS_RETURN_HACK(27); _NS_RETURN_HACK(28); _NS_RETURN_HACK(29);
-              _NS_RETURN_HACK(30); _NS_RETURN_HACK(31); _NS_RETURN_HACK(32);
-              _NS_RETURN_HACK(33); _NS_RETURN_HACK(34); _NS_RETURN_HACK(35);
-              _NS_RETURN_HACK(36); _NS_RETURN_HACK(37); _NS_RETURN_HACK(38);
-              _NS_RETURN_HACK(39); _NS_RETURN_HACK(40); _NS_RETURN_HACK(41);
-              _NS_RETURN_HACK(42); _NS_RETURN_HACK(43); _NS_RETURN_HACK(44);
-              _NS_RETURN_HACK(45); _NS_RETURN_HACK(46); _NS_RETURN_HACK(47);
-              _NS_RETURN_HACK(48); _NS_RETURN_HACK(49); _NS_RETURN_HACK(50);
-              _NS_RETURN_HACK(51); _NS_RETURN_HACK(52); _NS_RETURN_HACK(53);
-              _NS_RETURN_HACK(54); _NS_RETURN_HACK(55); _NS_RETURN_HACK(56);
-              _NS_RETURN_HACK(57); _NS_RETURN_HACK(58); _NS_RETURN_HACK(59);
-              _NS_RETURN_HACK(60); _NS_RETURN_HACK(61); _NS_RETURN_HACK(62);
-              _NS_RETURN_HACK(63); _NS_RETURN_HACK(64); _NS_RETURN_HACK(65);
-              _NS_RETURN_HACK(66); _NS_RETURN_HACK(67); _NS_RETURN_HACK(68);
-              _NS_RETURN_HACK(69); _NS_RETURN_HACK(70); _NS_RETURN_HACK(71);
-              _NS_RETURN_HACK(72); _NS_RETURN_HACK(73); _NS_RETURN_HACK(74);
-              _NS_RETURN_HACK(75); _NS_RETURN_HACK(76); _NS_RETURN_HACK(77);
-              _NS_RETURN_HACK(78); _NS_RETURN_HACK(79); _NS_RETURN_HACK(80);
-              _NS_RETURN_HACK(81); _NS_RETURN_HACK(82); _NS_RETURN_HACK(83);
-              _NS_RETURN_HACK(84); _NS_RETURN_HACK(85); _NS_RETURN_HACK(86);
-              _NS_RETURN_HACK(87); _NS_RETURN_HACK(88); _NS_RETURN_HACK(89);
-              _NS_RETURN_HACK(90); _NS_RETURN_HACK(91); _NS_RETURN_HACK(92);
-              _NS_RETURN_HACK(93); _NS_RETURN_HACK(94); _NS_RETURN_HACK(95);
-              _NS_RETURN_HACK(96); _NS_RETURN_HACK(97); _NS_RETURN_HACK(98);
-              _NS_RETURN_HACK(99);
-              default: env->addr = 0; break;
-            }
-          if (env->addr == 0)
-            {
-              break;
-            }
-          [stack addObject: [NSValue valueWithPointer: env->addr]];
-        }
-      signal(SIGSEGV, env->segv);
-      signal(SIGBUS, env->bus);
-    }
-  else
-    {
-      env = jbuf();
-      signal(SIGSEGV, env->segv);
-      signal(SIGBUS, env->bus);
-    }
-#endif
-  [pool drain];
-  return stack;
 }
 
 
@@ -1230,7 +850,7 @@ _NSNewStringFromCString(const char *cstring)
   NSString      *string;
 
   string = [NSString stringWithCString: cstring
-			    encoding: [NSString defaultCStringEncoding]];
+			      encoding: [NSString defaultCStringEncoding]];
   if (nil == string)
     {
       string = [NSString stringWithUTF8String: cstring];
@@ -1238,7 +858,7 @@ _NSNewStringFromCString(const char *cstring)
         {
           string = [NSString stringWithCString: cstring
                                       encoding: NSISOLatin1StringEncoding];
-}
+        }
     }
   return string;
 }
