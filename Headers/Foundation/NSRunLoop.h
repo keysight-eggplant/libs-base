@@ -124,7 +124,7 @@ GS_EXPORT NSString * const NSDefaultRunLoopMode;
  * run loop.
  */
 typedef	enum {
-#ifdef __MINGW__
+#if defined (__MINGW__) || defined (_WIN32)
     ET_HANDLE,	/* Watch for an I/O event on a handle.		*/
     ET_RPORT,	/* Watch for message arriving on port.		*/
     ET_WINMSG,	/* Watch for a message on a window handle.	*/
