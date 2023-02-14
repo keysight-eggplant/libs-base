@@ -210,7 +210,7 @@ enum _NSDirectoryEnumerationOptions
   };
 typedef NSUInteger NSDirectoryEnumerationOptions; 
   
-GS_EXPORT_CLASS
+// GS_EXPORT_CLASS
 @interface NSFileManager : NSObject
 {
 #if	GS_EXPOSE(NSFileManager)
