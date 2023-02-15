@@ -2097,6 +2097,7 @@ static Class		tcpPortClass;
 		  [handle invalidate];
 		}
 	    }
+	  /*	  
 #if	defined(_WIN32)
 	  if (events != 0)
 	    {
@@ -2104,6 +2105,7 @@ static Class		tcpPortClass;
 	      events = 0;
 	    }
 #endif
+	  */
 	  [[NSSocketPortNameServer sharedInstance] removePort: self];
 	  [super invalidate];
 	}
@@ -2191,9 +2193,11 @@ static Class		tcpPortClass;
   else
     {
       M_LOCK(myLock);
+      /*
 #if	defined(_WIN32)
       desc = (SOCKET)NSMapGet(events, (void*)(uintptr_t)event);
 #endif
+      */
       handle = (GSTcpHandle*)NSMapGet(handles, (void*)(uintptr_t)desc);
       IF_NO_GC(AUTORELEASE(RETAIN(handle)));
       M_UNLOCK(myLock);
