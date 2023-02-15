@@ -68,7 +68,9 @@
 #  include	<fcntl.h>
 #endif
 
+#if defined(HAVE_SYS_TIME_H)
 #include <sys/time.h>
+#endif
 #include <sys/resource.h>
 #include <netdb.h>
 #include <sys/socket.h>
