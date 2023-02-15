@@ -2278,9 +2278,11 @@ static Class		tcpPortClass;
       handle->recvPort = nil;
     }
   NSMapRemove(handles, (void*)(uintptr_t)[handle descriptor]);
+  /*
 #if	defined(_WIN32)
   NSMapRemove(events, (void*)(uintptr_t)[handle eventHandle]);
 #endif
+  */
   if (((int) listener) < 0 && NSCountMapTable(handles) == 0)
     {
       [self invalidate];
