@@ -166,6 +166,10 @@
 </chapter>
 */
 
+// Define these to nothing for now...
+#define GS_EXPORT_CLASS
+#define GS_EXPORT
+
 #ifndef __NSFileManager_h_GNUSTEP_BASE_INCLUDE
 #define __NSFileManager_h_GNUSTEP_BASE_INCLUDE
 #import	<GNUstepBase/GSVersionMacros.h>
@@ -210,7 +214,7 @@ enum _NSDirectoryEnumerationOptions
   };
 typedef NSUInteger NSDirectoryEnumerationOptions; 
   
-// GS_EXPORT_CLASS
+GS_EXPORT_CLASS
 @interface NSFileManager : NSObject
 {
 #if	GS_EXPOSE(NSFileManager)
