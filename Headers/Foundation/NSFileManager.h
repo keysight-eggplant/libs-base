@@ -168,7 +168,7 @@
 
 // Define these to nothing for now...
 #define GS_EXPORT_CLASS
-#define GS_EXPORT
+// #define GS_EXPORT
 
 #ifndef __NSFileManager_h_GNUSTEP_BASE_INCLUDE
 #define __NSFileManager_h_GNUSTEP_BASE_INCLUDE

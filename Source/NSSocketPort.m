@@ -72,7 +72,9 @@
 #include <winsock2.h>
 #include <wininet.h>
 #include <process.h>
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
 #else
 #include <sys/time.h>
 #include <sys/resource.h>
