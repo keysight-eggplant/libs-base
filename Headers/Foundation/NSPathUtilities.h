@@ -133,7 +133,8 @@ enum
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_6, GS_API_LATEST)
   NSMoviesDirectory = 17,	        /** location of video/movie files */
   NSMusicDirectory = 18,	        /** location of music files */
-  NSPicturesDirectory = 19,	        /** location of picture/images files */ 
+  NSPicturesDirectory = 19,	        /** location of picture/images files */
+  NSItemReplacementDirectory = 99,      /** From GS master.. for creating a temporary dir **/
 #endif  
 
   NSAllApplicationsDirectory = 100,	/** all app directories */
