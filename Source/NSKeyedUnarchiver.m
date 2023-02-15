@@ -842,10 +842,10 @@ static NSMapTable	*globalClassMap = 0;
 	  // Add marker for nil object
 	  GSIArrayAddItem(_objMap, (GSIArrayItem)((id)[NilMarker class]));
 	  // Add markers for unencoded objects.
-	  for (i = 1; i < count; i++)
-	    {
-	      GSIArrayAddItem(_objMap, 0L); //(GSIArrayItem)nil);
-	    }
+	  // for (i = 1; i < count; i++)
+	  //  {
+	      // GSIArrayAddItem(_objMap, (GSIArrayItem)nil);
+	  //  }
 	}
     }
   return self;
