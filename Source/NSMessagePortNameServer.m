@@ -54,7 +54,9 @@
 #  include	<fcntl.h>
 #endif
 
+#if defined(HAVE_SYS_UN_H)
 #include <sys/un.h>
+#endif
 
 /* Older systems (Solaris) compatibility */
 #ifndef AF_LOCAL
