@@ -1599,11 +1599,13 @@ static Class		tcpPortClass;
       port->address = [addr copy];
       port->handles = NSCreateMapTable(NSIntegerMapKeyCallBacks,
 	NSObjectMapValueCallBacks, 0);
+      /*
 #if	defined(_WIN32)
       port->eventListener = WSA_INVALID_EVENT;
       port->events = NSCreateMapTable(NSIntegerMapKeyCallBacks,
         NSIntegerMapValueCallBacks, 0);
 #endif
+      */
       port->myLock = [GSLazyRecursiveLock new];
       port->_is_valid = YES;
 
@@ -1687,6 +1689,7 @@ static Class		tcpPortClass;
 	       */
 	      port->listener = desc;
 	      port->portNum = GSPrivateSockaddrPort(&sockaddr);
+	      /*
 #if	defined(_WIN32)
               port->eventListener = (WSAEVENT)CreateEvent(NULL,NO,NO,NULL);
               if (port->eventListener == WSA_INVALID_EVENT)
@@ -1698,6 +1701,7 @@ static Class		tcpPortClass;
 		port->eventListener, FD_ACCEPT);
               NSAssert(rc == 0, @"WSAEventSelect failed!");
 #endif
+	      */
 	      /*
 	       * Make sure we have the map table for this port.
 	       */
@@ -1828,6 +1832,7 @@ static Class		tcpPortClass;
  * This is a callback method used by the NSRunLoop class to determine which
  * descriptors to watch for the port.
  */
+/*
 #if	defined(_WIN32)
 - (void) getFds: (NSInteger*)fds count: (NSInteger*)count
 {
@@ -1843,9 +1848,9 @@ static Class		tcpPortClass;
 
   *count = NSCountMapTable(events);
 
-  /*
-   * Put in our listening socket.
-   */
+  //
+  // Put in our listening socket.
+  ///
   if (eventListener != WSA_INVALID_EVENT)
     {
       (*count)++;
@@ -1855,10 +1860,10 @@ static Class		tcpPortClass;
         }
     }
 
-  /*
-   * Enumerate all our socket handles, and put them in as long as they
-   * are to be used for receiving.
-   */
+  //
+  // Enumerate all our socket handles, and put them in as long as they
+  // are to be used for receiving.
+  //
   recvSelf = self;
   me = NSEnumerateMapTable(events);
   while (NSNextMapEnumeratorPair(&me, &event, (void**)&fd))
@@ -1876,6 +1881,7 @@ static Class		tcpPortClass;
   M_UNLOCK(myLock);
 }
 #else
+*/
 - (void) getFds: (NSInteger*)fds count: (NSInteger*)count
 {
   NSInteger             limit = *count;
@@ -1920,7 +1926,7 @@ static Class		tcpPortClass;
   M_UNLOCK(myLock);
   *count = pos;
 }
-#endif
+// #endif
 
 - (id) conversation: (NSPort*)recvPort
 {
@@ -2080,10 +2086,12 @@ static Class		tcpPortClass;
 	    {
 	      (void) close(listener);
 	      listener = -1;
+	      /*
 #if	defined(_WIN32)
 	      WSACloseEvent(eventListener);
 	      eventListener = WSA_INVALID_EVENT;
 #endif
+	      */
 	    }
 
 	  if (handles != 0)
@@ -2152,12 +2160,12 @@ static Class		tcpPortClass;
 
   NSDebugMLLog(@"NSPort", @"received %s event %p on 0x%"PRIxPTR,
     type == ET_RPORT ? "read" : "write", extra, (NSUInteger)self);
-
+  /*
 #if	defined(_WIN32)
   if (event == eventListener)
-#else
+#else */
   if (desc == listener)
-#endif
+    // #endif
     {
       struct sockaddr	sockAddr;
       socklen_t size = sizeof(sockAddr);
@@ -2173,10 +2181,12 @@ static Class		tcpPortClass;
 
 	  setsockopt(desc, SOL_SOCKET, SO_KEEPALIVE, (char*)&status,
 	    (OPTLEN)sizeof(status));
+	  /*
 #if	defined(_WIN32)
 	  // reset associated event with new socket
 	  WSAEventSelect(desc, eventListener, 0);
 #endif
+	  */
 	  /*
 	   * Create a handle for the socket and set it up so we are its
 	   * receiving port, and it's waiting to get the port name from
