@@ -1779,10 +1779,12 @@ static Class		tcpPortClass;
       handle->recvPort = self;
     }
   NSMapInsert(handles, (void*)(uintptr_t)[handle descriptor], (void*)handle);
+  /*
 #if	defined(_WIN32)
   NSMapInsert(events, (void*)(uintptr_t)[handle eventHandle],
           (void*)(uintptr_t)[handle descriptor]);
 #endif
+  */
   M_UNLOCK(myLock);
 }
 
