@@ -1721,7 +1721,7 @@ static NSMapTable	*absolutes = 0;
 	    environment] objectForKey: @"TZ"];
 	}
 
-
+      /*
 #if HAVE_TZSET && !defined(__FreeBSD__) && !defined(__OpenBSD__)
       /*
        * Try to get timezone from tzset and tzname/daylight.
@@ -1731,7 +1731,7 @@ static NSMapTable	*absolutes = 0;
        *
        * FreeBSD doesn't implement TZSet fully, so we can't use it there.
        * Apparently, OpenBSD neither.
-       */
+       *//*
       if (localZoneString == nil)
 	{
           localZoneSource = @"function: 'tzset()/tzname'";
@@ -1740,7 +1740,7 @@ static NSMapTable	*absolutes = 0;
 	    localZoneString = [NSString stringWithUTF8String: tzname[0]];
 	}
 #endif
-
+      */
       if (localZoneString != nil)
 	{
 	  NSDebugLLog (@"NSTimeZone", @"Using zone %@", localZoneString);
