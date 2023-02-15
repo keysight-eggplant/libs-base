@@ -43,7 +43,9 @@
 #import "../Tools/gdomap.h"
 
 #include <time.h>
+#if defined(HAVE_SYS_TIME_H)
 #include <sys/time.h>
+#endif
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
