@@ -54,7 +54,9 @@
 #include <sys/param.h>		/* for MAXHOSTNAMELEN */
 #endif
 #include <sys/types.h>
+#if defined(HAVE_SYS_UN_H)
 #include <sys/un.h>
+#endif
 #include <arpa/inet.h>		/* for inet_ntoa() */
 #include <ctype.h>		/* for strchr() */
 
