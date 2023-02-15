@@ -57,7 +57,9 @@
 #if defined(HAVE_SYS_UN_H)
 #include <sys/un.h>
 #endif
+#if defined(HAVE_ARPA_INET_H)
 #include <arpa/inet.h>		/* for inet_ntoa() */
+#endif
 #include <ctype.h>		/* for strchr() */
 
 #if	defined(HAVE_SYS_FCNTL_H)

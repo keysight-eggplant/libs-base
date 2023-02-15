@@ -357,6 +357,7 @@ static NSMapTable *portToNamesMap;
     }
   else
     {
+      /*      
       struct sockaddr_un sockAddr;
       int desc;
 
@@ -382,6 +383,8 @@ static NSMapTable *portToNamesMap;
       close(desc);
       NSDebugLLog(@"NSMessagePort", @"port is live");
       return YES;
+      */
+      return NO;
     }
 }
 
