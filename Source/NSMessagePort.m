@@ -107,7 +107,9 @@
 #include <net/if.h>
 #endif
 #if	!defined(SIOCGIFCONF) || defined(__CYGWIN__)
+#if defined(AAVE_SYS_IOCTL_H)
 #include <sys/ioctl.h>
+#endif
 #ifndef	SIOCGIFCONF
 #include <sys/sockio.h>
 #endif
