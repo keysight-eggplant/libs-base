@@ -103,7 +103,9 @@
 #if	!defined(SIOCGIFCONF) || defined(__CYGWIN__)
 #include <sys/ioctl.h>
 #ifndef	SIOCGIFCONF
+#if defined(HAVE_SYS_SOCKIO_H)
 #include <sys/sockio.h>
+#endif
 #endif
 #endif
 

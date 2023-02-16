@@ -111,7 +111,9 @@
 #include <sys/ioctl.h>
 #endif
 #ifndef	SIOCGIFCONF
+#if defined(HAVE_SYS_SOCKIO_H)
 #include <sys/sockio.h>
+#endif
 #endif
 #endif
 
