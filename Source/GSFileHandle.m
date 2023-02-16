@@ -1878,7 +1878,8 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
 {
   if (isStandardFile && descriptor >= 0)
     {
-      (void)ftruncate(descriptor, pos);
+#warning fix truncateFileatOffset:      
+      //      (void)ftruncate(descriptor, pos);
     }
   [self seekToFileOffset: pos];
 }
@@ -2079,14 +2080,15 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
   if (modes && [modes count])
     {
       unsigned int	i;
-
+      /*
       for (i = 0; i < [modes count]; i++)
 	{
 	  [l addEvent: (void*)(uintptr_t)descriptor
 		 type: ET_RDESC
 	      watcher: self
 	      forMode: [modes objectAtIndex: i]];
-        }
+	}
+      */
       [readInfo setObject: modes forKey: NSFileHandleNotificationMonitorModes];
     }
   else
