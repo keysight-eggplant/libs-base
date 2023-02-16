@@ -97,7 +97,9 @@
 #endif
 
 #include <netinet/in.h>
+#if defined(HAVE_NET_IF_H)
 #include <net/if.h>
+#endif
 #if	!defined(SIOCGIFCONF) || defined(__CYGWIN__)
 #include <sys/ioctl.h>
 #ifndef	SIOCGIFCONF
