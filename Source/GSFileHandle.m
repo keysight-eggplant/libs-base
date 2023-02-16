@@ -79,7 +79,9 @@
 #    include <sys/filio.h>
 #  endif
 #endif
+#if defined(HAVE_NETDB_H)
 #include <netdb.h>
+#endif
 
 /*
  *	Stuff for setting the sockets into non-blocking mode.

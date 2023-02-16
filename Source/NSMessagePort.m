@@ -100,7 +100,9 @@
 #define NBLK_OPT     FNDELAY
 #endif
 
+#if defined(HAVE_NETINET_IN_H)
 #include <netinet/in.h>
+#endif
 #include <net/if.h>
 #if	!defined(SIOCGIFCONF) || defined(__CYGWIN__)
 #include <sys/ioctl.h>
