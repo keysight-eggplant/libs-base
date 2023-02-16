@@ -1999,7 +1999,8 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
       modes = (NSArray*)[readInfo objectForKey:
 	NSFileHandleNotificationMonitorModes];
     }
-
+#warning fix ignoreReadDescriptor
+  /*
   if (modes && [modes count])
     {
       unsigned int	i;
@@ -2019,6 +2020,7 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
 	     forMode: NSDefaultRunLoopMode
 		 all: YES];
     }
+  */
 }
 
 - (void) ignoreWriteDescriptor
@@ -2039,7 +2041,8 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
 
       modes = [info objectForKey: NSFileHandleNotificationMonitorModes];
     }
-
+#warning fix ignoreWriteDescriptor
+  /*
   if (modes && [modes count])
     {
       unsigned int	i;
@@ -2059,6 +2062,7 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
 	     forMode: NSDefaultRunLoopMode
 		 all: YES];
     }
+  */
 }
 
 - (void) watchReadDescriptorForModes: (NSArray*)modes;
@@ -2087,10 +2091,13 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
     }
   else
     {
+#warning fix watchReadDescriptorForModes
+      /*
       [l addEvent: (void*)(uintptr_t)descriptor
 	     type: ET_RDESC
 	  watcher: self
 	  forMode: NSDefaultRunLoopMode];
+      */
     }
 }
 
@@ -2109,6 +2116,8 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
       modes = [info objectForKey: NSFileHandleNotificationMonitorModes];
 
       [self setNonBlocking: YES];
+#warning fix watchWriteDescriptor
+      /*
       if (modes && [modes count])
 	{
 	  unsigned int	i;
@@ -2128,6 +2137,7 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
 	      watcher: self
 	      forMode: NSDefaultRunLoopMode];
 	}
+      */
     }
 }
 
