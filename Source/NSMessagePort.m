@@ -288,7 +288,8 @@ typedef enum {
   BOOL			valid;
   NSMessagePort		*recvPort;
   NSMessagePort		*sendPort;
-  struct sockaddr_un 	sockAddr;	/* Far end of connection.	*/
+#warning EPF: fix sockaddr_un  
+  //  struct sockaddr_un 	sockAddr;	/* Far end of connection.	*/
 }
 
 + (GSMessageHandle*) handleWithDescriptor: (int)d;
@@ -409,7 +410,8 @@ static Class	runLoopClass;
 
 
   name = [aPort _name];
-  memset(&sockAddr, '\0', sizeof(sockAddr));
+#warning EPF: Fix sockAddr
+  /*  memset(&sockAddr, '\0', sizeof(sockAddr));
   sockAddr.sun_family = AF_LOCAL;
   strncpy(sockAddr.sun_path, (char*)name, sizeof(sockAddr.sun_path));
 
@@ -423,7 +425,7 @@ static Class	runLoopClass;
 	  return NO;
 	}
     }
-
+  
   state = GS_H_TRYCON;
   l = [NSRunLoop currentRunLoop];
   [l addEvent: (void*)(uintptr_t)desc
@@ -434,7 +436,7 @@ static Class	runLoopClass;
 	 type: ET_WDESC
       watcher: self
       forMode: NSDefaultRunLoopMode];
-
+  */
   while (valid == YES && state == GS_H_TRYCON
     && [when timeIntervalSinceNow] > 0)
     {
