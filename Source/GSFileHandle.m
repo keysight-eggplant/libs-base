@@ -1804,8 +1804,8 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
   if (YES == isSocket)
     {
       int       milli = [tune delay];
-
-      shutdown(descriptor, SHUT_WR);
+#warning shutdown descriptor fix
+      //      shutdown(descriptor, SHUT_WR);
       if (milli > 0)
         {
           NSTimeInterval        until;
