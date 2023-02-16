@@ -2320,11 +2320,13 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
     {
       [self setNonBlocking: YES];
     }
+#warning Resolve ET_RDESC
+  /*  
   if (type == ET_RDESC)
     {
       [self receivedEventRead];
     }
-  else
+    else */
     {
       [self receivedEventWrite];
     }
@@ -2357,7 +2359,8 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
   else
     {
       int	e;
-
+#warning Resolve fcntl
+      /*
       if ((e = fcntl(descriptor, F_GETFL, 0)) >= 0)
 	{
 	  if (flag == YES)
@@ -2383,6 +2386,7 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
 	  NSLog(@"unable to get non-blocking mode for %d - %@",
 	    descriptor, [NSError _last]);
 	}
+      */
     }
 }
 
