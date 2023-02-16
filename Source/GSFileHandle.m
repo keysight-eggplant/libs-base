@@ -71,7 +71,9 @@
 #  include	<fcntl.h>
 #endif
 
+#if defined(HAVE_SYS_IOCTL_H)
 #include <sys/ioctl.h>
+#endif
 #ifdef	__svr4__
 #  ifdef HAVE_SYS_FILIO_H
 #    include <sys/filio.h>
