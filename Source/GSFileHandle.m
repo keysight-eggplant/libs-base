@@ -55,7 +55,9 @@
 #if defined(HAVE_NETINET_IN_H)
 #include <netinet/in.h>
 #endif
+#if defined(HAVE_ARPA_INET_H)
 #include <arpa/inet.h>
+#endif
 
 #if	defined(HAVE_SYS_FILE_H)
 #  include	<sys/file.h>

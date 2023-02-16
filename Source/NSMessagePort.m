@@ -76,7 +76,9 @@
 #include <sys/resource.h>
 #endif
 
+#if defined(HAVE_NETDB_H)
 #include <netdb.h>
+#endif
 #include <sys/socket.h>
 
 #if	defined(HAVE_SYS_FILE_H)
