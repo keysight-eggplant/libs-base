@@ -79,7 +79,9 @@
 #if defined(HAVE_NETDB_H)
 #include <netdb.h>
 #endif
+#if defined(HAVE_SYS_SOCKET_H)
 #include <sys/socket.h>
+#endif
 
 #if	defined(HAVE_SYS_FILE_H)
 #  include	<sys/file.h>
