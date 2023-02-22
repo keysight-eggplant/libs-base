@@ -1684,10 +1684,10 @@ typedef	struct {
 
   if (desc == lDesc)
     {
-      struct sockaddr_un	sockAddr;
-      unsigned			size = sizeof(sockAddr);
+      // struct sockaddr_un	sockAddr;
+      // unsigned			size = sizeof(sockAddr);
 
-      desc = accept(lDesc, (struct sockaddr*)&sockAddr, &size);
+      // desc = accept(lDesc, (struct sockaddr*)&sockAddr, &size);
       if (desc < 0)
         {
 	  NSDebugMLLog(@"NSMessagePort",
@@ -1705,7 +1705,7 @@ typedef	struct {
 	   * the other end.
 	   */
 	  handle = [GSMessageHandle handleWithDescriptor: desc];
-	  memcpy(&handle->sockAddr, &sockAddr, sizeof(sockAddr));
+	  // memcpy(&handle->sockAddr, &sockAddr, sizeof(sockAddr));
 
 	  [handle setState: GS_H_ACCEPT];
 	  [self addHandle: handle forSend: NO];
@@ -1721,10 +1721,10 @@ typedef	struct {
 	{
 	  const char	*t;
 
-	  if (type == ET_RDESC) t = "rdesc";
+	  //if (type == ET_RDESC) t = "rdesc";
 	  // else if (type == ET_WDESC) t = "wdesc";
-	  else if (type == ET_RPORT) t = "rport";
-	  else t = "unknown";
+	  //else if (type == ET_RPORT) t = "rport";
+	  //else t = "unknown";
 	  NSLog(@"No handle for event %s on descriptor %d", t, desc);
 	  [[runLoopClass currentRunLoop] removeEvent: extra
 						type: type
