@@ -442,7 +442,7 @@ static Class	runLoopClass;
     {
       [l runMode: NSConnectionReplyMode beforeDate: when];
     }
-
+  /*
   [l removeEvent: (void*)(uintptr_t)desc
 	    type: ET_WDESC
 	 forMode: NSConnectionReplyMode
@@ -451,7 +451,7 @@ static Class	runLoopClass;
 	    type: ET_WDESC
 	 forMode: NSDefaultRunLoopMode
 	     all: NO];
-
+  */
   if (state == GS_H_TRYCON)
     {
       state = GS_H_UNCON;
@@ -519,6 +519,7 @@ static Class	runLoopClass;
 
 	  valid = NO;
 	  l = [runLoopClass currentRunLoop];
+	  /*
 	  [l removeEvent: (void*)(uintptr_t)desc
 		    type: ET_RDESC
 		 forMode: nil
@@ -526,7 +527,7 @@ static Class	runLoopClass;
 	  [l removeEvent: (void*)(uintptr_t)desc
 		    type: ET_WDESC
 		 forMode: nil
-		     all: YES];
+		 all: YES]; */
 	  NSDebugMLLog(@"NSMessagePort",
 	    @"invalidated 0x%"PRIxPTR, (NSUInteger)self);
 	  [[self recvPort] removeHandle: self];
@@ -554,9 +555,9 @@ static Class	runLoopClass;
 		 extra: (void*)extra
 	       forMode: (NSString*)mode
 {
-  NSDebugMLLog(@"NSMessagePort_details",
+  /*  NSDebugMLLog(@"NSMessagePort_details",
     @"received %s event on 0x%"PRIxPTR,
-    type != ET_WDESC ? "read" : "write", (NSUInteger)self);
+    type != ET_WDESC? "read" : "write", (NSUInteger)self); */
   /*
    * If we have been invalidated (desc < 0) then we should ignore this
    * event and remove ourself from the runloop.
@@ -564,17 +565,18 @@ static Class	runLoopClass;
   if (desc < 0)
     {
       NSRunLoop	*l = [runLoopClass currentRunLoop];
-
+      /*
       [l removeEvent: data
 		type: ET_WDESC
 	     forMode: mode
-		 all: YES];
+	     all: YES]; */
       return;
     }
 
   M_LOCK(myLock);
 
-  if (type != ET_WDESC)
+  
+  //if (type != ET_WDESC)
     {
       unsigned	want;
       void	*bytes;
@@ -1048,7 +1050,7 @@ static Class	runLoopClass;
   l = [runLoopClass currentRunLoop];
 
   IF_NO_GC(RETAIN(self);)
-
+    /*
   [l addEvent: (void*)(uintptr_t)desc
 	 type: ET_WDESC
       watcher: self
@@ -1057,7 +1059,7 @@ static Class	runLoopClass;
 	 type: ET_WDESC
       watcher: self
       forMode: NSDefaultRunLoopMode];
-
+    */
   while (valid == YES
     && [wMsgs indexOfObjectIdenticalTo: components] != NSNotFound
     && [when timeIntervalSinceNow] > 0)
@@ -1066,7 +1068,7 @@ static Class	runLoopClass;
       [l runMode: NSConnectionReplyMode beforeDate: when];
       M_LOCK(myLock);
     }
-
+  /*
   [l removeEvent: (void*)(uintptr_t)desc
 	    type: ET_WDESC
 	 forMode: NSConnectionReplyMode
@@ -1075,7 +1077,7 @@ static Class	runLoopClass;
 	    type: ET_WDESC
 	 forMode: NSDefaultRunLoopMode
 	     all: NO];
-
+  */
   if ([wMsgs indexOfObjectIdenticalTo: components] == NSNotFound)
     {
       sent = YES;
@@ -1720,7 +1722,7 @@ typedef	struct {
 	  const char	*t;
 
 	  if (type == ET_RDESC) t = "rdesc";
-	  else if (type == ET_WDESC) t = "wdesc";
+	  // else if (type == ET_WDESC) t = "wdesc";
 	  else if (type == ET_RPORT) t = "rport";
 	  else t = "unknown";
 	  NSLog(@"No handle for event %s on descriptor %d", t, desc);
