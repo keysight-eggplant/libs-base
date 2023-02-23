@@ -76,6 +76,9 @@
 #  include <sys/time.h>
 #endif
 
+#undef IF_NO_ARC
+#define IF_NO_ARC(x) x
+
 #ifdef _WIN32
 
 #include <winsock2.h>
