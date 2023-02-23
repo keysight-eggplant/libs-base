@@ -33,6 +33,9 @@
 #import	<Foundation/NSObject.h>
 #import	<Foundation/NSMapTable.h>
 
+#undef GS_EXPORT_CLASS
+#define GS_EXPORT_CLASS
+
 #if	defined(_WIN32)
 #include	<winsock2.h>
 #include	<wininet.h>
