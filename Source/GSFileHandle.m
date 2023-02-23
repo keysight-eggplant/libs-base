@@ -43,21 +43,11 @@
 #import "../Tools/gdomap.h"
 
 #include <time.h>
-#if defined(HAVE_SYS_TIME_H)
 #include <sys/time.h>
-#endif
-#if defined(HAVE_SYS_PARAM_H)
 #include <sys/param.h>
-#endif
-#if defined(HAVE_SYS_SOCKET_H)
 #include <sys/socket.h>
-#endif
-#if defined(HAVE_NETINET_IN_H)
 #include <netinet/in.h>
-#endif
-#if defined(HAVE_ARPA_INET_H)
 #include <arpa/inet.h>
-#endif
 
 #if	defined(HAVE_SYS_FILE_H)
 #  include	<sys/file.h>
@@ -71,17 +61,13 @@
 #  include	<fcntl.h>
 #endif
 
-#if defined(HAVE_SYS_IOCTL_H)
 #include <sys/ioctl.h>
-#endif
 #ifdef	__svr4__
 #  ifdef HAVE_SYS_FILIO_H
 #    include <sys/filio.h>
 #  endif
 #endif
-#if defined(HAVE_NETDB_H)
 #include <netdb.h>
-#endif
 
 /*
  *	Stuff for setting the sockets into non-blocking mode.
@@ -1804,8 +1790,8 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
   if (YES == isSocket)
     {
       int       milli = [tune delay];
-#warning shutdown descriptor fix
-      //      shutdown(descriptor, SHUT_WR);
+
+      shutdown(descriptor, SHUT_WR);
       if (milli > 0)
         {
           NSTimeInterval        until;
@@ -1878,8 +1864,7 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
 {
   if (isStandardFile && descriptor >= 0)
     {
-#warning fix truncateFileatOffset:      
-      //      (void)ftruncate(descriptor, pos);
+      (void)ftruncate(descriptor, pos);
     }
   [self seekToFileOffset: pos];
 }
@@ -2000,8 +1985,7 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
       modes = (NSArray*)[readInfo objectForKey:
 	NSFileHandleNotificationMonitorModes];
     }
-#warning fix ignoreReadDescriptor
-  /*
+
   if (modes && [modes count])
     {
       unsigned int	i;
@@ -2021,7 +2005,6 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
 	     forMode: NSDefaultRunLoopMode
 		 all: YES];
     }
-  */
 }
 
 - (void) ignoreWriteDescriptor
@@ -2042,8 +2025,7 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
 
       modes = [info objectForKey: NSFileHandleNotificationMonitorModes];
     }
-#warning fix ignoreWriteDescriptor
-  /*
+
   if (modes && [modes count])
     {
       unsigned int	i;
@@ -2063,7 +2045,6 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
 	     forMode: NSDefaultRunLoopMode
 		 all: YES];
     }
-  */
 }
 
 - (void) watchReadDescriptorForModes: (NSArray*)modes;
@@ -2080,26 +2061,22 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
   if (modes && [modes count])
     {
       unsigned int	i;
-      /*
+
       for (i = 0; i < [modes count]; i++)
 	{
 	  [l addEvent: (void*)(uintptr_t)descriptor
 		 type: ET_RDESC
 	      watcher: self
 	      forMode: [modes objectAtIndex: i]];
-	}
-      */
+        }
       [readInfo setObject: modes forKey: NSFileHandleNotificationMonitorModes];
     }
   else
     {
-#warning fix watchReadDescriptorForModes
-      /*
       [l addEvent: (void*)(uintptr_t)descriptor
 	     type: ET_RDESC
 	  watcher: self
 	  forMode: NSDefaultRunLoopMode];
-      */
     }
 }
 
@@ -2118,8 +2095,6 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
       modes = [info objectForKey: NSFileHandleNotificationMonitorModes];
 
       [self setNonBlocking: YES];
-#warning fix watchWriteDescriptor
-      /*
       if (modes && [modes count])
 	{
 	  unsigned int	i;
@@ -2139,7 +2114,6 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
 	      watcher: self
 	      forMode: NSDefaultRunLoopMode];
 	}
-      */
     }
 }
 
@@ -2332,13 +2306,11 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
     {
       [self setNonBlocking: YES];
     }
-#warning Resolve ET_RDESC
-  /*  
   if (type == ET_RDESC)
     {
       [self receivedEventRead];
     }
-    else */
+  else
     {
       [self receivedEventWrite];
     }
@@ -2371,8 +2343,7 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
   else
     {
       int	e;
-#warning Resolve fcntl
-      /*
+
       if ((e = fcntl(descriptor, F_GETFL, 0)) >= 0)
 	{
 	  if (flag == YES)
@@ -2398,7 +2369,6 @@ NSString * const GSSOCKSRecvAddr = @"GSSOCKSRecvAddr";
 	  NSLog(@"unable to get non-blocking mode for %d - %@",
 	    descriptor, [NSError _last]);
 	}
-      */
     }
 }
 
