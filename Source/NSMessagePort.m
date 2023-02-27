@@ -50,7 +50,9 @@
 
 #include <stdio.h>
 
+#if defined(HAVE_SYS_PARAM_H)
 #include <sys/param.h>		/* for MAXHOSTNAMELEN */
+#endif
 #include <sys/types.h>
 #include <sys/un.h>
 #include <arpa/inet.h>		/* for inet_ntoa() */
