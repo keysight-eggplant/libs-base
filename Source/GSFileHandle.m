@@ -52,7 +52,10 @@
 #include <sys/param.h>
 #endif
 
+#if defined(HAVE_SYS_SOCKET_H)
 #include <sys/socket.h>
+#endif
+
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
