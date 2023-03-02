@@ -41,7 +41,6 @@
 #import "Foundation/NSNotificationQueue.h"
 #import "Foundation/NSThread.h"
 #import "Foundation/NSValue.h"
-#import "Foundation/NSLock.h"
 
 #import "GSSorting.h"
 
