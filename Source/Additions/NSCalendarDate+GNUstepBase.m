@@ -48,16 +48,6 @@
   return year;
 }
 
-/**
- * The ISO standard week of the year is based on the first week of the
- * year being that week (starting on monday) for which the thursday
- * is on or after the first of january.<br />
- * This has the effect that, if january first is a friday, saturday or
- * sunday, the days of that week (up to and including the sunday) are
- * considered to be in week 53 of the preceding year. Similarly if the
- * last day of the year is a monday tuesday or wednesday, these days are
- * part of week 1 of the next year.
- */
 - (NSInteger) weekOfYear
 {
   NSInteger	dayOfWeek = [self dayOfWeek];

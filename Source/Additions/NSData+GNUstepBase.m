@@ -332,7 +332,7 @@ randombytes(uint8_t *buf, unsigned len)
             }
           stream.next_out = dst + stream.total_out;
           stream.avail_out = (unsigned)(capacity - stream.total_out);
-          deflate(&stream, Z_FINISH);
+          (void)deflate(&stream, Z_FINISH);
         }
       deflateEnd(&stream);
       result = [NSMutableData alloc];
@@ -865,7 +865,7 @@ static void MD5Transform (uint32_t buf[4], uint32_t const in[16])
 	      d = [NSData dataWithBytes: &bytes[off] length: end - off];
 	      name = [[NSString alloc] initWithData: d
 					   encoding: NSASCIIStringEncoding];
-	      IF_NO_GC(AUTORELEASE(name);)
+	      IF_NO_ARC(AUTORELEASE(name);)
 	      if (namePtr != 0)
 		{
 		  *namePtr = name;

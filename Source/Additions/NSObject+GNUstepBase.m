@@ -58,7 +58,7 @@
 
 - (NSComparisonResult) compare: (id)anObject
 {
-  GSOnceMLog(@"WARNING: The -compare: method for NSObject is deprecated.");
+  NSLog(@"WARNING: The -compare: method for NSObject is deprecated.");
 
   if (anObject == self)
     {
@@ -350,7 +350,7 @@ handleExit()
 	      if ('@' == *type)
 		{
 		  NSObject	*content = object_getIvar(obj, vars[count]);
-
+	    
 		  if (content != nil)
 		    {
 		      size += [content sizeInBytesExcluding: exclude];

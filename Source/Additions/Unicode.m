@@ -35,16 +35,16 @@
 #import "Foundation/NSDictionary.h"
 #import "Foundation/NSError.h"
 #import "Foundation/NSException.h"
-#import "Foundation/NSLock.h"
+#import "Foundation/NSMapTable.h"
 #import "Foundation/NSPathUtilities.h"
 #endif
 
 #import "GNUstepBase/GSLock.h"
 #import "GNUstepBase/GSMime.h"
-#import "GNUstepBase/NSLock+GNUstepBase.h"
 #import "GNUstepBase/Unicode.h"
 
 #import "../GSPrivate.h"
+#import "../GSPThread.h"
 
 #include <stdio.h>
 
@@ -56,6 +56,8 @@
 #endif
 #if     defined(HAVE_UNICODE_UCNV_H)
 #include <unicode/ucnv.h>
+#elif   defined(HAVE_ICU_H)
+#include <icu.h>
 #endif
 
 
@@ -96,11 +98,6 @@ typedef struct {unichar from; unsigned char to;} _ucc_;
 #endif
 
 #define UNICODE_ENC ((unicode_enc) ? unicode_enc : internal_unicode_enc())
-
-
-/* Prototypes... */
-NSStringEncoding GSPrivateICUCStringEncoding();
-
 
 static const char *unicode_enc = NULL;
 
@@ -143,7 +140,7 @@ internal_unicode_enc(void)
 #define UNICODE_UTF32 ""
 #endif
 
-static GSLazyLock *local_lock = nil;
+static gs_mutex_t local_lock = GS_MUTEX_INIT_STATIC;
 
 typedef	unsigned char	unc;
 static NSStringEncoding	defEnc = GSUndefinedEncoding;
@@ -159,7 +156,7 @@ struct _strenc_ {
 					 * iconv perform conversions to/from
 					 * this encoding.
 					 * NB. do not put a null pointer in this
-					 * field in the table, use "" instread.
+					 * field in the table, use "" instead.
 					 */
   BOOL			eightBit;	/* Flag to say whether this encoding
 					 * can be stored in a byte array ...
@@ -198,7 +195,7 @@ static struct _strenc_ str_encoding_table[] = {
   {NSSymbolStringEncoding,
     "NSSymbolStringEncoding","",0,0,0},
   {NSNonLossyASCIIStringEncoding,
-    "NSNonLossyASCIIStringEncoding","",1,1,0},
+    "NSNonLossyASCIIStringEncoding","",0,1,0},
   {NSShiftJISStringEncoding,
     "NSShiftJISStringEncoding","SHIFT-JIS",0,0,0},
   {NSISOLatin2StringEncoding,
@@ -224,7 +221,8 @@ static struct _strenc_ str_encoding_table[] = {
     "NSProprietaryStringEncoding","",0,0,0},
 #endif
 
-// GNUstep additions
+  /* GNUstep additions
+   */
   {NSISOCyrillicStringEncoding,
     "NSISOCyrillicStringEncoding","ISO-8859-5",0,1,0},
   {NSKOI8RStringEncoding,
@@ -253,14 +251,76 @@ static struct _strenc_ str_encoding_table[] = {
     "NSISOLatin9StringEncoding","ISO-8859-15",1,1,0},
   {NSUTF7StringEncoding,
     "NSUTF7StringEncoding","UTF-7",0,0,0},
-  {NSGB2312StringEncoding,
-    "NSGB2312StringEncoding","EUC-CN",0,0,0},
+  {NSChineseEUCStringEncoding,
+    "NSChineseEUCStringEncoding","EUC-CN",0,0,0},
   {NSGSM0338StringEncoding,
     "NSGSM0338StringEncoding","",0,1,0},
-  {NSBIG5StringEncoding,
-    "NSBIG5StringEncoding","BIG5",0,0,0},
+  {NSBig5StringEncoding,
+    "NSBig5StringEncoding","BIG5",0,0,0},
   {NSKoreanEUCStringEncoding,
     "NSKoreanEUCStringEncoding","EUC-KR",0,0,0},
+
+  /* DOS and Windows encodings
+   */
+  {NSDOSLatinUSStringEncoding,
+    "NSDOSLatinUSStringEncoding","CP437",0,0,0},
+  {NSDOSGreekStringEncoding,
+    "NSDOSGreekStringEncoding","CP737",0,0,0},
+  {NSDOSBalticRimStringEncoding,
+    "NSDOSBalticRimStringEncoding","CP775",0,0,0},
+  {NSDOSLatin1StringEncoding,
+    "NSDOSLatin1StringEncoding","CP850",0,0,0},
+  {NSDOSGreek1StringEncoding,
+    "NSDOSGreek1StringEncoding","CP851",0,0,0},
+  {NSDOSLatin2StringEncoding,
+    "NSDOSLatin2StringEncoding","CP852",0,0,0},
+  {NSDOSCyrillicStringEncoding,
+    "NSDOSCyrillicStringEncoding","CP855",0,0,0},
+  {NSDOSTurkishStringEncoding,
+    "NSDOSTurkishStringEncoding","CP857",0,0,0},
+  {NSDOICortugueseStringEncoding,
+    "NSDOICortugueseStringEncoding","CP860",0,0,0},
+  {NSDOSIcelandicStringEncoding,
+    "NSDOSIcelandicStringEncoding","CP861",0,0,0},
+  {NSDOSHebrewStringEncoding,
+    "NSDOSHebrewStringEncoding","CP862",0,0,0},
+  {NSDOSCanadianFrenchStringEncoding,
+    "NSDOSCanadianFrenchStringEncoding","CP863",0,0,0},
+  {NSDOSArabicStringEncoding,
+    "NSDOSArabicStringEncoding","CP864",0,0,0},
+  {NSDOSNordicStringEncoding,
+    "NSDOSNordicStringEncoding","CP865",0,0,0},
+  {NSDOSRussianStringEncoding,
+    "NSDOSRussianStringEncoding","CP866",0,0,0},
+  {NSDOSGreek2StringEncoding,
+    "NSDOSGreek2StringEncoding","CP869",0,0,0},
+  {NSDOSThaiStringEncoding,
+    "NSDOSThaiStringEncoding","CP874",0,0,0},
+  {NSDOSJapaneseStringEncoding,
+    "NSDOSJapaneseStringEncoding","CP932",0,0,0},
+  {NSDOSChineseSimplifStringEncoding,
+    "NSDOSChineseSimplifStringEncoding","CP936",0,0,0},
+  {NSDOSKoreanStringEncoding,
+    "NSDOSKoreanStringEncoding","CP949",0,0,0},
+  {NSDOSChineseTradStringEncoding,
+    "NSDOSChineseTradStringEncoding","CP950",0,0,0},
+  {NSWindowsHebrewStringEncoding,
+    "NSWindowsHebrewStringEncoding","CP1255",0,0,0},
+  {NSWindowsArabicStringEncoding,
+    "NSWindowsArabicStringEncoding","CP1256",0,0,0},
+  {NSWindowsBalticRimStringEncoding,
+    "NSWindowsBalticRimStringEncoding","CP1257",0,0,0},
+  {NSWindowsVietnameseStringEncoding,
+    "NSWindowsVietnameseStringEncoding","CP1258",0,0,0},
+  {NSWindowsKoreanJohabStringEncoding,
+    "NSWindowsKoreanJohabStringEncoding","CP1361",0,0,0},
+
+  {NSGB_2312_80StringEncoding,	// Same as NSChineseEUCStringEncoding
+    "NSGB_2312_80StringEncoding","EUC-CN",0,0,0},
+  {NSGBK_95StringEncoding,	// Same as NSDOSChineseSimplifStringEncoding
+    "NSGBK_95StringEncoding","CP936",0,0,0},
+  {NSGB_18030_2000StringEncoding,
+    "NSGB_18030_2000StringEncoding","GB18030",0,0,0},
 
 /* Now Apple encodings which have high numeric values.
  */
@@ -278,74 +338,50 @@ static struct _strenc_ str_encoding_table[] = {
   {0,"Unknown encoding","",0,0,0}
 };
 
-static struct _strenc_	**encodingTable = 0;
 static unsigned		encTableSize = 0;
+static NSMapTable   	*encodingPointerTable = nil;
 
 static void GSSetupEncodingTable(void)
 {
-  if (encodingTable == 0)
+  if (nil == encodingPointerTable)
     {
-      [GS_INITIALIZED_LOCK(local_lock, GSLazyLock) lock];
-      if (encodingTable == 0)
+      GS_MUTEX_LOCK(local_lock);
+      if (nil == encodingPointerTable)
 	{
-	  static struct _strenc_	**encTable = 0;
-	  unsigned			count;
 	  unsigned			i;
 
 	  /*
 	   * We want to store pointers to our string encoding info in a
 	   * large table so we can do efficient lookup by encoding value.
 	   */
-#define	MAX_ENCODING	128
-	  count = sizeof(str_encoding_table) / sizeof(struct _strenc_);
-
-	  /*
-	   * First determine the largest encoding value and create a
-	   * large enough table of pointers.
-	   */
-	  encTableSize = 0;
-	  for (i = 0; i < count; i++)
-	    {
-	      unsigned	tmp = str_encoding_table[i].enc;
-
-	      if (tmp > encTableSize)
-		{
-		  if (tmp < MAX_ENCODING)
-		    {
-		      encTableSize = tmp;
-		    }
-		}
-	    }
-	  encTable = malloc(
-	    (encTableSize+1)*sizeof(struct _strenc_ *));
-	  memset(encTable, 0, (encTableSize+1)*sizeof(struct _strenc_ *));
+	  encTableSize = sizeof(str_encoding_table) / sizeof(struct _strenc_);
+	  encodingPointerTable = NSCreateMapTable(NSIntegerMapKeyCallBacks,
+	    NSNonOwnedPointerMapValueCallBacks, encTableSize);
+	  RELEASE([NSObject leakAt:&encodingPointerTable]);
 
 	  /*
 	   * Now set up the pointers at the correct location in the table.
 	   */
-	  for (i = 0; i < count; i++)
+	  for (i = 0; i < encTableSize; i++)
 	    {
 	      struct _strenc_ *entry = &str_encoding_table[i];
-	      unsigned	tmp = entry->enc;
 
-	      if (tmp < MAX_ENCODING)
-		{
-		  encTable[tmp] = entry;
-		}
+	      NSMapInsert(encodingPointerTable,
+		(const void *)entry->enc, (const void *)entry);
 #ifdef HAVE_ICONV
 	      if (entry->iconv != 0 && *(entry->iconv) != 0)
 		{
 		  iconv_t	c;
 		  int		l;
-		  char	*lossy;
+		  char		*lossy;
 
 		  /*
 		   * See if we can do a lossy conversion.
 		   */
 		  l = strlen(entry->iconv);
 		  lossy = malloc(l + 11);
-		  strncpy(lossy, entry->iconv, l);
-		  strncpy(lossy + l, "//TRANSLIT", 11);
+		  memcpy(lossy, entry->iconv, l);
+		  memcpy(lossy + l, "//TRANSLIT", 11);
 		  c = iconv_open(lossy, UNICODE_ENC);
 		  if (c == (iconv_t)-1)
 		    {
@@ -359,9 +395,8 @@ static void GSSetupEncodingTable(void)
 		}
 #endif
 	    }
-	  encodingTable = encTable;
 	}
-      [local_lock unlock];
+      GS_MUTEX_UNLOCK(local_lock);
     }
 }
 
@@ -370,27 +405,10 @@ EntryForEncoding(NSStringEncoding enc)
 {
   struct _strenc_ *entry = 0;
 
-  if (enc > 0)
+  if (enc != 0)
     {
       GSSetupEncodingTable();
-      if (enc <= encTableSize)
-	{
-	  entry = encodingTable[enc];
-	}
-      else
-	{
-	  unsigned	i = 0;
-
-	  while (i < sizeof(str_encoding_table) / sizeof(struct _strenc_))
-	    {
-	      if (str_encoding_table[i].enc == enc)
-		{
-		  entry = &str_encoding_table[i];
-		  break;
-		}
-	      i++;
-	    }
-	}
+      entry = NSMapGet(encodingPointerTable, (const void *)enc);
     }
   return entry;
 }
@@ -466,7 +484,7 @@ GSPrivateIsEncodingSupported(NSStringEncoding enc)
  *  character set registry and encoding information. For instance,
  *  for the iso8859-5 character set, the registry is iso8859 and
  *  the encoding is 5, and the returned NSStringEncoding is
- *  NSISOCyrillicStringEncoding. If there is no specific encoding,
+ *  NSISOLatinCyrillicStringEncoding. If there is no specific encoding,
  *  use @"0". Returns GSUndefinedEncoding if there is no match.
  */
 NSStringEncoding
@@ -617,7 +635,7 @@ GSPrivateUniCop(unichar u)
       unichar	code;
       unichar	count = 0;
       unichar	first = 0;
-      unichar	last = uni_cop_table_size;
+      unichar	last = uni_cop_table_size - 1;
 
       while (first <= last)
 	{
@@ -671,7 +689,7 @@ uni_is_decomp(unichar u)
       unichar	code;
       unichar	count = 0;
       unichar	first = 0;
-      unichar	last = uni_dec_table_size;
+      unichar	last = uni_dec_table_size - 1;
 
       while (first <= last)
 	{
@@ -705,6 +723,12 @@ uni_is_decomp(unichar u)
     }
 }
 
+static inline int
+octdigit(int c)
+{
+  return (c >= '0' && c < '8');
+}
+
 /**
  * Function to check a block of data for validity as a unicode string and
  * say whether it contains solely ASCII or solely Latin1 data.<br />
@@ -736,11 +760,6 @@ GSUnicode(const unichar *chars, unsigned length,
 		  while (i < length)
 		    {
 		      c = chars[i++];
-		      if (c == 0xfffe || c == 0xffff
-			|| (c >= 0xfdd0 && c <= 0xfdef))
-			{
-			  return i - 1;	// Non-characters.
-			}
 		      if (c >= 0xdc00 && c <= 0xdfff)
 		        {
 			  return i - 1;	// Second half of a surrogate pair.
@@ -814,10 +833,66 @@ else \
       } \
     if (ptr == 0) \
       { \
-	return NO;	/* Not enough memory */ \
+        result = NO; /* No buffer growth possible ... fail. */ \
+        goto done; \
       } \
     bsize = grow / sizeof(unichar); \
   }
+
+#define UTF8DECODE      1
+
+#if     defined(UTF8DECODE)
+/* This next data (utf8d) and function (decode()) copyright ...
+Copyright (c) 2008-2009 Bjoern Hoehrmann <bjoern@hoehrmann.de>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+#define UTF8_ACCEPT 0
+#define UTF8_REJECT 12
+
+static const uint8_t utf8d[] = {
+  // The first part of the table maps bytes to character classes that
+  // to reduce the size of the transition table and create bitmasks.
+   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,
+   7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,  7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+   8,8,2,2,2,2,2,2,2,2,2,2,2,2,2,2,  2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+  10,3,3,3,3,3,3,3,3,3,3,3,3,4,3,3, 11,6,6,6,5,8,8,8,8,8,8,8,8,8,8,8,
+
+  // The second part is a transition table that maps a combination
+  // of a state of the automaton and a character class to a state.
+   0,12,24,36,60,96,84,12,12,12,48,72, 12,12,12,12,12,12,12,12,12,12,12,12,
+  12, 0,12,12,12,12,12, 0,12, 0,12,12, 12,24,12,12,12,12,12,24,12,24,12,12,
+  12,12,12,12,12,12,12,24,12,12,12,12, 12,24,12,12,12,12,12,12,12,24,12,12,
+  12,12,12,12,12,12,12,36,12,36,12,12, 12,36,12,12,12,12,12,36,12,36,12,12,
+  12,36,12,12,12,12,12,12,12,12,12,12, 
+};
+
+static uint32_t inline
+decode(uint32_t* state, uint32_t* codep, uint32_t byte)
+{
+  uint32_t type = utf8d[byte];
+
+  *codep = (*state != UTF8_ACCEPT)
+    ?  (byte & 0x3fu) | (*codep << 6)
+    : (0xff >> type) & (byte);
+
+  *state = utf8d[256 + *state + type];
+  return *state;
+}
+
+/* End of separately copyrighted section.
+ */
+#endif
+
 
 /**
  * Function to convert from 8-bit data to 16-bit unicode characters.
@@ -890,6 +965,9 @@ GSToUnicode(unichar **dst, unsigned int *size, const unsigned char *src,
   unichar	base = 0;
   unichar	*table = 0;
   BOOL		result = YES;
+#ifdef HAVE_ICONV
+  iconv_t	cd = (iconv_t)-1;
+#endif
 
   /*
    * Ensure we have an initial buffer set up to decode data into.
@@ -918,14 +996,41 @@ GSToUnicode(unichar **dst, unsigned int *size, const unsigned char *src,
     {
       case NSUTF8StringEncoding:
 	{
+          uint32_t  u = 0;
+#if     defined(UTF8DECODE)
+          uint32_t      state = 0;
+#endif
 	  while (spos < slen)
 	    {
-	      unsigned char	c = src[spos];
-	      unsigned long	u = c;
 
+#if     defined(UTF8DECODE)
+              if (decode(&state, &u, src[spos++]))
+                {
+                  continue;
+                }
+#else
+	      uint8_t   c = src[spos];
+
+	      u = c;
 	      if (c > 0x7f)
                 {
                   int i, sle = 0;
+
+		  /* legal first byte of a multibyte character?
+                   */
+                  if (c <= 0xc1 || c >= 0xf5)
+                    {
+                      /* (0x7f <= c < 0xc0) means this is a continuation
+                       * of a multibyte character without the first byte.
+                       *
+                       * (0xc0 == c || 0xc1 == c) are always illegal because
+                       *
+                       * (c >= 0xf5) would be for a multibyte character
+                       * outside the unicode range.
+                       */
+	              result = NO;
+		      goto done;
+                    }
 
 		  /* calculated the expected sequence length */
                   while (c & 0x80)
@@ -934,18 +1039,11 @@ GSToUnicode(unichar **dst, unsigned int *size, const unsigned char *src,
                       sle++;
                     }
 
-		  /* legal ? */
-		  if ((sle < 2) || (sle > 6))
-                    {
-	               result = NO;
-		       goto done;
-	            }
-
 		  /* do we have enough bytes ? */
 		  if ((spos + sle) > slen)
                     {
-	               result = NO;
-		       goto done;
+	              result = NO;
+		      goto done;
 	            }
 
 		  /* get the codepoint */
@@ -963,26 +1061,46 @@ GSToUnicode(unichar **dst, unsigned int *size, const unsigned char *src,
 	          u = u & ~(0xffffffff << ((5 * sle) + 1));
 		  spos += sle;
 
-		  /*
-		   * We discard invalid codepoints here.
-		   */
-		  if (u > 0x10ffff || u == 0xfffe || u == 0xffff
-		    || (u >= 0xfdd0 && u <= 0xfdef))
-		    {
-		      result = NO;	// Invalid character.
+                  /* How many bytes needed to encode this character?
+                   */
+                  if (u < 0x80)
+                    {
+                      i = 1;
+                    }
+                  else if (u < 0x800)
+                    {
+                      i = 2;
+                    }
+                  else if (u < 0x10000)
+                    {
+                      i = 3;
+                    }
+                  else 
+                    {
+                      i = 4;
+                    }
+                  if (0 && i < sle)
+                    {
+		      result = NO;	// Character was not minimally encoded.
 		      goto done;
-		    }
+                    }
 
 		  if ((u >= 0xd800) && (u <= 0xdfff))
 		    {
 		      result = NO;	// Unmatched half of surrogate pair.
 		      goto done;
 		    }
+                  if (u > 0x10ffff)
+                    {
+		      result = NO;	// Outside the unicode range.
+		      goto done;
+                    }
                 }
               else
 		{
 		  spos++;
 		}
+#endif
 
 	      /*
 	       * Add codepoint as either a single unichar for BMP
@@ -1011,12 +1129,160 @@ GSToUnicode(unichar **dst, unsigned int *size, const unsigned char *src,
 		      GROW();
 		    }
 	          ptr[dpos++] = ul + 0xdc00;
+//                  NSLog(@"Adding uh %d ul %d", uh + 0xd800, ul + 0xdc00);
 	        }
 	    }
+#if     defined(UTF8DECODE)
+          if (state != UTF8_ACCEPT)
+            {
+              result = NO;	// Parse failure
+              goto done;
+            }
+#endif
 	}
 	break;
 
       case NSNonLossyASCIIStringEncoding:
+        {
+          unsigned int  index = 0;
+          unsigned int  count = 0;
+
+          while (index < slen)
+            {
+              uint8_t	c = (uint8_t)((unc)src[index++]);
+
+              if ('\\' == c)
+                {
+                  if (index < slen)
+                    {
+                      c = (uint8_t)((unc)src[index++]);
+                      if ('\\' == c)
+                        {
+                          count++;      // Escaped backslash
+                        }
+                      else if (octdigit(c)
+                        && (index < slen && octdigit(src[index++]))
+                        && (index < slen && octdigit(src[index++])))
+                        {
+                          count++;  // Octal escape
+                        }
+                      else if (('u' == c)
+                        && (index < slen && isxdigit(src[index++]))
+                        && (index < slen && isxdigit(src[index++]))
+                        && (index < slen && isxdigit(src[index++]))
+                        && (index < slen && isxdigit(src[index++])))
+                        {
+                          count++;      // Hex escape for unicode
+                        }
+                      else
+                        {
+                          result = NO;	// illegal backslash escape
+                          goto done;
+                        }
+                    }
+                  else
+                    {
+                      result = NO;	// unbalanced backslash
+                      goto done;
+                    }
+                }
+              else
+                {
+                  count++;
+                }
+            }
+          
+          if (dst == 0)
+            {
+              /* Just counting bytes.
+               */
+              dpos += count;
+            }
+          else
+            {
+              if (dpos + count + (extra ? 1 : 0) > bsize)
+                {
+                  if (zone == 0)
+                    {
+                      result = NO; /* No buffer growth possible ... fail. */
+                      goto done;
+                    }
+                  else
+                    {
+                      unsigned	grow = (dpos + count) * sizeof(unichar);
+                      unichar	*tmp;
+
+                      tmp = NSZoneMalloc(zone, grow + extra * sizeof(unichar));
+                      if ((ptr == buf || ptr == *dst) && (tmp != 0))
+                        {
+                          memcpy(tmp, ptr, bsize * sizeof(unichar));
+                        }
+                      if (ptr != buf && ptr != *dst)
+                        {
+                          NSZoneFree(zone, ptr);
+                        }
+                      ptr = tmp;
+                      if (ptr == 0)
+                        {
+                          return NO;	/* Not enough memory */
+                        }
+                      bsize = grow / sizeof(unichar);
+                    }
+                }
+              while (spos < slen)
+                {
+                  uint8_t	c = (uint8_t)((unc)src[spos++]);
+
+                  if ('\\' == c)
+                    {
+                      c = (uint8_t)((unc)src[spos++]);
+                      if ('\\' == c)
+                        {
+                          ptr[dpos++] = c;
+                        }
+                      else if ('u' == c)
+                        {
+                          int   i = 0;
+
+                          for (count = 0; count < 4; count++)
+                            {
+                              c = (uint8_t)((unc)src[spos++]);
+                              i *= 16;
+                              if (isdigit(c))
+                                {
+                                  i += c - '0';
+                                }
+                              else if (isupper(c))
+                                {
+                                  i += 10 + c - 'A';
+                                }
+                              else
+                                {
+                                  i += 10 + c - 'a';
+                                }
+                            }
+                          ptr[dpos++] = i;
+                        }
+                      else
+                        {
+                          int   i = c - '0';
+
+                          c = (uint8_t)((unc)src[spos++]);
+                          i = i * 8 + c - '0';
+                          c = (uint8_t)((unc)src[spos++]);
+                          i = i * 8 + c - '0';
+                          ptr[dpos++] = i;
+                        }
+                    }
+                  else
+                    {
+                      ptr[dpos++] = c;
+                    }
+                }
+            }
+          }
+	break;
+
       case NSASCIIStringEncoding:
 	if (dst == 0)
 	  {
@@ -1027,7 +1293,7 @@ GSToUnicode(unichar **dst, unsigned int *size, const unsigned char *src,
 	  }
         else
 	  {
-	    /* Because we know that each ascii chartacter is exactly
+	    /* Because we know that each ascii character is exactly
 	     * one unicode character, we can check the destination
 	     * buffer size and allocate more space in one go, before
 	     * entering the loop where we deal with each character.
@@ -1044,7 +1310,7 @@ GSToUnicode(unichar **dst, unsigned int *size, const unsigned char *src,
 		    unsigned	grow = (dpos + slen) * sizeof(unichar);
 		    unichar	*tmp;
 
-		    tmp = NSZoneMalloc(zone, grow + extra);
+		    tmp = NSZoneMalloc(zone, grow + extra * sizeof(unichar));
 		    if ((ptr == buf || ptr == *dst) && (tmp != 0))
 		      {
 			memcpy(tmp, ptr, bsize * sizeof(unichar));
@@ -1102,7 +1368,7 @@ GSToUnicode(unichar **dst, unsigned int *size, const unsigned char *src,
 		    unsigned	grow = (dpos + slen) * sizeof(unichar);
 		    unichar	*tmp;
 
-		    tmp = NSZoneMalloc(zone, grow + extra);
+		    tmp = NSZoneMalloc(zone, grow + extra * sizeof(unichar));
 		    if ((ptr == buf || ptr == *dst) && (tmp != 0))
 		      {
 			memcpy(tmp, ptr, bsize * sizeof(unichar));
@@ -1185,7 +1451,7 @@ tables:
 		    unsigned	grow = (dpos + slen) * sizeof(unichar);
 		    unichar	*tmp;
 
-		    tmp = NSZoneMalloc(zone, grow + extra);
+		    tmp = NSZoneMalloc(zone, grow + extra * sizeof(unichar));
 		    if ((ptr == buf || ptr == *dst) && (tmp != 0))
 		      {
 			memcpy(tmp, ptr, bsize * sizeof(unichar));
@@ -1259,7 +1525,6 @@ tables:
 	  size_t	inbytesleft;
 	  size_t	outbytesleft;
 	  size_t	rval;
-	  iconv_t	cd;
 	  const char	*estr = 0;
 	  BOOL		done = NO;
 
@@ -1323,8 +1588,6 @@ tables:
 		    }
 		}
 	    } while (!done || rval != 0);
-	  // close the converter
-	  iconv_close(cd);
 	}
 #else
 	result = NO;
@@ -1332,74 +1595,86 @@ tables:
     }
 
 done:
-
-  /*
-   * Post conversion ... terminate if needed, and set output values.
-   */
-  if (extra != 0 && dst != 0)
+#ifdef HAVE_ICONV
+  if (cd != (iconv_t)-1)
     {
-      ptr[dpos] = (unichar)0;
+      iconv_close(cd);
     }
-  *size = dpos;
-  if (dst != 0 && (result == YES || (options & GSUniShortOk)))
+#endif
+
+  if (NULL == ptr)
     {
-      if (options & GSUniTemporary)
-	{
-	  unsigned	bytes = dpos * sizeof(unichar) + extra;
-	  void		*r;
-
-	  /*
-	   * Temporary string was requested ... make one.
-	   */
-	  r = GSAutoreleasedBuffer(bytes);
-	  memcpy(r, ptr, bytes);
-	  if (ptr != buf && ptr != *dst)
-	    {
-	      NSZoneFree(zone, ptr);
-	    }
-	  ptr = r;
-	  *dst = ptr;
-	}
-      else if (zone != 0 && (ptr == buf || bsize > dpos))
-	{
-	  unsigned	bytes = dpos * sizeof(unichar) + extra;
-
-	  /*
-	   * Resizing is permitted, try ensure we return a buffer which
-	   * is just big enough to hold the converted string.
-	   */
-	  if (ptr == buf || ptr == *dst)
-	    {
-	      unichar	*tmp;
-
-	      tmp = NSZoneMalloc(zone, bytes);
-	      if (tmp != 0)
-		{
-		  memcpy(tmp, ptr, bytes);
-		}
-	      ptr = tmp;
-	    }
-	  else
-	    {
-	      ptr = NSZoneRealloc(zone, ptr, bytes);
-	    }
-	  *dst = ptr;
-	}
-      else if (ptr == buf)
-	{
-	  ptr = NULL;
-	  result = NO;
-	}
-      else
-	{
-	  *dst = ptr;
-	}
+      *size = 0;
     }
-  else if (ptr != buf && dst != 0 && ptr != *dst)
+  else
     {
-      NSZoneFree(zone, ptr);
-    }
+      /*
+       * Post conversion ... terminate if needed, and set output values.
+       */
+      if (extra != 0 && dst != 0)
+        {
+          ptr[dpos] = (unichar)0;
+        }
+      *size = dpos;
+      if (dst != 0 && (result == YES || (options & GSUniShortOk)))
+        {
+          if (options & GSUniTemporary)
+            {
+              unsigned	bytes = dpos * sizeof(unichar) + extra;
+              void		*r;
 
+              /*
+               * Temporary string was requested ... make one.
+               */
+              r = GSAutoreleasedBuffer(bytes);
+              memcpy(r, ptr, bytes);
+              if (ptr != buf && ptr != *dst)
+                {
+                  NSZoneFree(zone, ptr);
+                }
+              ptr = r;
+              *dst = ptr;
+            }
+          else if (zone != 0 && (ptr == buf || bsize > dpos))
+            {
+              unsigned	bytes = dpos * sizeof(unichar) + extra;
+
+              /*
+               * Resizing is permitted, try ensure we return a buffer which
+               * is just big enough to hold the converted string.
+               */
+              if (ptr == buf || ptr == *dst)
+                {
+                  unichar	*tmp;
+
+                  tmp = NSZoneMalloc(zone, bytes);
+                  if (tmp != 0)
+                    {
+                      memcpy(tmp, ptr, bytes);
+                    }
+                  ptr = tmp;
+                }
+              else
+                {
+                  ptr = NSZoneRealloc(zone, ptr, bytes);
+                }
+              *dst = ptr;
+            }
+          else if (ptr == buf)
+            {
+              ptr = NULL;
+              result = NO;
+            }
+          else
+            {
+              *dst = ptr;
+            }
+        }
+      else if (ptr != buf && dst != 0 && ptr != *dst)
+        {
+          NSZoneFree(zone, ptr);
+        }
+    }
   if (dst)
     NSCAssert(*dst != buf, @"attempted to pass out pointer to internal buffer");
 
@@ -1454,7 +1729,8 @@ else \
       } \
     if (ptr == 0) \
       { \
-	return NO;	/* Not enough memory */ \
+        result = NO; /* No buffer growth possible ... fail. */ \
+	goto done; \
       } \
     bsize = grow; \
   }
@@ -1565,6 +1841,9 @@ GSFromUnicode(unsigned char **dst, unsigned int *size, const unichar *src,
   unsigned	ltsize = 0;
   BOOL		swapped = NO;
   BOOL		result = YES;
+#ifdef HAVE_ICONV
+  iconv_t	cd = (iconv_t)-1;
+#endif
 
   if (options & GSUniBOM)
     {
@@ -1654,10 +1933,7 @@ GSFromUnicode(unsigned char **dst, unsigned int *size, const unichar *src,
 		    }
 
 		  // 0xfeff is a zero-width-no-break-space inside text
-		  if (u1 == 0xfffe			// unexpected BOM
-		    || u1 == 0xffff			// not a character
-		    || (u1 >= 0xfdd0 && u1 <= 0xfdef)	// invalid character
-		    || (u1 >= 0xdc00 && u1 <= 0xdfff))	// bad pairing
+		  if (u1 >= 0xdc00 && u1 <= 0xdfff)	// bad pairing
 		    {
 		      if (strict)
 			{
@@ -1684,7 +1960,7 @@ GSFromUnicode(unsigned char **dst, unsigned int *size, const unichar *src,
 		      u2 = src[spos++];
 		      u2 = (((u2 & 0xff00) >> 8) + ((u2 & 0x00ff) << 8));
 
-		      if ((u2 < 0xdc00) && (u2 > 0xdfff))
+		      if ((u2 < 0xdc00) || (u2 > 0xdfff))
 			{
 			  spos--;
 			  if (strict)
@@ -1776,10 +2052,7 @@ GSFromUnicode(unsigned char **dst, unsigned int *size, const unichar *src,
 		    }
 
 		  // 0xfeff is a zero-width-no-break-space inside text
-		  if (u1 == 0xfffe			// unexpected BOM
-		    || u1 == 0xffff			// not a character
-		    || (u1 >= 0xfdd0 && u1 <= 0xfdef)	// invalid character
-		    || (u1 >= 0xdc00 && u1 <= 0xdfff))	// bad pairing
+		  if (u1 >= 0xdc00 && u1 <= 0xdfff)	// bad pairing
 		    {
 		      if (strict)
 			{
@@ -1805,7 +2078,7 @@ GSFromUnicode(unsigned char **dst, unsigned int *size, const unichar *src,
 		      /* get second unichar */
 		      u2 = src[spos++];
 
-		      if ((u2 < 0xdc00) && (u2 > 0xdfff))
+		      if ((u2 < 0xdc00) || (u2 > 0xdfff))
 			{
 			  spos--;
 			  if (strict)
@@ -1874,6 +2147,147 @@ GSFromUnicode(unsigned char **dst, unsigned int *size, const unichar *src,
         break;
 
       case NSNonLossyASCIIStringEncoding:
+        {
+          unsigned int  index = 0;
+          unsigned int  count = 0;
+
+          if (YES == swapped)
+            {
+              while (index < slen)
+                {
+                  unichar	u = src[index++];
+
+                  u = (((u & 0xff00) >> 8) + ((u & 0x00ff) << 8));
+                  if (u < 256)
+                    {
+                      if ((u >= ' ' && u < 127)
+                        || '\r' == u || '\n' == u || '\t' == u)
+                        {
+                          count++;
+                          if ('\\' == u)
+                            {
+                              count++;
+                            }
+                        }
+                      else
+                        {
+                          count += 4;
+                        }
+                    }
+                  else
+                    {
+                      count += 12;
+                    }
+                }
+            }
+          else
+            {
+              while (index < slen)
+                {
+                  unichar	u = src[index++];
+
+                  if (u < 256)
+                    {
+                      if ((u >= ' ' && u < 127)
+                        || '\r' == u || '\n' == u || '\t' == u)
+                        {
+                          count++;
+                          if ('\\' == u)
+                            {
+                              count++;
+                            }
+                        }
+                      else
+                        {
+                          count += 4;
+                        }
+                    }
+                  else
+                    {
+                      count += 6;
+                    }
+                }
+            }
+          if (dst == 0)
+            {
+              /* Just counting bytes ...
+               */
+              dpos = count;
+            }
+          else
+            {
+              /* We can now check the destination buffer size and allocate
+               * more space in one go, before entering the loop where we
+               * deal with each character.
+               */
+              if (count > bsize)
+                {
+                  if (zone == 0)
+                    {
+                      result = NO; /* No buffer growth possible ... fail. */
+                      goto done;
+                    }
+                  else
+                    {
+                      uint8_t	*tmp;
+
+                      tmp = NSZoneMalloc(zone, count + extra);
+                      if (ptr != buf && ptr != *dst)
+                        {
+                          NSZoneFree(zone, ptr);
+                        }
+                      ptr = tmp;
+                      if (ptr == 0)
+                        {
+                          return NO;	/* Not enough memory */
+                        }
+                      bsize = count;
+                    }
+                }
+              index = 0;
+              while (index < slen)
+                {
+                  unichar	u = src[index++];
+
+                  if (YES == swapped)
+                    {
+                      u = (((u & 0xff00) >> 8) + ((u & 0x00ff) << 8));
+                    }
+                  if (u < 256)
+                    {
+                      if ((u >= ' ' && u < 127)
+                        || '\r' == u || '\n' == u || '\t' == u)
+                        {
+                          ptr[dpos++] = (unsigned char)u;
+                          if ('\\' == u)
+                            {
+                              ptr[dpos++] = (unsigned char)u;
+                            }
+                        }
+                      else
+                        {
+                          char octchars[] = "01234567";
+                          ptr[dpos++] = '\\';
+                          ptr[dpos++] = octchars[(u >> 6) & 7];
+                          ptr[dpos++] = octchars[(u >> 3) & 7];
+                          ptr[dpos++] = octchars[u & 7];
+                        }
+                    }
+                  else
+                    {
+                      char hexchars[] = "0123456789abcdef";
+                      ptr[dpos++] = '\\';
+                      ptr[dpos++] = 'u';
+                      ptr[dpos++] = hexchars[(u >> 12) & 0xF];
+                      ptr[dpos++] = hexchars[(u >> 8) & 0xF];
+                      ptr[dpos++] = hexchars[(u >> 4) & 0xF];
+                      ptr[dpos++] = hexchars[u & 0xF];
+                    }
+                }
+            }
+          }
+        goto done;
+
       case NSASCIIStringEncoding:
 	base = 128;
 	goto bases;
@@ -1893,7 +2307,7 @@ bases:
 	  }
         else
 	  {
-	    /* Because we know that each ascii chartacter is exactly
+	    /* Because we know that each ascii character is exactly
 	     * one unicode character, we can check the destination
 	     * buffer size and allocate more space in one go, before
 	     * entering the loop where we deal with each character.
@@ -2128,7 +2542,6 @@ tables:
 iconv_start:
 	{
 	  struct _strenc_	*encInfo;
-	  iconv_t	cd;
 	  unsigned char	*inbuf;
 	  unsigned char	*outbuf;
 	  size_t	inbytesleft;
@@ -2241,8 +2654,6 @@ iconv_start:
 		    }
 		}
 	    } while (!done || rval != 0);
-	  // close the converter
-	  iconv_close(cd);
 	}
 #else
 	result = NO;
@@ -2251,72 +2662,85 @@ iconv_start:
     }
 
   done:
-
-  /*
-   * Post conversion ... set output values.
-   */
-  if (extra != 0)
+#ifdef HAVE_ICONV
+  if (cd != (iconv_t)-1)
     {
-      ptr[dpos] = (unsigned char)0;
+      iconv_close(cd);
     }
-  *size = dpos;
-  if (dst != 0 && (result == YES || (options & GSUniShortOk)))
+#endif
+
+  if (NULL == ptr)
     {
-      if (options & GSUniTemporary)
-	{
-	  unsigned	bytes = dpos + extra;
-	  void		*r;
-
-	  /*
-	   * Temporary string was requested ... make one.
-	   */
-	  r = GSAutoreleasedBuffer(bytes);
-	  memcpy(r, ptr, bytes);
-	  if (ptr != buf && ptr != *dst)
-	    {
-	      NSZoneFree(zone, ptr);
-	    }
-	  ptr = r;
-	  *dst = ptr;
-	}
-      else if (zone != 0 && (ptr == buf || bsize > dpos))
-	{
-	  unsigned	bytes = dpos + extra;
-
-	  /*
-	   * Resizing is permitted - try ensure we return a buffer
-	   * which is just big enough to hold the converted string.
-	   */
-	  if (ptr == buf || ptr == *dst)
-	    {
-	      unsigned char	*tmp;
-
-	      tmp = NSZoneMalloc(zone, bytes);
-	      if (tmp != 0)
-		{
-		  memcpy(tmp, ptr, bytes);
-		}
-	      ptr = tmp;
-	    }
-	  else
-	    {
-	      ptr = NSZoneRealloc(zone, ptr, bytes);
-	    }
-	  *dst = ptr;
-	}
-      else if (ptr == buf)
-	{
-	  ptr = NULL;
-	  result = NO;
-	}
-      else
-	{
-	  *dst = ptr;
-	}
+      *size = 0;
     }
-  else if (ptr != buf && dst != 0 && ptr != *dst)
+  else
     {
-      NSZoneFree(zone, ptr);
+      /*
+       * Post conversion ... set output values.
+       */
+      if (extra != 0)
+        {
+          ptr[dpos] = (unsigned char)0;
+        }
+      *size = dpos;
+      if (dst != 0 && (result == YES || (options & GSUniShortOk)))
+        {
+          if (options & GSUniTemporary)
+            {
+              unsigned	bytes = dpos + extra;
+              void		*r;
+
+              /*
+               * Temporary string was requested ... make one.
+               */
+              r = GSAutoreleasedBuffer(bytes);
+              memcpy(r, ptr, bytes);
+              if (ptr != buf && ptr != *dst)
+                {
+                  NSZoneFree(zone, ptr);
+                }
+              ptr = r;
+              *dst = ptr;
+            }
+          else if (zone != 0 && (ptr == buf || bsize > dpos))
+            {
+              unsigned	bytes = dpos + extra;
+
+              /*
+               * Resizing is permitted - try ensure we return a buffer
+               * which is just big enough to hold the converted string.
+               */
+              if (ptr == buf || ptr == *dst)
+                {
+                  unsigned char	*tmp;
+
+                  tmp = NSZoneMalloc(zone, bytes);
+                  if (tmp != 0)
+                    {
+                      memcpy(tmp, ptr, bytes);
+                    }
+                  ptr = tmp;
+                }
+              else
+                {
+                  ptr = NSZoneRealloc(zone, ptr, bytes);
+                }
+              *dst = ptr;
+            }
+          else if (ptr == buf)
+            {
+              ptr = NULL;
+              result = NO;
+            }
+          else
+            {
+              *dst = ptr;
+            }
+        }
+      else if (ptr != buf && dst != 0 && ptr != *dst)
+        {
+          NSZoneFree(zone, ptr);
+        }
     }
 
   if (dst)
@@ -2335,7 +2759,7 @@ GSPrivateAvailableEncodings()
   if (_availableEncodings == 0)
     {
       GSSetupEncodingTable();
-      [GS_INITIALIZED_LOCK(local_lock, GSLazyLock) lock];
+      GS_MUTEX_LOCK(local_lock);
       if (_availableEncodings == 0)
 	{
 	  NSStringEncoding	*encodings;
@@ -2351,17 +2775,19 @@ GSPrivateAvailableEncodings()
 	   */
 	  encodings = malloc(sizeof(NSStringEncoding) * (encTableSize+1));
 	  pos = 0;
-	  for (i = 0; i < encTableSize+1; i++)
+	  for (i = 0; i < encTableSize; i++)
 	    {
-	      if (GSPrivateIsEncodingSupported(i) == YES)
+	      NSStringEncoding encoding = str_encoding_table[i].enc;
+
+	      if (GSPrivateIsEncodingSupported(encoding) == YES)
 		{
-		  encodings[pos++] = i;
+		  encodings[pos++] = encoding;
 		}
 	    }
 	  encodings[pos] = 0;
 	  _availableEncodings = encodings;
 	}
-      [local_lock unlock];
+      GS_MUTEX_UNLOCK(local_lock);
     }
   return _availableEncodings;
 }
@@ -2462,20 +2888,106 @@ GSPrivateCStringEncoding(const char *encoding)
         || strcmp(encoding, "eucCN") == 0 /* IRIX NetBSD */
         || strcmp(encoding, "IBM-eucCN") == 0 /* AIX */
         || strcmp(encoding, "hp15CN") == 0 /* HP-UX */)
-        enc = NSGB2312StringEncoding;
+        enc = NSChineseEUCStringEncoding;
       else if (strcmp(encoding, "BIG5") == 0 /* glibc Solaris NetBSD */
         || strcmp(encoding, "big5") == 0 /* AIX HP-UX OSF/1 */)
-        enc = NSBIG5StringEncoding;
+        enc = NSBig5StringEncoding;
       else if (strcmp(encoding, "EUC-KR") == 0 /* glibc */
         || strcmp(encoding, "eucKR") == 0 /* HP-UX IRIX OSF/1 NetBSD */
         || strcmp(encoding, "IBM-eucKR") == 0 /* AIX */
         || strcmp(encoding, "5601") == 0 /* Solaris */)
         enc = NSKoreanEUCStringEncoding;
+      else if (strcmp(encoding, "CP437") == 0
+        || strcmp(encoding, "IBM-437") == 0)
+        enc = NSDOSLatinUSStringEncoding;
+      else if (strcmp(encoding, "CP737") == 0
+        || strcmp(encoding, "IBM-737") == 0)
+        enc = NSDOSGreekStringEncoding;
+      else if (strcmp(encoding, "CP775") == 0
+        || strcmp(encoding, "IBM-775") == 0)
+        enc = NSDOSBalticRimStringEncoding;
+      else if (strcmp(encoding, "CP850") == 0
+        || strcmp(encoding, "IBM-850") == 0)
+        enc = NSDOSLatin1StringEncoding;
+      else if (strcmp(encoding, "CP851") == 0
+        || strcmp(encoding, "IBM-851") == 0)
+        enc = NSDOSGreek1StringEncoding;
+      else if (strcmp(encoding, "CP852") == 0
+        || strcmp(encoding, "IBM-852") == 0)
+        enc = NSDOSLatin2StringEncoding;
+      else if (strcmp(encoding, "CP855") == 0
+        || strcmp(encoding, "IBM-855") == 0)
+        enc = NSDOSCyrillicStringEncoding;
+      else if (strcmp(encoding, "CP857") == 0
+        || strcmp(encoding, "IBM-857") == 0)
+        enc = NSDOSTurkishStringEncoding;
+      else if (strcmp(encoding, "CP860") == 0
+        || strcmp(encoding, "IBM-860") == 0)
+        enc = NSDOICortugueseStringEncoding;
+      else if (strcmp(encoding, "CP861") == 0
+        || strcmp(encoding, "IBM-861") == 0)
+        enc = NSDOSIcelandicStringEncoding;
+      else if (strcmp(encoding, "CP862") == 0
+        || strcmp(encoding, "IBM-862") == 0)
+        enc = NSDOSHebrewStringEncoding;
+      else if (strcmp(encoding, "CP863") == 0
+        || strcmp(encoding, "IBM-863") == 0)
+        enc = NSDOSCanadianFrenchStringEncoding;
+      else if (strcmp(encoding, "CP864") == 0
+        || strcmp(encoding, "IBM-864") == 0)
+        enc = NSDOSArabicStringEncoding;
+      else if (strcmp(encoding, "CP865") == 0
+        || strcmp(encoding, "IBM-865") == 0)
+        enc = NSDOSNordicStringEncoding;
+      else if (strcmp(encoding, "CP866") == 0
+        || strcmp(encoding, "IBM-866") == 0)
+        enc = NSDOSRussianStringEncoding;
+      else if (strcmp(encoding, "CP869") == 0
+        || strcmp(encoding, "IBM-869") == 0)
+        enc = NSDOSGreek2StringEncoding;
+      else if (strcmp(encoding, "CP874") == 0
+        || strcmp(encoding, "IBM-874") == 0)
+        enc = NSDOSThaiStringEncoding;
+      else if (strcmp(encoding, "CP932") == 0
+        || strcmp(encoding, "IBM-932") == 0)
+        enc = NSDOSJapaneseStringEncoding;
+      else if (strcmp(encoding, "CP936") == 0
+        || strcmp(encoding, "IBM-936") == 0
+        || strcmp(encoding, "GBK") == 0)
+        enc = NSDOSChineseSimplifStringEncoding;
+      else if (strcmp(encoding, "CP949") == 0
+        || strcmp(encoding, "IBM-949") == 0)
+        enc = NSDOSKoreanStringEncoding;
+      else if (strcmp(encoding, "CP950") == 0
+        || strcmp(encoding, "IBM-950") == 0)
+        enc = NSDOSChineseTradStringEncoding;
+      else if (strcmp(encoding, "CP1255") == 0
+        || strcmp(encoding, "WINDOWS-1255") == 0)
+        enc = NSWindowsHebrewStringEncoding;
+      else if (strcmp(encoding, "CP1256") == 0
+        || strcmp(encoding, "WINDOWS-1256") == 0)
+        enc = NSWindowsArabicStringEncoding;
+      else if (strcmp(encoding, "CP1257") == 0
+        || strcmp(encoding, "WINDOWS-1257") == 0)
+        enc = NSWindowsBalticRimStringEncoding;
+      else if (strcmp(encoding, "CP1258") == 0
+        || strcmp(encoding, "WINDOWS-1258") == 0)
+        enc = NSWindowsVietnameseStringEncoding;
+      else if (strcmp(encoding, "CP1361") == 0
+        || strcmp(encoding, "WINDOWS-1361") == 0)
+        enc = NSWindowsKoreanJohabStringEncoding;
+      else if (strcmp(encoding, "GB18030") == 0)
+        enc = NSGB_18030_2000StringEncoding;
     }
 
   if (enc == GSUndefinedEncoding)
     {
+#ifdef __ANDROID__
+      // Android uses UTF-8 as default encoding (e.g. for file paths)
+      enc = NSUTF8StringEncoding;
+#else
       enc = NSISOLatin1StringEncoding;
+#endif
     }
   else if (GSPrivateIsEncodingSupported(enc) == NO)
     {
@@ -2498,10 +3010,10 @@ GSPrivateDefaultCStringEncoding()
 
       GSSetupEncodingTable();
 
-      [GS_INITIALIZED_LOCK(local_lock, GSLazyLock) lock];
+      GS_MUTEX_LOCK(local_lock);
       if (defEnc != GSUndefinedEncoding)
 	{
-	  [local_lock unlock];
+	  GS_MUTEX_UNLOCK(local_lock);
 	  return defEnc;
 	}
 
@@ -2522,9 +3034,9 @@ GSPrivateDefaultCStringEncoding()
 	  else
 	    {
 	      fprintf(stderr,
-		      "WARNING: %s - encoding not supported.\n", encoding);
+		"WARNING: %s - encoding not supported.\n", encoding);
 	      fprintf(stderr,
-		      "  NSISOLatin1StringEncoding set as default.\n");
+		"  NSISOLatin1StringEncoding set as default.\n");
 	      defEnc = NSISOLatin1StringEncoding;
 	    }
 	}
@@ -2539,13 +3051,13 @@ GSPrivateDefaultCStringEncoding()
       else if (GSPrivateIsEncodingSupported(defEnc) == NO)
 	{
 	  fprintf(stderr, "WARNING: %s - encoding not implemented as "
-		  "default c string encoding.\n", encoding);
+	    "default c string encoding.\n", encoding);
 	  fprintf(stderr,
-		  "  NSISOLatin1StringEncoding set as default.\n");
+	    "  NSISOLatin1StringEncoding set as default.\n");
 	  defEnc = NSISOLatin1StringEncoding;
 	}
 
-      [local_lock unlock];
+      GS_MUTEX_UNLOCK(local_lock);
     }
   return defEnc;
 }
@@ -2555,7 +3067,7 @@ GSPrivateEncodingName(NSStringEncoding encoding)
 {
   struct _strenc_	*encInfo;
 
-  if ((encInfo = EntrySupported(encoding)) == NO)
+  if ((encInfo = EntrySupported(encoding)) == NULL)
     {
       return @"Unknown encoding";
     }
@@ -2567,7 +3079,7 @@ GSPrivateIsByteEncoding(NSStringEncoding encoding)
 {
   struct _strenc_	*encInfo;
 
-  if ((encInfo = EntrySupported(encoding)) == NO)
+  if ((encInfo = EntrySupported(encoding)) == NULL)
     {
       return NO;
     }
@@ -2618,7 +3130,7 @@ GSPrivateICUCStringEncoding()
   if (icuEnc == GSUndefinedEncoding)
     {
       const char        *encoding = 0;
-#if HAVE_UNICODE_UCNV_H
+#if defined(HAVE_UNICODE_UCNV_H) || defined(HAVE_ICU_H)
       const char *defaultName;
       UErrorCode err = U_ZERO_ERROR;
 

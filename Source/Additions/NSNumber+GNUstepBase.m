@@ -44,7 +44,8 @@
     return [NSNumber numberWithDouble: atof(str)];
   else if (strchr(str, '-') >= 0)
     return [NSNumber numberWithInt: atoi(str)];
-  return [NSNumber numberWithUnsignedInt: atoi(str)];
+  else
+    return [NSNumber numberWithUnsignedInt: atoi(str)];
 }
 
 @end
