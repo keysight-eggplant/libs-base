@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSTask class reference</title>
    $Date$ $Revision$
@@ -38,12 +38,13 @@
 #import "Foundation/NSMapTable.h"
 #import "Foundation/NSProcessInfo.h"
 #import "Foundation/NSRunLoop.h"
+#import "Foundation/NSLock.h"
 #import "Foundation/NSNotification.h"
 #import "Foundation/NSNotificationQueue.h"
 #import "Foundation/NSTask.h"
 #import "Foundation/NSThread.h"
 #import "Foundation/NSTimer.h"
-#import "Foundation/NSLock.h"
+#import "Foundation/NSURL.h"
 #import "GNUstepBase/NSString+GNUstepBase.h"
 #import "GNUstepBase/NSTask+GNUstepBase.h"
 #import "GSPrivate.h"
@@ -93,15 +94,11 @@
 #include <sys/stropts.h>
 #endif
 
-#ifndef	MAX_OPEN
-#define	MAX_OPEN	64
-#endif
-
 /*
- *	If we don't have NFILE, default to 256 open descriptors.
+ *	If we don't have NOFILE, default to 2048 open descriptors.
  */
 #ifndef	NOFILE
-#define	NOFILE	256
+#define	NOFILE	2048
 #endif
 
 
@@ -226,6 +223,7 @@ pty_slave(const char* name)
 @interface NSTask (Private)
 - (NSString *) _fullLaunchPath;
 - (void) _collectChild;
+- (void) _notifyOfTermination;
 - (void) _terminatedChild: (int)status reason: (NSTaskTerminationReason)reason;
 @end
 
@@ -321,6 +319,7 @@ pty_slave(const char* name)
   RELEASE(_standardError);
   RELEASE(_standardInput);
   RELEASE(_standardOutput);
+  RELEASE(_launchingThread);
   [super dealloc];
 }
 
@@ -411,10 +410,18 @@ pty_slave(const char* name)
  * Raises an NSInvalidArgumentException if the launch path is not
  * set or if the subtask cannot be started for some reason
  * (eg. the executable does not exist or the task has already been launched).
+ * The actual launching is done in a concrete subclass; this method just
+ * takes care of actions common to all subclasses.
  */
 - (void) launch
 {
-  [self subclassResponsibility: _cmd];
+  NSError	*e;
+
+  if (NO == [self launchAndReturnError: &e])
+    {
+      [NSException raise: NSInvalidArgumentException
+		  format: @"%@", e ? e : @"Unable to launch"];
+    }
 }
 
 /**
@@ -845,12 +852,12 @@ pty_slave(const char* name)
  */
 - (void) waitUntilExit
 {
-  CREATE_AUTORELEASE_POOL(arp);
+  ENTER_POOL
   NSRunLoop     *loop = [NSRunLoop currentRunLoop];
   NSTimer	*timer = nil;
   NSDate	*limit = nil;
 
-  IF_NO_GC([[self retain] autorelease];)
+  IF_NO_ARC([[self retain] autorelease];)
   while ([self isRunning])
     {
       /* Poll at 0.1 second intervals.
@@ -874,7 +881,50 @@ pty_slave(const char* name)
    */
   limit = [NSDate dateWithTimeIntervalSinceNow: 0.0];
   [loop runMode: NSDefaultRunLoopMode beforeDate: limit];
-  IF_NO_GC([arp release];)
+  LEAVE_POOL
+}
+
+// macOS 10.13 methods...
+
++ (NSTask *) launchedTaskWithExecutableURL: (NSURL *)url 
+  arguments: (NSArray *)arguments 
+  error: (NSError **)error 
+  terminationHandler: (GSTaskTerminationHandler)terminationHandler
+{
+  NSTask	*task = [self launchedTaskWithLaunchPath: [url path]
+					       arguments: arguments];
+  task->_handler = terminationHandler;
+  if (error)
+    {
+      *error = nil;
+     } 
+  return task;
+}
+
+- (BOOL) launchAndReturnError: (NSError **)error
+{
+  ASSIGN(_launchingThread, [NSThread currentThread]);
+  return YES;
+}
+
+- (NSURL *) executableURL
+{
+  return [NSURL URLWithString: [self launchPath]];;
+}
+
+- (void) setExecutableURL: (NSURL *)url
+{
+  [self setLaunchPath: [url path]];
+}
+
+- (NSURL *) currentDirectoryURL
+{
+  return [NSURL URLWithString: [self currentDirectoryPath]];
+}
+
+- (void) setCurrentDirectoryURL: (NSURL *)url
+{
+  [self setCurrentDirectoryPath: [url path]];
 }
 @end
 
@@ -904,10 +954,31 @@ pty_slave(const char* name)
   [self subclassResponsibility: _cmd];
 }
 
+- (void) _notifyOfTermination
+{
+  NSNotificationQueue   *q;
+  NSNotification        *n;
+
+  n = [NSNotification notificationWithName: NSTaskDidTerminateNotification
+                                    object: self
+                                  userInfo: nil];
+
+  q = [NSNotificationQueue defaultQueue];
+  [q enqueueNotification: n
+            postingStyle: NSPostASAP
+            coalesceMask: NSNotificationNoCoalescing
+                forModes: nil];
+
+  if (_handler != nil)
+    {
+      CALL_BLOCK_NO_ARGS(_handler);
+    }
+}
+
 - (void) _terminatedChild: (int)status reason: (NSTaskTerminationReason)reason
 {
   [tasksLock lock];
-  IF_NO_GC([[self retain] autorelease];)
+  IF_NO_ARC([[self retain] autorelease];)
   NSMapRemove(activeTasks, (void*)(intptr_t)_taskId);
   [tasksLock unlock];
   _terminationStatus = status;
@@ -916,17 +987,19 @@ pty_slave(const char* name)
   _hasTerminated = YES;
   if (_hasNotified == NO)
     {
-      NSNotification	*n;
-
       _hasNotified = YES;
-      n = [NSNotification notificationWithName: NSTaskDidTerminateNotification
-					object: self
-				      userInfo: nil];
-
-      [[NSNotificationQueue defaultQueue] enqueueNotification: n
-		    postingStyle: NSPostASAP
-		    coalesceMask: NSNotificationNoCoalescing
-			forModes: nil];
+      if (_launchingThread != [NSThread currentThread]
+        && [_launchingThread isExecuting] == YES)
+	{
+	  [self performSelector: @selector(_notifyOfTermination)
+		       onThread: _launchingThread
+		     withObject: nil
+		  waitUntilDone: NO];
+	}
+      else
+	{
+	  [self _notifyOfTermination];
+	}
     }
 }
 
@@ -1107,7 +1180,8 @@ quotedFromString(NSString *aString)
     }
 }
 
-- (void) launch
+// 10.13 method...
+- (BOOL) launchAndReturnError: (NSError **)error
 {
   STARTUPINFOW		start_info;
   NSString      	*lpath;
@@ -1128,9 +1202,20 @@ quotedFromString(NSString *aString)
 
   if (_hasLaunched)
     {
-      [NSException raise: NSInvalidArgumentException
-                  format: @"NSTask - task has already been launched"];
+      if (error)
+	{
+	  NSDictionary      *info;
+
+	  info = [NSDictionary dictionaryWithObjectsAndKeys:
+	    @"task has already been launched", NSLocalizedDescriptionKey, nil];
+	  *error = [NSError errorWithDomain: NSCocoaErrorDomain
+				       code: 0
+				   userInfo: info];
+	}
+      return NO;
     }
+
+  [super launchAndReturnError: error];
 
   lpath = [self _fullLaunchPath];
   wexecutable = (const unichar*)[lpath fileSystemRepresentation];
@@ -1272,22 +1357,22 @@ quotedFromString(NSString *aString)
     NULL,      			/* thread attrs */
     1,         			/* inherit handles */
     0
-    |CREATE_NO_WINDOW
-/* One would have thought the the CREATE_NO_WINDOW flag should be used,
- * but apparently this breaks for old 16bit applications/tools on XP.
- * So maybe we want to leave it out?
+/* We don't want a subtask to be run min a window since that would prevent
+ * startup of background tasks.  If a subtask wants a window, it should
+ * create it itself.
  */
-//    |DETACHED_PROCESS
+    |CREATE_NO_WINDOW
 /* We don't set the DETACHED_PROCESS flag as it actually means that the
  * child task should get a new Console allocated ... and that means it
  * will pop up a console window ... which looks really bad.
  */
+//    |DETACHED_PROCESS
     |CREATE_UNICODE_ENVIRONMENT,
     envp,			/* env block */
     (const unichar*)[[self currentDirectoryPath] fileSystemRepresentation],
     &start_info,
     &procInfo);
-  if (result == 0)
+  if (0 == result)
     {
       last = [NSError _last];
     }
@@ -1299,8 +1384,11 @@ quotedFromString(NSString *aString)
 
   if (0 == result)
     {
-      [NSException raise: NSInvalidArgumentException
-        format: @"NSTask - Error launching task: %@ ... %@", lpath, last];
+      if (error)
+	{
+	  *error = last;
+	}
+      return NO;
     }
 
   _taskId = procInfo.dwProcessId;
@@ -1327,6 +1415,8 @@ quotedFromString(NSString *aString)
       [hdl closeFile];
       [toClose removeObjectAtIndex: 0];
     }
+
+  return YES;
 }
 
 - (void) _collectChild
@@ -1377,7 +1467,7 @@ GSPrivateCheckTasks()
 #if	defined(WAITDEBUG)
 	      [tasksLock lock];
 	      t = (NSTask*)NSMapGet(activeTasks, (void*)(intptr_t)result);
-	      IF_NO_GC([[t retain] autorelease];)
+	      IF_NO_ARC([[t retain] autorelease];)
 	      [tasksLock unlock];
 	      if (t != nil)
 		{
@@ -1390,7 +1480,7 @@ GSPrivateCheckTasks()
 	    {
 	      [tasksLock lock];
 	      t = (NSTask*)NSMapGet(activeTasks, (void*)(intptr_t)result);
-	      IF_NO_GC([[t retain] autorelease];)
+	      IF_NO_ARC([[t retain] autorelease];)
 	      [tasksLock unlock];
 	      if (t != nil)
 		{
@@ -1433,7 +1523,8 @@ GSPrivateCheckTasks()
   return found;
 }
 
-- (void) launch
+// 10.13 method...
+- (BOOL) launchAndReturnError: (NSError **)error
 {
   NSMutableArray	*toClose;
   NSString      	*lpath;
@@ -1455,9 +1546,20 @@ GSPrivateCheckTasks()
 
   if (_hasLaunched)
     {
-      [NSException raise: NSInvalidArgumentException
-                  format: @"NSTask - task has already been launched"];
+      if (error)
+	{
+	  NSDictionary      *info;
+
+	  info = [NSDictionary dictionaryWithObjectsAndKeys:
+	    @"task has already been launched", NSLocalizedDescriptionKey, nil];
+	  *error = [NSError errorWithDomain: NSCocoaErrorDomain
+				       code: 0
+				   userInfo: info];
+	}
+      return NO;
     }
+
+  [super launchAndReturnError: error];
 
   lpath = [self _fullLaunchPath];
   executable = [lpath fileSystemRepresentation];
@@ -1529,8 +1631,11 @@ GSPrivateCheckTasks()
   pid = vfork();
   if (pid < 0)
     {
-      [NSException raise: NSInvalidArgumentException
-                  format: @"NSTask - failed to create child process"];
+      if (error)
+	{
+	  *error = [NSError _last];
+	}
+      return NO;
     }
   if (pid == 0)
     {
@@ -1589,22 +1694,16 @@ GSPrivateCheckTasks()
 	      exit(1);			/* Failed to open slave!	*/
 	    }
 
-	  /* Set up stdin, stdout and stderr by duplicating descriptors as
-	   * necessary and closing the originals (to ensure we won't have a
-	   * pipe left with two write descriptors etc).
+	  /* Set up stdin, stdout and stderr by duplicating descriptor as
+	   * necessary and closing the original.
 	   */
-	  if (s != 0)
-	    {
-	      dup2(s, 0);
-	    }
-	  if (s != 1)
-	    {
-	      dup2(s, 1);
-	    }
-	  if (s != 2)
-	    {
-	      dup2(s, 2);
-	    }
+          if (dup2(s, 0) != 0) exit(1);
+          if (dup2(s, 1) != 1) exit(1);
+          if (dup2(s, 2) != 2) exit(1);
+          if (s != 0 && s != 1 && s != 2)
+            {
+              (void)close(s);
+            }
 	}
       else
 	{
@@ -1614,15 +1713,15 @@ GSPrivateCheckTasks()
 	   */
 	  if (idesc != 0)
 	    {
-	      dup2(idesc, 0);
+	      if (dup2(idesc, 0) != 0) exit(1);
 	    }
 	  if (odesc != 1)
 	    {
-	      dup2(odesc, 1);
+	      if (dup2(odesc, 1) != 1) exit(1);
 	    }
 	  if (edesc != 2)
 	    {
-	      dup2(edesc, 2);
+	      if (dup2(edesc, 2) != 2) exit(1);
 	    }
 	}
 
@@ -1634,8 +1733,8 @@ GSPrivateCheckTasks()
 	  (void) close(i);
 	}
 
-      chdir(path);
-      execve(executable, (char**)args, (char**)envl);
+      (void)chdir(path);
+      (void)execve(executable, (char**)args, (char**)envl);
       exit(-1);
     }
   else
@@ -1658,6 +1757,8 @@ GSPrivateCheckTasks()
 	  [toClose removeObjectAtIndex: 0];
 	}
     }
+  
+  return YES;
 }
 
 - (void) setStandardError: (id)hdl
@@ -1730,6 +1831,7 @@ GSPrivateCheckTasks()
 
 - (BOOL) usePseudoTerminal
 {
+  int		desc;
   int		master;
   NSFileHandle	*fh;
 
@@ -1746,13 +1848,21 @@ GSPrivateCheckTasks()
 				     closeOnDealloc: YES];
   [self setStandardInput: fh];
   RELEASE(fh);
-  master = dup(master);
-  fh = [[NSFileHandle alloc] initWithFileDescriptor: master
+
+  if ((desc = dup(master)) < 0)
+    {
+      return NO;
+    }
+  fh = [[NSFileHandle alloc] initWithFileDescriptor: desc
 				     closeOnDealloc: YES];
   [self setStandardOutput: fh];
   RELEASE(fh);
-  master = dup(master);
-  fh = [[NSFileHandle alloc] initWithFileDescriptor: master
+
+  if ((desc = dup(master)) < 0)
+    {
+      return NO;
+    }
+  fh = [[NSFileHandle alloc] initWithFileDescriptor: desc
 				     closeOnDealloc: YES];
   [self setStandardError: fh];
   RELEASE(fh);

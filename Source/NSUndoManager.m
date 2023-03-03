@@ -13,12 +13,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSUndoManager class reference</title>
    $Date$ $Revision$
@@ -954,8 +954,8 @@
     }
   else
     {
-  return [[_undoStack lastObject] actionName];
-}
+      return [[_undoStack lastObject] actionName];
+    }
 }
 
 /**
@@ -1026,16 +1026,13 @@
       return;
     }
 
-  // Testplant-MAL-09232016: Paul moved this up in testplant branch code so
-  // local changes...
-  _isUndoing = YES;
-
   [[NSNotificationCenter defaultCenter]
       postNotificationName: NSUndoManagerWillUndoChangeNotification
 		    object: self];
 
   oldGroup = _group;
   _group = nil;
+  _isUndoing = YES;
 
   if (oldGroup)
     {
@@ -1105,58 +1102,3 @@
   return NO;
 }
 @end
-
-
-// Testplant-MAL-09232016: Paul added to testplant branch - keeping changes...
-@implementation NSCellUndoManager
-
-- (void)dealloc
-{
-  [_nextUndoManager release];
-  [super dealloc];
-}
-
-- (BOOL)canUndo
-{
-  return [super canUndo] || [_nextUndoManager canUndo];
-}
-
-- (void)undo
-{
-  if ([super canUndo])
-    {
-      [super undo];
-    }
-  else
-    {
-      [_nextUndoManager undo];
-    }
-}
-
-- (BOOL)canRedo
-{
-  return [_nextUndoManager canRedo] || [super canRedo];
-}
-
-- (void)redo
-{
-  if ([_nextUndoManager canRedo])
-    {
-      [_nextUndoManager redo];
-    }
-  else
-    {
-      [super redo];
-    }
-}
-
-- (void)setNextUndoManager:(NSUndoManager *)manager
-{
-  [manager retain];
-  [_nextUndoManager release];
-  _nextUndoManager = manager;
-}
-
-@end
-
-

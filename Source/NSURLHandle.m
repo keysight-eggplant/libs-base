@@ -16,12 +16,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSURLHandle class reference</title>
    $Date$ $Revision$
@@ -50,47 +50,6 @@
   NSMutableDictionary	*_attributes;
 }
 @end
-
-/*
- * Keys for NSURLHandle
- */
-NSString * const NSHTTPPropertyStatusCodeKey
-  = @"NSHTTPPropertyStatusCodeKey";
-
-NSString * const NSHTTPPropertyStatusReasonKey
-  = @"NSHTTPPropertyStatusReasonKey";
-
-NSString * const NSHTTPPropertyServerHTTPVersionKey
-  = @"NSHTTPPropertyServerHTTPVersionKey";
-
-NSString * const NSHTTPPropertyRedirectionHeadersKey
-  = @"NSHTTPPropertyRedirectionHeadersKey";
-
-NSString * const NSHTTPPropertyErrorPageDataKey
-  = @"NSHTTPPropertyErrorPageDataKey";
-
-/* These are GNUstep extras */
-NSString * const GSHTTPPropertyMethodKey
-  = @"GSHTTPPropertyMethodKey";
-
-NSString * const GSHTTPPropertyLocalHostKey
-  = @"GSHTTPPropertyLocalHostKey";
-
-NSString * const GSHTTPPropertyProxyHostKey
-  = @"GSHTTPPropertyProxyHostKey";
-
-NSString * const GSHTTPPropertyProxyPortKey
-  = @"GSHTTPPropertyProxyPortKey";
-
-NSString * const GSHTTPPropertyCertificateFileKey
-  = @"GSHTTPPropertyCertificateFileKey";
-
-NSString * const GSHTTPPropertyKeyFileKey
-  = @"GSHTTPPropertyKeyFileKey";
-
-NSString * const GSHTTPPropertyPasswordKey
-  = @"GSHTTPPropertyPasswordKey";
-
 
 /**
  * <p>
@@ -257,10 +216,10 @@ static Class		NSURLHandleClass = 0;
 {
   id	o = client;
 
-  IF_NO_GC([o retain];)
+  IF_NO_ARC([o retain];)
   [_clients removeObjectIdenticalTo: o];
   [_clients addObject: o];
-  IF_NO_GC([o release];)
+  IF_NO_ARC([o release];)
 }
 
 /**
@@ -317,12 +276,12 @@ static Class		NSURLHandleClass = 0;
  */
 - (void) cancelLoadInBackground
 {
-  IF_NO_GC([self retain];)
+  IF_NO_ARC([self retain];)
   [_clients makeObjectsPerformSelector:
     @selector(URLHandleResourceDidCancelLoading:)
     withObject: self];
   [self endLoadInBackground];
-  IF_NO_GC(RELEASE(self);)
+  IF_NO_ARC(RELEASE(self);)
 }
 
 - (void) dealloc
@@ -561,7 +520,17 @@ static Class		NSURLHandleClass = 0;
  */
 - (int) setDebug: (int)aFlag
 {
-  return NO;
+  return 0;
+}
+
+- (void) setReturnAll: (BOOL)flag
+{
+  return;
+}
+
+- (void) setURL: (NSURL*)newUrl
+{
+  return;
 }
 
 /**
@@ -651,7 +620,7 @@ static NSLock			*fileLock = nil;
       NS_DURING
 	{
 	  obj = [fileCache objectForKey: path];
-	  IF_NO_GC([[obj retain] autorelease];)
+	  IF_NO_ARC([[obj retain] autorelease];)
 	}
       NS_HANDLER
 	{
@@ -746,7 +715,7 @@ static NSLock			*fileLock = nil;
 	  if (obj != nil)
 	    {
 	      DESTROY(self);
-	      IF_NO_GC([obj retain];)
+	      IF_NO_ARC([obj retain];)
 	    }
 	}
       NS_HANDLER
@@ -817,6 +786,21 @@ static NSLock			*fileLock = nil;
 - (id) propertyForKeyIfAvailable: (NSString*)propertyKey
 {
   return [_attributes objectForKey: propertyKey];
+}
+
+- (int) setDebug: (int)flag
+{
+  return 0;
+}
+
+- (void) setReturnAll: (BOOL)flag
+{
+  return;
+}
+
+- (void) setURL: (NSURL*)newUrl
+{
+  return;
 }
 
 /**

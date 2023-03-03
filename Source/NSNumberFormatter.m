@@ -16,12 +16,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSNumberFormatter class reference</title>
    $Date$ $Revision$
@@ -65,6 +65,9 @@
 
 #if	defined(HAVE_UNICODE_UNUM_H)
 # include <unicode/unum.h>
+#endif
+#if defined(HAVE_ICU_H)
+# include <icu.h>
 #endif
 
 #define BUFFER_SIZE 1024
@@ -509,22 +512,22 @@ static NSUInteger _defaultBehavior = NSNumberFormatterBehavior10_4;
 {
   NSNumberFormatter	*o = (NSNumberFormatter*) NSCopyObject(self, 0, zone);
 
-  IF_NO_GC(RETAIN(o->_negativeFormat);)
-  IF_NO_GC(RETAIN(o->_positiveFormat);)
-  IF_NO_GC(RETAIN(o->_attributesForPositiveValues);)
-  IF_NO_GC(RETAIN(o->_attributesForNegativeValues);)
-  IF_NO_GC(RETAIN(o->_maximum);)
-  IF_NO_GC(RETAIN(o->_minimum);)
-  IF_NO_GC(RETAIN(o->_roundingBehavior);)
-  IF_NO_GC(RETAIN(o->_attributedStringForNil);)
-  IF_NO_GC(RETAIN(o->_attributedStringForNotANumber);)
-  IF_NO_GC(RETAIN(o->_attributedStringForZero);)
+  IF_NO_ARC(RETAIN(o->_negativeFormat);)
+  IF_NO_ARC(RETAIN(o->_positiveFormat);)
+  IF_NO_ARC(RETAIN(o->_attributesForPositiveValues);)
+  IF_NO_ARC(RETAIN(o->_attributesForNegativeValues);)
+  IF_NO_ARC(RETAIN(o->_maximum);)
+  IF_NO_ARC(RETAIN(o->_minimum);)
+  IF_NO_ARC(RETAIN(o->_roundingBehavior);)
+  IF_NO_ARC(RETAIN(o->_attributedStringForNil);)
+  IF_NO_ARC(RETAIN(o->_attributedStringForNotANumber);)
+  IF_NO_ARC(RETAIN(o->_attributedStringForZero);)
   if (0 != internal)
     {
       int	idx;
 
       GS_COPY_INTERNAL(o, zone)
-      IF_NO_GC(
+      IF_NO_ARC(
 	[GSIVar(o,_locale) retain];
 	for (idx = 0; idx < MAX_SYMBOLS; ++idx)
 	  {
@@ -1100,7 +1103,7 @@ static NSUInteger _defaultBehavior = NSNumberFormatterBehavior10_4;
            * don't think it matters, because we don't bother with anything
            * smaller than int for NSNumbers
 	   */
-#if __GNUC__ > 2 && defined(_C_BOOL)
+#if defined(_C_BOOL) && (!defined(__GNUC__) || __GNUC__ > 2)
           case _C_BOOL:
             STRING_FROM_NUMBER(unum_format, (int)[anObject boolValue]);
             break;
@@ -1329,44 +1332,37 @@ static NSUInteger _defaultBehavior = NSNumberFormatterBehavior10_4;
       //fix up the fractional part
       if (displayFractionalPart)
         {
-          if (0 != decimalPlaces)
-            {
-	      NSMutableString	*ms;
+          NSMutableString	*ms;
 
-              fracPart = [fracPart decimalNumberByMultiplyingByPowerOf10:
-		decimalPlaces];
-              ms = [[fracPart descriptionWithLocale: locale] mutableCopy];
-              if ([fracPad length] > [ms length])
-                {
-                  NSRange fpRange;
-
-                  fpRange = NSMakeRange([ms length],
-		    ([fracPad length] - [ms length]));
-                  [ms insertString:
-		    [fracPad substringWithRange: fpRange] atIndex: 0];
-                  [ms replaceOccurrencesOfString: @"#"
-		    withString: @""
-		    options: (NSBackwardsSearch | NSAnchoredSearch)
-		    range: NSMakeRange(0, [ms length])];
-                  [ms replaceOccurrencesOfString: @"#"
-		    withString: @"0"
-		    options: 0
-		    range: NSMakeRange(0, [ms length])];
-                  [ms replaceOccurrencesOfString: @"_"
-		    withString: @" "
-		    options: 0
-		    range: NSMakeRange(0, [ms length])];
-                }
-              [ms replaceOccurrencesOfString: @"0"
-		withString: @""
-		options: (NSBackwardsSearch | NSAnchoredSearch)
-		range: NSMakeRange(0, [ms length])];
-	      fracPartString = AUTORELEASE(ms);
-            }
-          else
+          fracPart = [fracPart decimalNumberByMultiplyingByPowerOf10:
+            decimalPlaces];
+          ms = [[fracPart descriptionWithLocale: locale] mutableCopy];
+          if ([fracPad length] > [ms length])
             {
-              fracPartString = @"0";
+              NSRange fpRange;
+
+              fpRange = NSMakeRange([ms length],
+                ([fracPad length] - [ms length]));
+              [ms insertString:
+                [fracPad substringWithRange: fpRange] atIndex: 0];
+              [ms replaceOccurrencesOfString: @"#"
+                withString: @""
+                options: (NSBackwardsSearch | NSAnchoredSearch)
+                range: NSMakeRange(0, [ms length])];
+              [ms replaceOccurrencesOfString: @"#"
+                withString: @"0"
+                options: 0
+                range: NSMakeRange(0, [ms length])];
+              [ms replaceOccurrencesOfString: @"_"
+                withString: @" "
+                options: 0
+                range: NSMakeRange(0, [ms length])];
             }
+          [ms replaceOccurrencesOfString: @"0"
+            withString: @""
+            options: (NSBackwardsSearch | NSAnchoredSearch)
+            range: NSMakeRange(0, [ms length])];
+          fracPartString = AUTORELEASE(ms);
           [formattedNumber appendString: [self decimalSeparator]];
           [formattedNumber appendString: fracPartString];
         }
@@ -1523,17 +1519,17 @@ static NSUInteger _defaultBehavior = NSNumberFormatterBehavior10_4;
   return internal->_genDecimal; // FIXME
 }
 
-- (void) setLocale: (NSLocale *) locale
+- (void) setLocale: (NSLocale *)locale
 {
   if (nil == locale)
     {
-    locale = [NSLocale currentLocale];
+      locale = [NSLocale currentLocale];
     }
   if (NO == [locale isEqual: internal->_locale])
     {
       ASSIGN(internal->_locale, locale);
-  [self _resetUNumberFormat];
-}
+      [self _resetUNumberFormat];
+    }
 }
 
 - (NSLocale *) locale
@@ -2136,23 +2132,23 @@ static NSUInteger _defaultBehavior = NSNumberFormatterBehavior10_4;
 - (void) _resetUNumberFormat
 {
 #if GS_USE_ICU == 1
-  unichar buffer[BUFFER_SIZE];
-  NSUInteger length;
-  UNumberFormatStyle style;
-  UErrorCode err = U_ZERO_ERROR;
-  const char *cLocaleId;
-  int32_t idx;
+  unichar               buffer[BUFFER_SIZE];
+  NSUInteger            length;
+  UNumberFormatStyle    style;
+  UErrorCode            err = U_ZERO_ERROR;
+  const char            *cLocaleId;
+  int32_t               idx;
   
   if (internal->_formatter)
     {
-    unum_close(internal->_formatter);
+      unum_close(internal->_formatter);
     } 
   cLocaleId = [[internal->_locale localeIdentifier] UTF8String];
   style = NSToICUFormatStyle (internal->_style);
   internal->_formatter = unum_open (style, NULL, 0, cLocaleId, NULL, &err);
   if (U_FAILURE(err))
     {
-    internal->_formatter = NULL;
+      internal->_formatter = NULL;
      } 
   // Reset all properties
   for (idx = 0; idx < MAX_SYMBOLS; ++idx)
@@ -2162,7 +2158,7 @@ static NSUInteger _defaultBehavior = NSNumberFormatterBehavior10_4;
 	  length = [internal->_symbols[idx] length];
 	  if (length > BUFFER_SIZE)
             {
-	    length = BUFFER_SIZE;
+              length = BUFFER_SIZE;
             }
 	  [internal->_symbols[idx] getCharacters: buffer
 					   range: NSMakeRange (0, length)];
@@ -2177,10 +2173,10 @@ static NSUInteger _defaultBehavior = NSNumberFormatterBehavior10_4;
 	  length = [internal->_textAttributes[idx] length];
 	  if (length > BUFFER_SIZE)
             {
-	    length = BUFFER_SIZE;
+              length = BUFFER_SIZE;
             }
 	  [internal->_textAttributes[idx] getCharacters: buffer
-					   range: NSMakeRange (0, length)];
+            range: NSMakeRange (0, length)];
 	  unum_setTextAttribute
 	    (internal->_formatter, idx, buffer, length, &err);
 	}

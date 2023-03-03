@@ -16,12 +16,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSTimer class reference</title>
    $Date$ $Revision$
@@ -59,6 +59,29 @@ static Class	NSDate_class;
   if (self == [NSTimer class])
     {
       NSDate_class = [NSGDate class];
+    }
+}
+
+- (NSString*) description
+{
+  NSString      *s = [super description];
+
+  if ([self isValid])
+    {
+      if (_selector == 0)
+        {
+          return [NSString stringWithFormat: @"%@ at %@ invokes %@",
+            s, [self fireDate], _target];
+        }
+      else
+        {
+          return [NSString stringWithFormat: @"%@ at %@ sends %@ to (%@)",
+            s, [self fireDate], NSStringFromSelector(_selector), _target];
+        }
+    }
+  else
+    {
+      return [NSString stringWithFormat: @"%@ (invalidated)", s];
     }
 }
 
@@ -122,6 +145,20 @@ static Class	NSDate_class;
   return self;
 }
 
+- (instancetype) initWithFireDate: (NSDate *)date
+                         interval: (NSTimeInterval)interval
+                          repeats: (BOOL)repeats
+                            block: (GSTimerBlock)block
+{
+  ASSIGN(_block, (id)block);
+  return [self initWithFireDate: date
+                       interval: interval
+                         target: nil
+                       selector: NULL
+                       userInfo: nil
+                        repeats: repeats];
+}
+
 /**
  * Create a timer which will fire after ti seconds and, if f is YES,
  * every ti seconds thereafter. On firing, invocation will be performed.<br />
@@ -158,6 +195,16 @@ static Class	NSDate_class;
 					   selector: selector
 					   userInfo: info
 					    repeats: f]);
+}
+
++ (NSTimer*) timerWithTimeInterval: (NSTimeInterval)ti
+			   repeats: (BOOL)f
+			     block: (GSTimerBlock)block
+{
+  return AUTORELEASE([[self alloc] initWithFireDate: nil
+					   interval: ti
+					    repeats: f
+					      block: block]);
 }
 
 /**
@@ -206,6 +253,19 @@ static Class	NSDate_class;
   return t;
 }
 
++ (NSTimer *) scheduledTimerWithTimeInterval: (NSTimeInterval)ti
+                                     repeats: (BOOL)f
+                                       block: (GSTimerBlock)block
+{
+  id t = [[self alloc] initWithFireDate: nil
+                               interval: ti
+                                repeats: f
+                                  block: block];
+  [[NSRunLoop currentRunLoop] addTimer: t forMode: NSDefaultRunLoopMode];
+  RELEASE(t);
+  return t;
+}
+
 - (void) dealloc
 {
   if (_invalidated == NO)
@@ -224,57 +284,64 @@ static Class	NSDate_class;
  */
 - (void) fire
 {
-  id	target;
-
-  /* We retain the target so it won't be deallocated while we are using it
-   * (if this timer gets invalidated while we are firing).
-   */
-  target = [_target retain];
-
   /* We check that we have not been invalidated before we fire.
    */
   if (NO == _invalidated)
     {
-      if (_selector == 0)
-	{
-	  NS_DURING
-	    {
-	      [(NSInvocation*)target invoke];
-	    }
-	  NS_HANDLER
-	    {
-	      NSLog(@"*** NSTimer ignoring exception '%@' (reason '%@') "
-	        @"raised during posting of timer with target %s(%s) "
-		@"and selector '%@'",
-		[localException name], [localException reason],
-                GSClassNameFromObject(target),
-                GSObjCIsInstance(target) ? "instance" : "class",
-		NSStringFromSelector([target selector]));
-	    }
-	  NS_ENDHANDLER
-	}
+      if ((id)_block != nil)
+        {
+          CALL_NON_NULL_BLOCK(_block, self);
+        }
       else
-	{
-	  NS_DURING
-	    {
-	      [target performSelector: _selector withObject: self];
-	    }
-	  NS_HANDLER
-	    {
-	      NSLog(@"*** NSTimer ignoring exception '%@' (reason '%@') "
-		@"raised during posting of timer with target %p and "
-		@"selector '%@'",
-		[localException name], [localException reason], target,
-		NSStringFromSelector(_selector));
-	    }
-	  NS_ENDHANDLER
-	}
-    }
-  [target release];
+        {
+          id	target;
 
-  if (_repeats == NO)
-    {
-      [self invalidate];
+          /* We retain the target so it won't be deallocated while we are using
+           * it (if this timer gets invalidated while we are firing).
+           */
+          target = RETAIN(_target);
+
+          if (_selector == 0)
+            {
+              NS_DURING
+                {
+                  [(NSInvocation*)target invoke];
+                }
+              NS_HANDLER
+                {
+                  NSLog(@"*** NSTimer ignoring exception '%@' (reason '%@') "
+		    @"raised during posting of timer with target %s(%s) "
+		    @"and selector '%@'",
+		    [localException name], [localException reason],
+		    GSClassNameFromObject(target),
+		    GSObjCIsInstance(target) ? "instance" : "class",
+		    NSStringFromSelector([target selector]));
+                }
+              NS_ENDHANDLER
+	    }
+          else
+            {
+              NS_DURING
+                {
+                  [target performSelector: _selector withObject: self];
+                }
+              NS_HANDLER
+                {
+                  NSLog(@"*** NSTimer ignoring exception '%@' (reason '%@') "
+		    @"raised during posting of timer with target %p and "
+		    @"selector '%@'",
+		    [localException name], [localException reason], target,
+		    NSStringFromSelector(_selector));
+                }
+              NS_ENDHANDLER
+	    }
+          RELEASE(target);
+        }
+
+      if (_repeats == NO)
+        {
+          [self invalidate];
+        }
     }
 }
 

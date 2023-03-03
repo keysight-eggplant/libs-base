@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 #import "common.h"
@@ -28,8 +28,6 @@
 #import "Foundation/NSError.h"
 #import "Foundation/NSURLError.h"
 #import "Foundation/NSRunLoop.h"
-#import "Foundation/NSThread.h"
-#import "Foundation/NSUserDefaults.h"
 #import "GSURLPrivate.h"
 
 @interface _NSURLConnectionDataCollector : NSObject
@@ -161,26 +159,38 @@ typedef struct
 
 - (void) start
 {
-  if (NULL != this)
-    {
-      // Delegate is retained at the start of the connection processing and
-      // released when completed...
-      this->_delegate = [this->_delegate retain];
-      this->_protocol = [[NSURLProtocol alloc] initWithRequest: this->_request
-                                                cachedResponse: nil
-                                                        client: (id<NSURLProtocolClient>)self];
-      [this->_protocol startLoading];
-    }
+  [this->_protocol startLoading];
 }
 
 - (void) cancel
 {
-  if (NULL != this)
-    {
-      [this->_protocol stopLoading];
-      DESTROY(this->_protocol);
-      DESTROY(this->_delegate);
-    }
+  [this->_protocol stopLoading];
+  DESTROY(this->_protocol);
+  DESTROY(this->_delegate);
+}
+
+- (id) delegate
+{
+  return this->_delegate;
+}
+
+- (void) scheduleInRunLoop: (NSRunLoop *)aRunLoop 
+                   forMode: (NSRunLoopMode)mode
+{
+  NSArray *modes = [NSArray arrayWithObject: mode];
+  [aRunLoop performSelector: @selector(start)
+                     target: self
+                   argument: nil
+                      order: 0
+                      modes: modes];
+}
+
+- (void) unscheduleFromRunLoop: (NSRunLoop *)aRunLoop 
+                       forMode: (NSRunLoopMode)mode
+{
+  [aRunLoop cancelPerformSelector: @selector(start)
+                           target: self
+                         argument: nil];
 }
 
 - (void) dealloc
@@ -204,72 +214,63 @@ typedef struct
     }
 }
 
-/**
- * TESTPLANT-MAL-09042020:
- * This is not a complete implementation.  Since the current implementation
- * of NSURLProtocol defaults to the current runloop/mode we would need to modify
- * that also.  There are also missing methods in this class like:
- * scheduleInRunLoop:forMode:
- * unscheduleFromRunLoop:forMode:
- * setDelegateQueue:
- * but it suffices for our current requirements.  Note, that this still assumes
- * that the connection will be scheduled in the current runloop so cancel, etc
- * should still be invoked on the same thread/runloop that it started on.
-**/
-- (id) initWithRequest: (NSURLRequest *)request delegate: (id)delegate startImmediately: (BOOL)startImmediately
+- (id) initWithRequest: (NSURLRequest *)request
+              delegate: (id)delegate
+      startImmediately: (BOOL)startImmediately
 {
   if ((self = [super init]) != nil)
     {
       this->_request = [request mutableCopyWithZone: [self zone]];
-      
+
       /* Enrich the request with the appropriate HTTP cookies,
        * if desired.
        */
       if ([this->_request HTTPShouldHandleCookies] == YES)
-        {
-          NSArray *cookies;
-          
-          cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage]
-                     cookiesForURL: [this->_request URL]];
-          if ([cookies count] > 0)
-            {
-              NSDictionary  *headers;
-              NSEnumerator  *enumerator;
-              NSString    *header;
-              
-              headers = [NSHTTPCookie requestHeaderFieldsWithCookies: cookies];
-              enumerator = [headers keyEnumerator];
-              while (nil != (header = [enumerator nextObject]))
-                {
-                  [this->_request addValue: [headers valueForKey: header]
-                        forHTTPHeaderField: header];
-                }
-            }
-        }
-      
+	{
+	  NSArray *cookies;
+
+	  cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage]
+	    cookiesForURL: [this->_request URL]];
+	  if ([cookies count] > 0)
+	    {
+	      NSDictionary	*headers;
+	      NSEnumerator	*enumerator;
+	      NSString		*header;
+
+	      headers = [NSHTTPCookie requestHeaderFieldsWithCookies: cookies];
+	      enumerator = [headers keyEnumerator];
+	      while (nil != (header = [enumerator nextObject]))
+		{
+		  [this->_request addValue: [headers valueForKey: header]
+			forHTTPHeaderField: header];
+		}
+	    }
+	}
+
       /* According to bug #35686, Cocoa has a bizarre deviation from the
        * convention that delegates are retained here.
        * For compatibility we retain the delegate and release it again
        * when the operation is over.
        */
-      this->_debug = GSDebugSet(@"NSURLConnection");
-      this->_delegate = delegate;
-
-      // Start if requested...
-      if (startImmediately)
+      this->_delegate = [delegate retain];
+      this->_protocol = [[NSURLProtocol alloc]
+	initWithRequest: this->_request
+	cachedResponse: nil
+	client: (id<NSURLProtocolClient>)self];
+      if (startImmediately == YES)
         {
-          [self start];
+          [this->_protocol startLoading];
         }
+      this->_debug = GSDebugSet(@"NSURLConnection");
     }
   return self;
 }
 
 - (id) initWithRequest: (NSURLRequest *)request delegate: (id)delegate
 {
-  if ((self = [self initWithRequest: request delegate: delegate startImmediately: YES]) != nil)
-    {
-    }
-  return self;
+  return [self initWithRequest: request
+                      delegate: delegate
+              startImmediately: YES];
 }
 
 @end
@@ -304,9 +305,9 @@ typedef struct
       /* continue without a credential if there is no proposed credential
        * at all or if an authentication failure has already happened.
        */
-  [[challenge sender]
-    continueWithoutCredentialForAuthenticationChallenge: challenge];
-}
+      [[challenge sender]
+        continueWithoutCredentialForAuthenticationChallenge: challenge];
+    }
 }
 
 - (void) connection: (NSURLConnection *)connection
@@ -340,34 +341,6 @@ typedef struct
 
 @implementation NSURLConnection (NSURLConnectionSynchronousLoading)
 
-+ (void) synchronousConnectionThread: (NSDictionary*)infodict
-{
-  NSAutoreleasePool             *pool = [NSAutoreleasePool new];
-  NSUInteger                     status = 0;
-  NSURLRequest                  *request = [infodict objectForKey: @"request"];
-  _NSURLConnectionDataCollector *collector = [infodict objectForKey: @"collector"];
-  NSURLConnection               *conn = [[self alloc] initWithRequest: request delegate: collector];
-
-  if (nil != conn)
-    {
-      NSRunLoop	*loop;
-      NSDate	*limit;
-      
-      [collector setConnection: conn];
-      loop = [NSRunLoop currentRunLoop];
-      limit = [[NSDate alloc] initWithTimeIntervalSinceNow: [request timeoutInterval]];
-      
-      while ([collector done] == NO && [limit timeIntervalSinceNow] > 0.0)
-        {
-          [loop runMode: NSDefaultRunLoopMode beforeDate: limit];
-        }
-      RELEASE(limit);
-      [conn release];
-    }
-  
-  [pool drain];
-}
-
 + (NSData *) sendSynchronousRequest: (NSURLRequest *)request
 		  returningResponse: (NSURLResponse **)response
 			      error: (NSError **)error
@@ -384,54 +357,26 @@ typedef struct
     }
   if ([self canHandleRequest: request] == YES)
     {
-      _NSURLConnectionDataCollector *collector;
+      _NSURLConnectionDataCollector	*collector;
+      NSURLConnection			*conn;
 
       collector = [_NSURLConnectionDataCollector new];
-      
-      // Cocoa OSX documentation says this is run asynchronously and this method should BLOCK...
-      NSDictionary  *infodict = @{ @"request" : request, @"collector" : collector };
-      NSThread      *thread   = [[NSThread alloc] initWithTarget: self
-                                                        selector: @selector(synchronousConnectionThread:)
-                                                          object: infodict];
-      
-      // If no thread allocated then...
-      if (thread == nil)
+      conn = [[self alloc] initWithRequest: request delegate: collector];
+      if (nil != conn)
         {
-          // What to do here???
-          NSLog(@"%s:unable to allocate a thread for the request: %@", __PRETTY_FUNCTION__, request);
-          
-          // Return an error if the user passed an address...
-          if (0 != error)
+          NSRunLoop	*loop;
+          NSDate	*limit;
+
+          [collector setConnection: conn];
+          loop = [NSRunLoop currentRunLoop];
+          limit = [[NSDate alloc] initWithTimeIntervalSinceNow:
+            [request timeoutInterval]];
+
+          while ([collector done] == NO && [limit timeIntervalSinceNow] > 0.0)
             {
-              *error = [NSError errorWithDomain: NSURLErrorDomain
-                                           code: NSURLErrorUnknown
-                                       userInfo: [NSDictionary dictionaryWithObjectsAndKeys:
-                                                  [request URL],                  @"URL",
-                                                  [[request URL] path],           @"path",
-                                                  [request URL],                  NSURLErrorFailingURLErrorKey,
-                                                  [[request URL] absoluteString], NSErrorFailingURLStringKey,
-                                                  @"unable to allocate thread",   NSLocalizedDescriptionKey,
-                                                  @"unable to allocate thread",   NSLocalizedFailureReasonErrorKey,
-                                                  nil]];
+              [loop runMode: NSDefaultRunLoopMode beforeDate: limit];
             }
-        }
-      else
-        {
-          // Start the thread...
-          [thread start];
-          
-          // Wait for thread to finish...
-          NSNumber *delayNumber = [[NSUserDefaults standardUserDefaults] objectForKey:@"GSUrlConnectionDelay"];
-          CGFloat sleepInterval = delayNumber ? [delayNumber doubleValue] : 0.05;
-          while ([thread isFinished] == NO)
-            {
-              [NSThread sleepForTimeInterval: sleepInterval];
-            }
-          
-          // Cleanup...
-          [thread release];
-          
-          // Check and get data...
+          [limit release];
           if (NO == [collector done])
             {
               data = nil;
@@ -458,9 +403,11 @@ typedef struct
                   *error = [[[collector error] retain] autorelease];
                 }
             }
+	  /* Cancel to prevent the NSURLProtocol instance retaining us.
+	   */
+	  [conn cancel];
+          [conn release];
         }
-
-      // Cleanup...
       [collector release];
     }
   return data;

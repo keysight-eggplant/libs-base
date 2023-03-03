@@ -14,19 +14,17 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 */
 
 #ifndef __NSUserNotification_h_INCLUDE
 #define __NSUserNotification_h_INCLUDE
 
-#define NSUserNotification_IVARS 1
-#define NSUserNotificationCenter_IVARS 1
 #import	<GNUstepBase/GSVersionMacros.h>
 
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_8,GS_API_LATEST)
@@ -56,33 +54,12 @@ enum
 typedef NSInteger NSUserNotificationActivationType;
 
 
+GS_EXPORT_CLASS
 @interface NSUserNotification : NSObject <NSCopying>
 {
 #if	GS_EXPOSE(NSUserNotification)
   @public
   id _uniqueId;
-  // Testplant-MAL-09142016: Addtions for supporting @synthesize which for does not
-  // compile for our version of clang - why?
-  NSString *title;
-  NSString *subtitle;
-  NSString *informativeText;
-  NSString *actionButtonTitle;
-  NSDictionary *userInfo;
-  NSDate *deliveryDate;
-  NSTimeZone *deliveryTimeZone;
-  NSDateComponents *deliveryRepeatInterval;
-  NSDate *actualDeliveryDate;
-  BOOL presented;
-  BOOL remote;
-  NSString *soundName;
-  BOOL hasActionButton;
-  NSUserNotificationActivationType activationType;
-  NSString *otherButtonTitle;
-  NSString *identifier;
-  NSImage *contentImage;
-  BOOL hasReplyButton;
-  NSString *responsePlaceholder;
-  NSAttributedString *response;
 #endif
 }
 
@@ -106,7 +83,7 @@ typedef NSInteger NSUserNotificationActivationType;
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_9,GS_API_LATEST)
 
 @property (copy) NSString *identifier;
-@property (retain) NSImage *contentImage;
+@property (copy) NSImage *contentImage;
 @property BOOL hasReplyButton;
 @property (copy) NSString *responsePlaceholder;
 @property (readonly) NSAttributedString *response;
@@ -117,12 +94,12 @@ typedef NSInteger NSUserNotificationActivationType;
 
 GS_EXPORT NSString * const NSUserNotificationDefaultSoundName;
 
+GS_EXPORT_CLASS
 @interface NSUserNotificationCenter : NSObject
 {
 #if	GS_EXPOSE(NSUserNotificationCenter)
   NSMutableArray *_scheduledNotifications;
   NSMutableArray *_deliveredNotifications;
-  id <NSUserNotificationCenterDelegate> _delegate;
 #endif
 }
 

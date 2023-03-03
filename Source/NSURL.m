@@ -7,6 +7,9 @@
    Rewrite by: 	Richard Frith-Macdonald <rfm@gnu.org>
    Date: 	Jun 2002
 
+   Add'l by:    Gregory John Casamento <greg.casamento@gmail.com>  
+   Date: 	Jan 2020
+
    This file is part of the GNUstep Library.
 
    This library is free software; you can redistribute it and/or
@@ -17,12 +20,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSURL class reference</title>
    $Date$ $Revision$
@@ -36,9 +39,36 @@ function may be incorrect
 * I've put 2 functions to make tests. You can add your own tests
 * Some functions are not implemented
 */
+
+#define	GS_NSURLQueryItem_IVARS \
+  NSString *_name; \
+  NSString *_value; 
+
+#define	GS_NSURLComponents_IVARS \
+  NSString *_string; \
+  NSString *_fragment; \
+  NSString *_host; \
+  NSString *_password; \
+  NSString *_path; \
+  NSNumber *_port; \
+  NSArray  *_queryItems; \
+  NSString *_scheme; \
+  NSString *_user; \
+  NSRange   _rangeOfFragment; \
+  NSRange   _rangeOfHost; \
+  NSRange   _rangeOfPassword; \
+  NSRange   _rangeOfPath; \
+  NSRange   _rangeOfPort; \
+  NSRange   _rangeOfQuery; \
+  NSRange   _rangeOfQueryItems; \
+  NSRange   _rangeOfScheme; \
+  NSRange   _rangeOfUser; \
+  BOOL      _dirty;
+
 #import "common.h"
 #define	EXPOSE_NSURL_IVARS	1
 #import "Foundation/NSArray.h"
+#import "Foundation/NSAutoreleasePool.h"
 #import "Foundation/NSCoder.h"
 #import "Foundation/NSData.h"
 #import "Foundation/NSDictionary.h"
@@ -52,81 +82,10 @@ function may be incorrect
 #import "Foundation/NSURL.h"
 #import "Foundation/NSURLHandle.h"
 #import "Foundation/NSValue.h"
+#import "Foundation/NSCharacterSet.h"
+#import "Foundation/NSString.h"
 
 #import "GNUstepBase/NSURL+GNUstepBase.h"
-
-
-NSString * const NSURLErrorDomain = @"NSURLErrorDomain";
-NSString * const NSErrorFailingURLStringKey = @"NSErrorFailingURLStringKey";
-
-@interface	NSString (NSURLPrivate)
-- (NSString*) _stringByAddingPercentEscapes;
-@end
-
-@implementation	NSString (NSURLPrivate)
-
-/* Like the normal percent escape method, but with additional characters
- * escaped (for use by file scheme URLs).
- */
-- (NSString*) _stringByAddingPercentEscapes
-{
-  NSData	*data = [self dataUsingEncoding: NSUTF8StringEncoding];
-  NSString	*s = nil;
-
-  if (data != nil)
-    {
-      unsigned char	*src = (unsigned char*)[data bytes];
-      unsigned int	slen = [data length];
-      unsigned char	*dst;
-      unsigned int	spos = 0;
-      unsigned int	dpos = 0;
-
-      dst = (unsigned char*)NSZoneMalloc(NSDefaultMallocZone(), slen * 3);
-      while (spos < slen)
-	{
-	  unsigned char	c = src[spos++];
-	  unsigned int	hi;
-	  unsigned int	lo;
-
-	  if (c <= 32
-	    || c > 126
-	    || c == 34
-	    || c == 35
-	    || c == 37
-	    || c == 59
-	    || c == 60
-	    || c == 62
-	    || c == 63
-	    || c == 91
-	    || c == 92
-	    || c == 93
-	    || c == 94
-	    || c == 96
-	    || c == 123
-	    || c == 124
-	    || c == 125)
-	    {
-	      dst[dpos++] = '%';
-	      hi = (c & 0xf0) >> 4;
-	      dst[dpos++] = (hi > 9) ? 'A' + hi - 10 : '0' + hi;
-	      lo = (c & 0x0f);
-	      dst[dpos++] = (lo > 9) ? 'A' + lo - 10 : '0' + lo;
-	    }
-	  else
-	    {
-	      dst[dpos++] = c;
-	    }
-	}
-      s = [[NSString alloc] initWithBytes: dst
-				   length: dpos
-				 encoding: NSASCIIStringEncoding];
-      NSZoneFree(NSDefaultMallocZone(), dst);
-      IF_NO_GC([s autorelease];)
-    }
-  return s;
-}
-
-@end
 
 @interface	NSURL (GSPrivate)
 - (NSURL*) _URLBySettingPath: (NSString*)newPath; 
@@ -176,6 +135,7 @@ typedef struct {
   char	*query;
   char	*fragment;
   BOOL	pathIsAbsolute;
+  BOOL	emptyPath;
   BOOL	hasNoPath;
   BOOL	isGeneric;
   BOOL	isFile;
@@ -346,14 +306,18 @@ static char *buildURL(parsedURL *base, parsedURL *rel, BOOL standardize)
   else
     {
       char	*start = base->path;
-      char	*end = strrchr(start, '/');
 
-      if (end != 0)
-	{
-	  *tmp++ = '/';
-	  memcpy(tmp, start, end - start);
-	  tmp += (end - start);
-	}
+      if (start != 0)
+        {
+          char	*end = strrchr(start, '/');
+
+          if (end != 0)
+            {
+              *tmp++ = '/';
+              memcpy(tmp, start, end - start);
+              tmp += (end - start);
+            }
+        }
       *tmp++ = '/';
       l = strlen(rpath);
       memcpy(tmp, rpath, l);
@@ -478,10 +442,10 @@ static id clientForHandle(void *data, NSURLHandle *hdl)
   if (data != 0)
     {
       [clientsLock lock];
-      client = (id)NSMapGet((NSMapTable*)data, hdl);
+      client = RETAIN((id)NSMapGet((NSMapTable*)data, hdl));
       [clientsLock unlock];
     }
-  return client;
+  return AUTORELEASE(client);
 }
 
 /**
@@ -609,6 +573,7 @@ static char *unescape(const char *from, char * to)
 
 @implementation NSURL
 
+static NSCharacterSet	*fileCharSet = nil;
 static NSUInteger	urlAlign;
 
 + (id) fileURLWithPath: (NSString*)aPath
@@ -616,13 +581,28 @@ static NSUInteger	urlAlign;
   return AUTORELEASE([[NSURL alloc] initFileURLWithPath: aPath]);
 }
 
-// Testplant-MAL-2015-07-07: keeping testplant branch changes...
-+ (id) fileURLWithPath: (NSString*)aPath isDirectory: (BOOL) isDir
++ (id) fileURLWithPath: (NSString*)aPath isDirectory: (BOOL)isDir
 {
-  return AUTORELEASE([[NSURL alloc] initFileURLWithPath: aPath isDirectory: isDir]);
+  return AUTORELEASE([[NSURL alloc] initFileURLWithPath: aPath
+					    isDirectory: isDir]);
 }
 
-+ (NSURL*) fileURLWithPathComponents: (NSArray*)components
++ (id) fileURLWithPath: (NSString *)aPath
+	      isDirectory: (BOOL)isDir
+	    relativeToURL: (NSURL *)baseURL
+{
+  return AUTORELEASE([[NSURL alloc] initFileURLWithPath: aPath
+					    isDirectory: isDir
+					  relativeToURL: baseURL]);
+}
+
++ (id)fileURLWithPath: (NSString *)aPath relativeToURL: (NSURL *)baseURL
+{
+  return AUTORELEASE([[NSURL alloc] initFileURLWithPath: aPath
+					  relativeToURL: baseURL]);
+}
+
++ (id) fileURLWithPathComponents: (NSArray*)components
 {
   return [self fileURLWithPath: [NSString pathWithComponents: components]];
 }
@@ -631,9 +611,11 @@ static NSUInteger	urlAlign;
 {
   if (clientsLock == nil)
     {
-      NSGetSizeAndAlignment(@encode(parsedURL), &urlAlign, 0);
+      NSGetSizeAndAlignment(@encode(parsedURL), NULL, &urlAlign);
       clientsLock = [NSLock new];
       [[NSObject leakAt: &clientsLock] release];
+      ASSIGN(fileCharSet, [NSCharacterSet characterSetWithCharactersInString:
+        @"!$&'()*+,-./0123456789:=@ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz~"]);
     }
 }
 
@@ -649,43 +631,37 @@ static NSUInteger	urlAlign;
 				     relativeToURL: aBaseUrl]);
 }
 
-- (id) initFileURLWithPath: (NSString*)aPath
++ (id) URLByResolvingAliasFileAtURL: (NSURL*)url 
+                            options: (NSURLBookmarkResolutionOptions)options 
+                              error: (NSError**)error
 {
-  NSFileManager	*mgr = [NSFileManager defaultManager];
-  BOOL		flag = NO;
-
-  if (nil == aPath)
-    {
-      [NSException raise: NSInvalidArgumentException
-		  format: @"[%@ %@] nil string parameter",
-	NSStringFromClass([self class]), NSStringFromSelector(_cmd)];
-    }
-  if ([aPath isAbsolutePath] == NO)
-    {
-      aPath = [[mgr currentDirectoryPath]
-	stringByAppendingPathComponent: aPath];
-    }
-  if ([mgr fileExistsAtPath: aPath isDirectory: &flag] == YES)
-    {
-      if ([aPath isAbsolutePath] == NO)
-	{
-	  aPath = [aPath stringByStandardizingPath];
-	}
-      if (flag == YES && [aPath hasSuffix: @"/"] == NO)
-	{
-	  aPath = [aPath stringByAppendingString: @"/"];
-	}
-    }
-  self = [self initWithScheme: NSURLFileScheme
-			 host: @"localhost"
-			 path: aPath];
-  return self;
+  // TODO: unimplemented
+  return nil;
 }
 
-- (id) initFileURLWithPath: (NSString*)aPath isDirectory: (BOOL)isDir
+- (id) initFileURLWithPath: (NSString *)aPath
 {
-  NSFileManager	*mgr = [NSFileManager defaultManager];
-  BOOL		flag = NO;
+  /* isDirectory flag will be overwritten if a directory exists. */
+  return [self initFileURLWithPath: aPath isDirectory: NO relativeToURL: nil];
+}
+
+- (id) initFileURLWithPath: (NSString *)aPath isDirectory: (BOOL)isDir
+{
+  return [self initFileURLWithPath: aPath isDirectory: isDir relativeToURL: nil];
+}
+
+- (id) initFileURLWithPath: (NSString *)aPath relativeToURL: (NSURL *)baseURL
+{
+  /* isDirectory flag will be overwritten if a directory exists. */
+  return [self initFileURLWithPath: aPath isDirectory: NO relativeToURL: baseURL];
+}
+
+- (id) initFileURLWithPath: (NSString *)aPath
+	       isDirectory: (BOOL)isDir
+	     relativeToURL: (NSURL *)baseURL
+{
+  NSFileManager *mgr = [NSFileManager defaultManager];
+  BOOL		 flag = NO;
 
   if (nil == aPath)
     {
@@ -695,104 +671,110 @@ static NSUInteger	urlAlign;
     }
   if ([aPath isAbsolutePath] == NO)
     {
-      aPath = [[mgr currentDirectoryPath]
-	stringByAppendingPathComponent: aPath];
+      if (baseURL)
+        {
+          /* Append aPath to baseURL */
+          aPath
+	    = [[baseURL relativePath] stringByAppendingPathComponent: aPath];
+        }
+      else
+        {
+          aPath =
+            [[mgr currentDirectoryPath] stringByAppendingPathComponent: aPath];
+        }
     }
   if ([mgr fileExistsAtPath: aPath isDirectory: &flag] == YES)
     {
       if ([aPath isAbsolutePath] == NO)
-	{
-	  aPath = [aPath stringByStandardizingPath];
-	}
+        {
+          aPath = [aPath stringByStandardizingPath];
+        }
       isDir = flag;
     }
-  if (isDir == YES && [aPath hasSuffix: @"/"] == NO)
+  if (isDir == YES && [aPath hasSuffix:@"/"] == NO)
     {
       aPath = [aPath stringByAppendingString: @"/"];
     }
-  self = [self initWithScheme: NSURLFileScheme
-			 host: @"localhost"
-			 path: aPath];
-  return self;
+  return [self initWithScheme: NSURLFileScheme host: @"" path: aPath];
 }
 
 - (id) initWithScheme: (NSString*)aScheme
 		 host: (NSString*)aHost
 		 path: (NSString*)aPath
 {
+  NSRange	r = NSMakeRange(NSNotFound, 0);
+  NSString	*auth = nil;
   NSString	*aUrlString = [NSString alloc];
 
   if ([aScheme isEqualToString: @"file"])
     {
-      aPath = [aPath _stringByAddingPercentEscapes];
+      aPath = [aPath stringByAddingPercentEncodingWithAllowedCharacters:
+	fileCharSet];
     }
   else
     {
       aPath = [aPath
 	stringByAddingPercentEscapesUsingEncoding: NSUTF8StringEncoding];
     }
-  if ([aHost length] > 0)
+
+  r = [aHost rangeOfString: @"@"];
+
+  /* Allow for authentication (username:password) before actual host.
+   */
+  if (r.length > 0)
     {
-      NSRange	r = [aHost rangeOfString: @"@"];
-      NSString	*auth = nil;
+      auth = [aHost substringToIndex: r.location];
+      aHost = [aHost substringFromIndex: NSMaxRange(r)];
+    }
 
-      /* Allow for authentication (username:password) before actual host.
+  /* Add square brackets around ipv6 address if necessary
+   */
+  if ([[aHost componentsSeparatedByString: @":"] count] > 2
+    && [aHost hasPrefix: @"["] == NO)
+    {
+      aHost = [NSString stringWithFormat: @"[%@]", aHost];
+    }
+
+  if (auth != nil)
+    {
+      aHost = [NSString stringWithFormat: @"%@@%@", auth, aHost];
+    }
+
+  if ([aPath length] > 0)
+    {
+      /*
+       * For MacOS-X compatibility, assume a path component with
+       * a leading slash is intended to have that slash separating
+       * the host from the path as specified in the RFC1738
        */
-      if (r.length > 0)
-	{
-	  auth = [aHost substringToIndex: r.location];
-	  aHost = [aHost substringFromIndex: NSMaxRange(r)];
-	}
-
-      /* Add square brackets around ipv6 address if necessary
+      if ([aPath hasPrefix: @"/"] == YES)
+        {
+          aUrlString = [aUrlString initWithFormat: @"%@://%@%@",
+            aScheme, aHost, aPath];
+        }
+#if  defined(_WIN32)
+      /* On Windows file systems, an absolute file path can begin with
+       * a drive letter. The first component in an absolute path
+       * (e.g. C:) has to be enclosed by a leading slash.
+       *
+       * "file:///c:/path/to/file"
        */
-      if ([[aHost componentsSeparatedByString: @":"] count] > 2
-	&& [aHost hasPrefix: @"["] == NO)
-	{
-	  aHost = [NSString stringWithFormat: @"[%@]", aHost];
-	}
-
-      if (auth != nil)
-	{
-	  aHost = [NSString stringWithFormat: @"%@@%@", auth, aHost];
-	}
-
-      if ([aPath length] > 0)
-	{
-	  /*
-	   * For MacOS-X compatibility, assume a path component with
-	   * a leading slash is intended to have that slash separating
-	   * the host from the path as specified in the RFC1738
-	   */
-	  if ([aPath hasPrefix: @"/"] == YES)
-	    {
-	      aUrlString = [aUrlString initWithFormat: @"%@://%@%@",
-		aScheme, aHost, aPath];
-	    }
-	  else
-	    {
-	      aUrlString = [aUrlString initWithFormat: @"%@://%@/%@",
-		aScheme, aHost, aPath];
-	    }
-	}
+      else if ([aScheme isEqualToString: @"file"] && [aPath characterAtIndex:1] == ':')
+        {
+          aUrlString = [aUrlString initWithFormat: @"%@:///%@%@",
+            aScheme, aHost, aPath];
+        }
+#endif
       else
-	{
-	  aUrlString = [aUrlString initWithFormat: @"%@://%@/",
-	    aScheme, aHost];
-	}
+        {
+          aUrlString = [aUrlString initWithFormat: @"%@://%@/%@",
+            aScheme, aHost, aPath];
+        }
     }
   else
     {
-      if ([aPath length] > 0)
-	{
-	  aUrlString = [aUrlString initWithFormat: @"%@:%@",
-	    aScheme, aPath];
-	}
-      else
-	{
-	  aUrlString = [aUrlString initWithFormat: @"%@:",
-	    aScheme];
-	}
+      aUrlString = [aUrlString initWithFormat: @"%@://%@/",
+        aScheme, aHost];
     }
   self = [self initWithString: aUrlString relativeToURL: nil];
   RELEASE(aUrlString);
@@ -816,6 +798,11 @@ static NSUInteger	urlAlign;
    */
   static const char *filepath = ";/?:@&=+$,[]#";
 
+  if (nil == aUrlString)
+    {
+      RELEASE(self);
+      return nil;       // OSX behavior is to give up.
+    }
   if ([aUrlString isKindOfClass: [NSString class]] == NO)
     {
       [NSException raise: NSInvalidArgumentException
@@ -835,7 +822,7 @@ static NSUInteger	urlAlign;
     {
       parsedURL	*buf;
       parsedURL	*base = baseData;
-      unsigned	size = [_urlString length] + 1; // Add 1 for possible move due to '?'
+      unsigned	size = [_urlString length];
       char	*end;
       char	*start;
       char	*ptr;
@@ -848,9 +835,20 @@ static NSUInteger	urlAlign;
       buf = _data = (parsedURL*)NSZoneMalloc(NSDefaultMallocZone(), size);
       memset(buf, '\0', size);
       start = end = ptr = (char*)&buf[1];
-      [_urlString getCString: start
-		   maxLength: size
-		    encoding: NSASCIIStringEncoding];
+      NS_DURING
+        {
+          [_urlString getCString: start
+                       maxLength: size
+                        encoding: NSASCIIStringEncoding];
+        }
+      NS_HANDLER
+        {
+          /* OSX behavior when given non-ascii text is to return nil.
+           */
+          RELEASE(self);
+          return nil;
+        }
+      NS_ENDHANDLER
 
       /*
        * Parse the scheme if possible.
@@ -918,12 +916,11 @@ static NSUInteger	urlAlign;
 	      usesParameters = NO;
 	      usesQueries = NO;
 	    }
-          else if (strcmp(buf->scheme, "http") == 0)
-            {
-              // TESTPLANT-MAL-11262017: Patch for issue 16821...
-              // Force generic if HTTP...
-              buf->isGeneric = YES;
-            }
+          else if (strcmp(buf->scheme, "http") == 0
+            || strcmp(buf->scheme, "https") == 0)
+	    {
+	      buf->emptyPath = YES;
+	    }
         }
 
       if (canBeGeneric == YES)
@@ -942,13 +939,7 @@ static NSUInteger	urlAlign;
 	       * the 'authority' if there is no path.
 	       */
 	      end = strchr(start, '/');
-              if (end == 0 && ((end = strchr(start, '?')) != 0))
-                {
-                  // Move it right one character to save '?'...
-                  memmove(end+1, end, strlen(end));
-                  *end = '/'; // Mimic as if '/' was at end...
-                }
-              if (end == 0)
+	      if (end == 0)
 		{
 		  buf->hasNoPath = YES;
 		  end = &start[strlen(start)];
@@ -1432,44 +1423,6 @@ static NSUInteger	urlAlign;
   return nil == errorStr ? YES : NO;
 }
 
-// Testplant-MAL-09232016: Keeping testplant branch code...
-- (BOOL) getResourceValue:(id*)value forKey:(NSString *)key error:(NSError**)error
-{
-  if ([self isFileURL])
-  {
-    NSDictionary *fileattr = [[NSFileManager defaultManager] fileAttributesAtPath:[self path] traverseLink: NO];
-    NSLog(@"%s:fileattr: %@", __PRETTY_FUNCTION__, fileattr);
-  }
-  
-  return(NO);
-}
-
-- (NSDictionary*)resourceValuesForKeys:(NSArray*)keys error:(NSError**)errorptr
-{
-  NSMutableDictionary *values   = [NSMutableDictionary dictionary];
-  NSString            *key      = nil;
-  NSEnumerator        *keyiter  = [keys objectEnumerator];
-  
-  // Loop through and load the reource information for each key...
-  while ((key = [keyiter nextObject]))
-    {
-      id       value = nil;
-      NSError *error = nil;
-      
-      if ([self getResourceValue:&value forKey:key error:&error] == NO)
-        {
-          // Return the error from the retrieval attempt...
-          if ((error != nil) && (errorptr != NULL))
-            *errorptr = error;
-          
-          // and return nil...
-          return(nil);
-        }
-    }
-  
-  return(values);
-}
-
 - (NSString*) fragment
 {
   NSString	*fragment = nil;
@@ -1603,10 +1556,41 @@ static NSUInteger	urlAlign;
   return [[self path] lastPathComponent];
 }
 
+- (BOOL) isFileReferenceURL
+{
+  return NO;
+}
+
+- (NSURL *) fileReferenceURL
+{
+  if ([self isFileURL]) 
+    {
+      return self;
+    }
+  return nil;
+}
+
+- (NSURL *) filePathURL
+{
+  if ([self isFileURL]) 
+    {
+      return self;
+    }
+  return nil;
+}
+
+- (BOOL) getResourceValue: (id*)value 
+                   forKey: (NSString *)key 
+                    error: (NSError**)error
+{
+  // TODO: unimplemented
+  return NO;
+}
+
 - (void) loadResourceDataNotifyingClient: (id)client
 			      usingCache: (BOOL)shouldUseCache
 {
-  NSURLHandle	*handle = [self URLHandleUsingCache: YES];
+  NSURLHandle	*handle = [self URLHandleUsingCache: shouldUseCache];
   NSData	*d;
 
   if (shouldUseCache == YES && (d = [handle availableResourceData]) != nil)
@@ -1673,7 +1657,7 @@ static NSUInteger	urlAlign;
 
 - (NSString*) _pathWithEscapes: (BOOL)withEscapes
 {
-  NSString	*path = [NSString string];
+  NSString	*path = nil;
 
   if (YES == myData->isGeneric || 0 == myData->scheme)
     {
@@ -1715,6 +1699,13 @@ static NSUInteger	urlAlign;
             }
 
           path = [NSString stringWithUTF8String: ptr];
+        }
+      else if (YES == myData->emptyPath)
+        {
+          /* OSX seems to use an empty string for some schemes,
+           * though it normally uses nil.
+           */
+          path = @"";
         }
     }
   return path;
@@ -1937,7 +1928,7 @@ static NSUInteger	urlAlign;
       if (c != 0)
 	{
 	  handle = [[c alloc] initWithURL: self cached: shouldUseCache];
-	  IF_NO_GC([handle autorelease];)
+	  IF_NO_ARC([handle autorelease];)
 	}
     }
   return handle;
@@ -2000,6 +1991,17 @@ static NSUInteger	urlAlign;
   return self;
 }
 
+- (NSURL *) URLByAppendingPathComponent: (NSString *)pathComponent
+                            isDirectory: (BOOL)isDirectory
+{
+  NSString *path = [[self path] stringByAppendingPathComponent: pathComponent];
+  if (isDirectory)
+    {
+      path = [path stringByAppendingString: @"/"];
+    }
+  return [self _URLBySettingPath: path];
+}
+
 - (void) URLHandle: (NSURLHandle*)sender
   resourceDataDidBecomeAvailable: (NSData*)newData
 {
@@ -2016,18 +2018,20 @@ static NSUInteger	urlAlign;
 {
   id	c = clientForHandle(_clients, sender);
 
+  RETAIN(self);
+  [sender removeClient: self];
   if (c != nil)
     {
+      [clientsLock lock];
+      NSMapRemove((NSMapTable*)_clients, (void*)sender);
+      [clientsLock unlock];
       if ([c respondsToSelector:
 	@selector(URL:resourceDidFailLoadingWithReason:)])
 	{
 	  [c URL: self resourceDidFailLoadingWithReason: reason];
 	}
-      [clientsLock lock];
-      NSMapRemove((NSMapTable*)_clients, (void*)sender);
-      [clientsLock unlock];
     }
-  [sender removeClient: self];
+  RELEASE(self);
 }
 
 - (void) URLHandleResourceDidBeginLoading: (NSURLHandle*)sender
@@ -2038,34 +2042,36 @@ static NSUInteger	urlAlign;
 {
   id	c = clientForHandle(_clients, sender);
 
+  RETAIN(self);
+  [sender removeClient: self];
   if (c != nil)
     {
+      [clientsLock lock];
+      NSMapRemove((NSMapTable*)_clients, (void*)sender);
+      [clientsLock unlock];
       if ([c respondsToSelector: @selector(URLResourceDidCancelLoading:)])
 	{
 	  [c URLResourceDidCancelLoading: self];
 	}
-      [clientsLock lock];
-      NSMapRemove((NSMapTable*)_clients, (void*)sender);
-      [clientsLock unlock];
     }
-  [sender removeClient: self];
+  RELEASE(self);
 }
 
 - (void) URLHandleResourceDidFinishLoading: (NSURLHandle*)sender
 {
   id	c = clientForHandle(_clients, sender);
 
-  IF_NO_GC([self retain];)
+  RETAIN(self);
   [sender removeClient: self];
   if (c != nil)
     {
+      [clientsLock lock];
+      NSMapRemove((NSMapTable*)_clients, (void*)sender);
+      [clientsLock unlock];
       if ([c respondsToSelector: @selector(URLResourceDidFinishLoading:)])
 	{
 	  [c URLResourceDidFinishLoading: self];
 	}
-      [clientsLock lock];
-      NSMapRemove((NSMapTable*)_clients, (void*)sender);
-      [clientsLock unlock];
     }
   RELEASE(self);
 }
@@ -2148,3 +2154,805 @@ static NSUInteger	urlAlign;
 }
 @end
 
+
+#define	GSInternal	NSURLQueryItemInternal
+#include	"GSInternal.h"
+GS_PRIVATE_INTERNAL(NSURLQueryItem)
+
+
+@implementation NSURLQueryItem
+
+// Creating query items.
++ (instancetype)queryItemWithName: (NSString *)name 
+                            value: (NSString *)value
+{
+  NSURLQueryItem *newQueryItem = [[NSURLQueryItem alloc] initWithName: name
+                                                                value: value];
+  return AUTORELEASE(newQueryItem);
+}
+
+- (instancetype) init
+{
+  self = [self initWithName: nil value: nil];
+  if (self != nil)
+    {
+    
+    }
+  return self;
+}
+
+- (instancetype) initWithName: (NSString *)name 
+                        value: (NSString *)value
+{
+  self = [super init];
+  if (self != nil)
+    {
+      GS_CREATE_INTERNAL(NSURLQueryItem);
+      if (name)
+	{
+	  ASSIGNCOPY(internal->_name, name);
+	}
+      else
+	{
+	  /* OSX behaviour is to set an empty string for nil name property
+	   */
+	  ASSIGN(internal->_name, @"");
+	}
+      ASSIGNCOPY(internal->_value, value);
+    }
+  return self;
+}
+
+- (void) dealloc
+{
+  RELEASE(internal->_name);
+  RELEASE(internal->_value);
+  GS_DESTROY_INTERNAL(NSURLQueryItem);
+  [super dealloc];
+}
+
+// Reading a name and value from a query
+- (NSString *) name
+{
+  return internal->_name;
+}
+
+- (NSString *) value
+{
+  return internal->_value;
+}
+
+- (id) initWithCoder: (NSCoder *)acoder
+{
+  if ((self = [super init]) != nil)
+    {
+      if ([acoder allowsKeyedCoding])
+        {
+          internal->_name = [acoder decodeObjectForKey: @"NS.name"];
+          internal->_value = [acoder decodeObjectForKey: @"NS.value"];
+        }
+      else
+        {
+          internal->_name = [acoder decodeObject];
+          internal->_value = [acoder decodeObject];
+        }
+    }
+  return self;
+}
+
+- (void) encodeWithCoder: (NSCoder *)acoder
+{
+  if ([acoder allowsKeyedCoding])
+    {
+      [acoder encodeObject: internal->_name forKey: @"NS.name"];
+      [acoder encodeObject: internal->_value forKey: @"NS.value"];
+    }
+  else
+    {
+      [acoder encodeObject: internal->_name];
+      [acoder encodeObject: internal->_value];
+    }
+}
+
+- (id) copyWithZone: (NSZone *)zone
+{
+    return [[[self class] allocWithZone: zone] initWithName: internal->_name
+                                                      value: internal->_value];
+}
+
+@end
+
+
+#undef	GSInternal
+#define	GSInternal NSURLComponentsInternal
+#include "GSInternal.h"
+GS_PRIVATE_INTERNAL(NSURLComponents)
+
+
+@implementation NSURLComponents 
+
+static NSCharacterSet	*queryItemCharSet = nil;
+
++ (void) initialize
+{
+  if (nil == queryItemCharSet)
+    {
+      ENTER_POOL
+      NSMutableCharacterSet	*m;
+
+      m = [[NSCharacterSet URLQueryAllowedCharacterSet] mutableCopy];
+
+      /* Rationale: if a query item contained an ampersand we would not be
+       * able to tell where one name/value pair ends and the next starts,
+       * so we cannot permit that character in an item.  Similarly, if a
+       * query item contained an equals sign we would not be able to tell
+       * where the name ends and the value starts, so we cannot permit that
+       * character either.
+       */
+      [m removeCharactersInString: @"&="];
+      queryItemCharSet = [m copy];
+      RELEASE(m);
+      LEAVE_POOL
+    }
+}
+
+// Creating URL components...
++ (instancetype) componentsWithString: (NSString *)urlString
+{
+  return  AUTORELEASE([[NSURLComponents alloc] initWithString: urlString]);
+}
+
++ (instancetype) componentsWithURL: (NSURL *)url 
+           resolvingAgainstBaseURL: (BOOL)resolve
+{
+  return  AUTORELEASE([[NSURLComponents alloc] initWithURL: url
+                      resolvingAgainstBaseURL: resolve]);
+}
+
+- (instancetype) init
+{
+  self = [super init];
+  if (self != nil)
+    {
+      GS_CREATE_INTERNAL(NSURLComponents);
+      
+      internal->_rangeOfFragment = NSMakeRange(NSNotFound, 0);
+      internal->_rangeOfHost     = NSMakeRange(NSNotFound, 0);
+      internal->_rangeOfPassword = NSMakeRange(NSNotFound, 0);
+      internal->_rangeOfPath     = NSMakeRange(NSNotFound, 0);
+      internal->_rangeOfPort     = NSMakeRange(NSNotFound, 0);
+      internal->_rangeOfQuery    = NSMakeRange(NSNotFound, 0);
+      internal->_rangeOfScheme   = NSMakeRange(NSNotFound, 0);
+      internal->_rangeOfUser     = NSMakeRange(NSNotFound, 0);
+    }
+  return self;
+}
+
+- (instancetype) initWithString: (NSString *)URLString
+{
+  /* OSX behavior is to return nil for a string which cannot be
+   * used to initialize valid NSURL object
+   */
+  NSURL	*url = [NSURL URLWithString: URLString];
+  if (url)
+    {
+      return [self initWithURL: url resolvingAgainstBaseURL: NO];
+    }
+  else
+    {
+      return nil;
+    }
+}
+
+- (instancetype) initWithURL: (NSURL *)url 
+     resolvingAgainstBaseURL: (BOOL)resolve
+{
+  self = [self init];
+  if (self != nil)
+    {
+      NSURL *tempURL = url;
+
+      if (resolve)
+        {
+          tempURL = [url absoluteURL];
+        }
+      [self setURL: tempURL];
+    }
+  return self;
+}
+
+- (void) dealloc
+{
+  RELEASE(internal->_string);
+  RELEASE(internal->_fragment);
+  RELEASE(internal->_host);
+  RELEASE(internal->_password);
+  RELEASE(internal->_path);
+  RELEASE(internal->_port);
+  RELEASE(internal->_queryItems);
+  RELEASE(internal->_scheme);
+  RELEASE(internal->_user);
+  GS_DESTROY_INTERNAL(NSURLComponents);
+  [super dealloc];
+}
+
+- (id) copyWithZone: (NSZone *)zone
+{
+  return [[NSURLComponents allocWithZone: zone] initWithURL: [self URL]
+                                    resolvingAgainstBaseURL: NO];
+}
+
+// Regenerate URL when components are changed...
+- (void) _regenerateURL
+{
+  NSMutableString	*urlString;
+  NSString		*component;
+  NSUInteger 	 	location;
+  NSUInteger 		len;
+  
+  if (internal->_dirty == NO)
+    {
+      return;
+    }
+
+  urlString = [[NSMutableString alloc] initWithCapacity: 1000];
+  location = 0;
+  // Build up the URL from components...
+  if (internal->_scheme != nil)
+    {
+      component = [self scheme];
+      [urlString appendString: component];
+      len = [component length];
+      internal->_rangeOfScheme = NSMakeRange(location, len);
+      [urlString appendString: @"://"];
+      location += len + 3;
+    }
+  else
+    {
+      internal->_rangeOfScheme = NSMakeRange(NSNotFound, 0);
+    }
+
+  if (internal->_user != nil) 
+    {
+      if (internal->_password != nil)
+        {
+          component = [self percentEncodedUser];
+	  len = [component length];
+          [urlString appendString: component];
+          internal->_rangeOfUser = NSMakeRange(location, len);
+          [urlString appendString: @":"];
+          location += len + 1;
+
+          component = [self percentEncodedPassword];
+	  len = [component length];
+          [urlString appendString: component];
+          internal->_rangeOfUser = NSMakeRange(location, len);
+          [urlString appendString: @"@"];
+          location += len + 1;
+        }
+      else
+        {
+          component = [self percentEncodedUser];
+	  len = [component length];
+          [urlString appendString: component];
+          internal->_rangeOfUser = NSMakeRange(location, len);
+          [urlString appendString: @"@"];
+          location += len + 1;
+        }
+    }
+
+  if (internal->_host != nil)
+    {
+      component = [self percentEncodedHost];
+      len = [component length];
+      [urlString appendString: component];
+      internal->_rangeOfHost = NSMakeRange(location, len);
+      location += len;
+    }
+
+  if (internal->_port != nil)
+    {
+      component = [[self port] stringValue];
+      len = [component length];
+      [urlString appendString: @":"];
+      location += 1;
+      [urlString appendString: component];
+      internal->_rangeOfPort = NSMakeRange(location, len);
+      location += len;
+    }
+
+  /* FIXME ... if the path is empty we still need a '/' do we not?
+   */
+  if (internal->_path != nil)
+    {
+      component = [self percentEncodedPath];
+      len = [component length];
+      [urlString appendString: component];
+      internal->_rangeOfPath = NSMakeRange(location, len);
+      location += len;
+    }
+
+  if ([internal->_queryItems count] > 0)
+    {
+      component = [self percentEncodedQuery];
+      len = [component length];
+      [urlString appendString: @"?"];
+      location += 1;
+      [urlString appendString: component];
+      internal->_rangeOfQuery = NSMakeRange(location, len);
+      location += len;
+    }
+
+  if (internal->_fragment != nil)
+    {
+      component = [self percentEncodedFragment];
+      len = [component length];
+      [urlString appendString: @"#"];
+      location += 1;
+      [urlString appendString: component];
+      internal->_rangeOfFragment = NSMakeRange(location, len);
+      location += len;
+    }
+    
+  ASSIGNCOPY(internal->_string, urlString);
+  RELEASE(urlString);
+  internal->_dirty = NO;
+}
+
+// Getting the URL
+- (NSString *) string
+{
+  [self _regenerateURL];
+  return internal->_string;
+}
+
+- (void) setString: (NSString *)urlString
+{
+  NSURL *url = [NSURL URLWithString: urlString];
+  [self setURL: url];
+}
+
+- (NSURL *) URL
+{
+  return AUTORELEASE([[NSURL alloc] initWithScheme: [self scheme]
+                                              user: [self user]
+                                          password: [self password]
+                                              host: [self host]
+                                              port: [self port]
+                                          fullPath: [self path]
+                                   parameterString: nil
+                                             query: [self percentEncodedQuery]
+                                          fragment: [self fragment]]);
+}
+
+- (void) setURL: (NSURL *)url
+{
+  // Set all the components...
+  [self setScheme: [url scheme]];
+  [self setHost: [url host]];
+  [self setPort: [url port]];
+  [self setUser: [url user]];
+  [self setPassword: [url password]];
+  [self setPath: [url path]];
+  [self setPercentEncodedQuery:[url query]];
+  [self setFragment: [url fragment]];
+}
+
+- (NSURL *) URLRelativeToURL: (NSURL *)baseURL
+{
+  return nil;
+}
+
+// Accessing Components in Native Format
+- (NSString *) fragment
+{
+  return internal->_fragment;
+}
+
+- (void) setFragment: (NSString *)fragment
+{
+  ASSIGNCOPY(internal->_fragment, fragment);
+  internal->_dirty = YES;
+}
+
+- (NSString *) host
+{
+  return internal->_host;
+}
+
+- (void) setHost: (NSString *)host
+{
+  ASSIGNCOPY(internal->_host, host);
+  internal->_dirty = YES;
+}
+
+- (NSString *) password
+{
+  return internal->_password;
+}
+
+- (void) setPassword: (NSString *)password
+{
+  ASSIGNCOPY(internal->_password, password);
+  internal->_dirty = YES;
+}
+
+- (NSString *) path
+{
+  return internal->_path;
+}
+
+- (void) setPath: (NSString *)path
+{
+  ASSIGNCOPY(internal->_path, path);
+  internal->_dirty = YES;
+}
+
+- (NSNumber *) port
+{
+  return internal->_port;
+}
+
+- (void) setPort: (NSNumber *)port
+{
+  ASSIGNCOPY(internal->_port, port);
+  internal->_dirty = YES;
+}
+
+- (NSString *) query
+{
+  NSString	*result = nil;
+
+  if (internal->_queryItems != nil)
+    {
+      NSMutableString	*query = nil;
+      NSURLQueryItem	*item = nil;
+      NSEnumerator	*en;
+
+      en = [internal->_queryItems objectEnumerator];
+      while ((item = (NSURLQueryItem *)[en nextObject]) != nil)
+	{
+	  NSString	*name = [item name];
+	  NSString	*value = [item value];
+
+	  if (nil == query)
+	    {
+	      query = [[NSMutableString alloc] initWithCapacity: 1000];
+	    }
+	  else
+	    {
+	      [query appendString: @"&"];
+	    }
+	  [query appendString: name];
+	  if (value != nil)
+	    {
+	      [query appendString: @"="];
+	      [query appendString: value];
+	    }
+	}
+      if (nil == query)
+	{
+	  result = @"";
+	}
+      else
+	{
+	  result = AUTORELEASE([query copy]);
+	  RELEASE(query);
+	}
+    }
+  return result;
+}
+
+- (void) _setQuery: (NSString *)query fromPercentEncodedString: (BOOL)encoded
+{
+  /* Parse according to https://developer.apple.com/documentation/foundation/nsurlcomponents/1407752-queryitems?language=objc
+   */
+  if (nil == query)
+    {
+      [self setQueryItems: nil];
+    }
+  else if ([query length] == 0)
+    {
+      [self setQueryItems: [NSArray array]];
+    }
+  else
+    {
+      NSMutableArray	*result = [NSMutableArray arrayWithCapacity: 5];
+      NSArray 		*items = [query componentsSeparatedByString: @"&"];
+      NSEnumerator	*en = [items objectEnumerator];
+      id		item = nil;
+
+      while ((item = [en nextObject]) != nil)
+        {
+          NSURLQueryItem	*qitem;
+	  NSString		*name;
+	  NSString		*value;
+
+	  if ([item length] == 0)
+	    {
+	      name = @"";
+	      value = nil;
+	    }
+	  else
+	    {
+	      NSRange	r = [item rangeOfString: @"="];
+
+	      if (0 == r.length)
+		{
+		  /* No '=' found in query item.  */
+		  name = item;
+		  value = nil;
+		}
+	      else
+		{
+		  name = [item substringToIndex: r.location];
+		  value = [item substringFromIndex: NSMaxRange(r)];
+		}
+	    }
+	  if (encoded)
+	    {
+	      name = [name stringByRemovingPercentEncoding];
+	      value = [value stringByRemovingPercentEncoding];
+	    }
+          qitem = [NSURLQueryItem queryItemWithName: name value: value];
+          [result addObject: qitem];
+        }
+      [self setQueryItems: result];
+    }
+}
+
+- (void) setQuery: (NSString *)query
+{
+  [self _setQuery: query fromPercentEncodedString: NO];
+}
+
+- (NSArray *) queryItems
+{
+  return AUTORELEASE(RETAIN(internal->_queryItems));
+}
+
+- (void) setQueryItems: (NSArray *)queryItems
+{ 
+  ASSIGNCOPY(internal->_queryItems, queryItems);
+  internal->_dirty = YES;
+}
+
+- (NSString *) scheme
+{
+  return internal->_scheme;
+}
+
+- (void) setScheme: (NSString *)scheme
+{
+  ASSIGNCOPY(internal->_scheme, scheme);
+  internal->_dirty = YES;
+}
+
+- (NSString *) user
+{
+  return internal->_user;
+}
+
+- (void) setUser: (NSString *)user
+{
+  ASSIGNCOPY(internal->_user, user);
+  internal->_dirty = YES;
+}
+
+// Accessing Components in PercentEncoded Format
+- (NSString *) percentEncodedFragment
+{
+  return [internal->_fragment
+    stringByAddingPercentEncodingWithAllowedCharacters:
+    [NSCharacterSet URLFragmentAllowedCharacterSet]];
+}
+
+- (void) setPercentEncodedFragment: (NSString *)fragment
+{
+  [self setFragment: [fragment stringByRemovingPercentEncoding]];
+}
+
+- (NSString *) percentEncodedHost
+{
+  return [internal->_host
+    stringByAddingPercentEncodingWithAllowedCharacters:
+    [NSCharacterSet URLHostAllowedCharacterSet]];
+}
+
+- (void) setPercentEncodedHost: (NSString *)host
+{
+  [self setHost: [host stringByRemovingPercentEncoding]];
+}
+
+- (NSString *) percentEncodedPassword
+{
+  return [internal->_password
+    stringByAddingPercentEncodingWithAllowedCharacters:
+    [NSCharacterSet URLPasswordAllowedCharacterSet]];
+}
+
+- (void) setPercentEncodedPassword: (NSString *)password
+{
+  [self setPassword: [password stringByRemovingPercentEncoding]];
+}
+
+- (NSString *) percentEncodedPath
+{
+  return [internal->_path
+    stringByAddingPercentEncodingWithAllowedCharacters:
+    [NSCharacterSet URLPathAllowedCharacterSet]];
+}
+
+- (void) setPercentEncodedPath: (NSString *)path
+{
+  [self setPath: [path stringByRemovingPercentEncoding]];
+}
+
+- (NSString *) percentEncodedQuery
+{
+  NSString	*result = nil;
+
+  if (internal->_queryItems != nil)
+    {
+      NSMutableString	*query = nil;
+      NSURLQueryItem	*item = nil;
+      NSEnumerator	*en;
+
+      en = [[self percentEncodedQueryItems] objectEnumerator];
+      while ((item = (NSURLQueryItem *)[en nextObject]) != nil)
+	{
+	  NSString	*name = [item name];
+	  NSString	*value = [item value];
+
+	  if (nil == query)
+	    {
+	      query = [[NSMutableString alloc] initWithCapacity: 1000];
+	    }
+	  else
+	    {
+	      [query appendString: @"&"];
+	    }
+	  [query appendString: name];
+	  if (value != nil)
+	    {
+	      [query appendString: @"="];
+	      [query appendString: value];
+	    }
+	}
+      if (nil == query)
+	{
+	  result = @"";
+	}
+      else
+	{
+	  result = AUTORELEASE([query copy]);
+	  RELEASE(query);
+	}
+    }
+  return result;
+}
+
+- (void) setPercentEncodedQuery: (NSString *)query
+{
+  [self _setQuery: query fromPercentEncodedString: YES];
+}
+
+- (NSArray *) percentEncodedQueryItems
+{
+  NSArray	*result = nil;
+
+  if (internal->_queryItems != nil)
+    {
+      NSMutableArray	*items;
+      NSEnumerator 	*en = [internal->_queryItems objectEnumerator];
+      NSURLQueryItem	*i = nil;
+
+      items = [[NSMutableArray alloc]
+	initWithCapacity: [internal->_queryItems count]];
+      while ((i = [en nextObject]) != nil)
+	{
+	  NSURLQueryItem	*ni;
+	  NSString		*name = [i name];
+	  NSString		*value = [i value];
+
+	  name = [name stringByAddingPercentEncodingWithAllowedCharacters:
+	    queryItemCharSet];
+	  value = [value stringByAddingPercentEncodingWithAllowedCharacters:
+	    queryItemCharSet];
+	  ni = [NSURLQueryItem queryItemWithName: name
+					   value: value];
+	  [items addObject: ni];
+	}
+      result = AUTORELEASE([items copy]);
+      RELEASE(items);
+    }
+  return result;
+}
+
+- (void) setPercentEncodedQueryItems: (NSArray *)queryItems
+{
+  NSMutableArray	*items = nil;
+
+  if (queryItems != nil)
+    {
+      NSEnumerator	*en = [queryItems objectEnumerator];
+      NSURLQueryItem 	*i = nil;
+
+      items = [NSMutableArray arrayWithCapacity: [queryItems count]];
+      while ((i = [en nextObject]) != nil)
+	{
+	  NSString		*name;
+	  NSString		*value;
+	  NSURLQueryItem	*ni;
+
+	  name = [[i name] stringByRemovingPercentEncoding];
+	  value = [[i value] stringByRemovingPercentEncoding];
+	  ni = [NSURLQueryItem queryItemWithName: name value: value];
+	  [items addObject: ni];
+	}
+    }
+
+  [self setQueryItems: items];
+}
+
+- (NSString *) percentEncodedUser
+{
+  return [internal->_user stringByAddingPercentEncodingWithAllowedCharacters:
+    [NSCharacterSet URLUserAllowedCharacterSet]];
+}
+
+- (void) setPercentEncodedUser: (NSString *)user
+{
+  [self setUser: [user stringByRemovingPercentEncoding]];
+}
+
+// Locating components of the URL string representation
+- (NSRange) rangeOfFragment
+{
+  [self _regenerateURL];
+  return internal->_rangeOfFragment;
+}
+
+- (NSRange) rangeOfHost
+{
+  [self _regenerateURL];
+  return internal->_rangeOfHost;
+}
+
+- (NSRange) rangeOfPassword
+{
+  [self _regenerateURL];
+  return internal->_rangeOfPassword;
+}
+
+- (NSRange) rangeOfPath
+{
+  [self _regenerateURL];
+  return internal->_rangeOfPath;
+}
+
+- (NSRange) rangeOfPort
+{
+  [self _regenerateURL];
+  return internal->_rangeOfPort;
+}
+
+- (NSRange) rangeOfQuery
+{
+  [self _regenerateURL];
+  return internal->_rangeOfQuery;
+}
+
+- (NSRange) rangeOfScheme
+{
+  [self _regenerateURL];
+  return internal->_rangeOfScheme;
+}
+
+- (NSRange) rangeOfUser
+{
+  [self _regenerateURL];
+  return internal->_rangeOfUser;
+}
+  
+@end

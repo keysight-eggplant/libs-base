@@ -12,26 +12,18 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    */
 
 #ifndef __NSStream_h_GNUSTEP_BASE_INCLUDE
 #define __NSStream_h_GNUSTEP_BASE_INCLUDE
 #import	<GNUstepBase/GSVersionMacros.h>
-
-#if OS_API_VERSION(MAC_OS_X_VERSION_10_1,GS_API_LATEST)
-// FIXME: Use this code from Core Foundation framework...
-typedef NSDictionary *CFDictionaryRef;
-// FIXME: Move this code into System Configuration framework...
-typedef NSDictionary *SCDynamicStoreRef;
-extern CFDictionaryRef SCDynamicStoreCopyProxies(SCDynamicStoreRef store, NSString * forUrl);
-#endif
 
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_4,GS_API_LATEST) && GS_API_VERSION( 10200,GS_API_LATEST)
 
@@ -69,10 +61,12 @@ typedef NSUInteger NSStreamEvent;
 @class NSOutputStream;
 @class NSString;
 @class NSRunLoop;
+@class NSURL;
 
 /**
  * NSStream is an abstract class for objects representing streams. 
  */
+GS_EXPORT_CLASS
 @interface NSStream : NSObject
 
 /**
@@ -154,6 +148,7 @@ typedef NSUInteger NSStreamEvent;
  * NSInputStream is a subclass of NSStream that provides read-only
  * stream functionality.
  */
+GS_EXPORT_CLASS
 @interface NSInputStream : NSStream
 
 /**
@@ -170,9 +165,9 @@ typedef NSUInteger NSStreamEvent;
  
 /**
  * Creates and returns an initialized NSInputStream object that reads data from 
- * the file at the specified URL.
+ * the specified URL.
  */
-+ (id)inputStreamWithURL:(NSURL *)url;
++ (id) inputStreamWithURL: (NSURL *)url;
 
 /**
  * Returns a pointer to the read buffer in buffer and, by reference, the number 
@@ -199,6 +194,12 @@ typedef NSUInteger NSStreamEvent;
 - (id) initWithFileAtPath: (NSString *)path;
 
 /**
+ * Returns an initialized NSInputStream object for reading from the
+ * specified URL.
+ */
+- (id) initWithURL: (NSURL *)url;
+
+/**
  * Reads up to len bytes into buffer, returning the actual number of bytes read.
  */
 - (NSInteger) read: (uint8_t *)buffer maxLength: (NSUInteger)len;
@@ -209,6 +210,7 @@ typedef NSUInteger NSStreamEvent;
  * NSOutputStream is a subclass of NSStream that provides
  * write-only stream functionality.
  */
+GS_EXPORT_CLASS
 @interface NSOutputStream : NSStream
 
 /**
@@ -283,13 +285,6 @@ GS_EXPORT NSString * const NSStreamSOCKSProxyUserKey;
 GS_EXPORT NSString * const NSStreamSOCKSProxyVersion4;
 GS_EXPORT NSString * const NSStreamSOCKSProxyVersion5;
 GS_EXPORT NSString * const NSStreamSOCKSProxyVersionKey;
-
-// FIXME: move to Core Foundation - CFHTTPNetwork.h...
-GS_EXPORT NSString * const kCFStreamPropertyHTTPProxy;
-GS_EXPORT NSString * const kCFStreamPropertyHTTPProxyHost;
-GS_EXPORT NSString * const kCFStreamPropertyHTTPProxyPort;
-GS_EXPORT NSString * const kCFStreamPropertyHTTPSProxyHost;
-GS_EXPORT NSString * const kCFStreamPropertyHTTPSProxyPort;
 
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_7,GS_API_LATEST) && GS_PROTOCOLS_HAVE_OPTIONAL
 @protocol NSStreamDelegate <NSObject> 

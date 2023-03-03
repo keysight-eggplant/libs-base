@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 #ifndef __NSURLConnection_h_GNUSTEP_BASE_INCLUDE
@@ -29,6 +29,7 @@
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_2,GS_API_LATEST) && GS_API_VERSION( 11300,GS_API_LATEST)
 
 #import	<Foundation/NSObject.h>
+#import <Foundation/NSRunLoop.h>
 
 #if	defined(__cplusplus)
 extern "C" {
@@ -37,13 +38,14 @@ extern "C" {
 @class NSCachedURLResponse;
 @class NSData;
 @class NSError;
+@class NSInputStream;
 @class NSURLAuthenticationChallenge;
 @class NSURLRequest;
 @class NSURLResponse;
-@class NSInputStream;
-  
+
 /**
  */
+GS_EXPORT_CLASS
 @interface NSURLConnection : NSObject
 {
 #if	GS_EXPOSE(NSURLConnection)
@@ -67,11 +69,27 @@ extern "C" {
 + (NSURLConnection *) connectionWithRequest: (NSURLRequest *)request
 				   delegate: (id)delegate;
 
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_5, GS_API_LATEST)
+/**
+ * Start the asynchronous load.  This method is only needed if NO is passed 
+ * into startImmediately when calling initWithRequest: delegate: startImmediately.
+ */ 
+- (void) start;
+#endif
+  
 /**
  * Cancel the asynchronous load in progress (if any) for this connection.
  */
 - (void) cancel;
 
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_5, GS_API_LATEST)
+- (void) scheduleInRunLoop: (NSRunLoop *)aRunLoop 
+                   forMode: (NSRunLoopMode)mode;
+
+- (void) unscheduleFromRunLoop: (NSRunLoop *)aRunLoop 
+                       forMode: (NSRunLoopMode)mode;
+#endif
+  
 /** <init />
  * Initialises the receiver with the specified request (performing
  * a deep copy so that the request does not change during loading)
@@ -87,26 +105,30 @@ extern "C" {
  */
 - (id) initWithRequest: (NSURLRequest *)request delegate: (id)delegate;
 
-#if OS_API_VERSION(MAC_OS_X_VERSION_10_5,GS_API_LATEST)
-/**
- * Start the asynchronous load for this connection.
- */
-- (void) start;
-#endif
-
-#if OS_API_VERSION(MAC_OS_X_VERSION_10_5,MAC_OS_X_VERSION_10_11)
-/**
- * Same as previous init but starts the connection based on the input flag
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_5, GS_API_LATEST)
+/** <init />
+ * Initialises the receiver with the specified request (performing
+ * a deep copy so that the request does not change during loading)
+ * and delegate.<br />
+ * This automatically initiates an asynchronous load for the request 
+ * if and only if startImmediately is set to YES.<br />
+ * Processing of the request is done in the thread which calls this
+ * method, so the thread must run its current run loop
+ * (in NSDefaultRunLoopMode) for processing to continue/complete.<br />
+ * The delegate will receive callbacks informing it of the progress
+ * of the load.<br />
+ * This method breaks with convention and retains the delegate object,
+ * releasing it when the connection finished loading, fails, or is cancelled.
  */
 - (id) initWithRequest: (NSURLRequest *)request delegate: (id)delegate startImmediately: (BOOL)startImmediately;
 #endif
-
+  
 @end
 
 
 
 /**
- * This category is an (formerly informal) protocol specifying how an NSURLConnection
+ * This category is an informal protocol specifying how an NSURLConnection
  * instance will communicate with its delegate to inform it of (and allow
  * it to manage) the progress of a load request.<br />
  * A load operation is performed by asynchronous I/O using the
@@ -157,10 +179,16 @@ extern "C" {
  *   </item>
  * </list>
  */
-// TESTPLANT-MAL-08152017: Changed to formal protocol definition...
-#if defined(__clang__)
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_7,GS_API_LATEST) && GS_API_VERSION(11300,GS_API_LATEST)
 @protocol NSURLConnectionDelegate <NSObject>
+
+#if GS_PROTOCOLS_HAVE_OPTIONAL
 @optional
+#else
+@end
+@interface NSObject (NSURLConnectionDelegate)
+#endif
+
 #else
 @interface NSObject (NSURLConnectionDelegate)
 #endif
@@ -232,30 +260,39 @@ extern "C" {
 - (NSURLRequest *) connection: (NSURLConnection *)connection
 	      willSendRequest: (NSURLRequest *)request
 	     redirectResponse: (NSURLResponse *)response;
-
 @end
 
-  
-// TESTPLANT-MAL-08152017: Added to formal protocol definition...
-#if defined(__clang__)
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_2,GS_API_LATEST)
 @protocol NSURLConnectionDataDelegate <NSURLConnectionDelegate>
+#if GS_PROTOCOLS_HAVE_OPTIONAL
 @optional
-- (NSURLRequest *)connection:(NSURLConnection *)connection willSendRequest:(NSURLRequest *)request redirectResponse:(NSURLResponse *)response;
-- (void)connection:(NSURLConnection *)connection didReceiveResponse:(NSURLResponse *)response;
+#endif
 
-- (void)connection:(NSURLConnection *)connection didReceiveData:(NSData *)data;
+- (NSURLRequest *) connection: (NSURLConnection *)connection
+              willSendRequest: (NSURLRequest *)request
+             redirectResponse: (NSURLResponse *)response;
 
-- (NSInputStream *)connection:(NSURLConnection *)connection needNewBodyStream:(NSURLRequest *)request;
-- (void)connection:(NSURLConnection *)connection
-   didSendBodyData:(NSInteger)bytesWritten
- totalBytesWritten:(NSInteger)totalBytesWritten totalBytesExpectedToWrite:(NSInteger)totalBytesExpectedToWrite;
+- (void) connection: (NSURLConnection *)connection
+ didReceiveResponse: (NSURLResponse *)response;
 
-- (NSCachedURLResponse *)connection:(NSURLConnection *)connection willCacheResponse:(NSCachedURLResponse *)cachedResponse;
+- (void) connection: (NSURLConnection *) connection didReceiveData: (NSData *)data;
 
-- (void)connectionDidFinishLoading:(NSURLConnection *)connection;
+- (NSInputStream *) connection: (NSURLConnection *)connection
+             needNewBodyStream: (NSURLRequest *)request;
+
+- (void) connection: (NSURLConnection *)connection
+    didSendBodyData: (NSInteger)bytesWritten
+  totalBytesWritten: (NSInteger)totalBytesWritten
+  totalBytesExpectedToWrite: (NSInteger)totalBytesExpectedToWrite;
+
+- (NSCachedURLResponse *) connection: (NSURLConnection *)connection
+                   willCacheResponse:(NSCachedURLResponse *)cachedResponse;
+
+- (void) connectionDidFinishLoading: (NSURLConnection *)connection;
+
 @end
 #endif
-  
+
 /**
  * An interface to perform synchronous loading of URL requests.
  */

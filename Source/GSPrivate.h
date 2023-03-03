@@ -13,7 +13,7 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
@@ -185,8 +185,16 @@ __attribute__((unused)) static void GSFreeTempBuffer(void **b)
  * Yet the optimization of the stored hash value is currently deemed
  * more important.
  */
+#ifndef GNUSTEP_NEW_STRING_ABI
 #define GS_REPLACE_CONSTANT_STRING(ID) [(ID = [NSObject \
   leak: [[NSString alloc] initWithUTF8String: [ID UTF8String]]]) release]
+#else
+/**
+ * In the new constant string ABI, the hash can be stored in the constant
+ * string object, so this is not a problem.
+ */
+#define GS_REPLACE_CONSTANT_STRING(ID)
+#endif
 /* Using cString here is OK here
    because NXConstantString returns a pointer
    to it's internal pointer.  */
@@ -257,6 +265,7 @@ typedef enum {
   GSLogThread,				// Include thread name in log message.
   GSLogOffset,			        // Include time zone offset in message.
   NSWriteOldStylePropertyLists,		// Control PList output.
+  GSExceptionStackTrace,                // Add trace to exception description.
   GSUserDefaultMaxFlag			// End marker.
 } GSUserDefaultFlagType;
 
@@ -350,11 +359,6 @@ GSPrivateArgZero() GS_ATTRIB_PRIVATE;
  */
 NSStringEncoding *
 GSPrivateAvailableEncodings() GS_ATTRIB_PRIVATE;
-
-/* Initialise constant strings
- */
-void
-GSPrivateBuildStrings(void) GS_ATTRIB_PRIVATE;
 
 /* Used to check for termination of background tasks.
  */
@@ -450,11 +454,6 @@ typedef NSRange (*GSRSFunc)(id, id, unsigned, NSRange);
 GSRSFunc
 GSPrivateRangeOfString(NSString *receiver, NSString *target) GS_ATTRIB_PRIVATE;
 
-/* Function to return the current stack return addresses.
- */
-NSMutableArray *
-GSPrivateStackAddresses(void) GS_ATTRIB_PRIVATE;
-
 /* Function to return the hash value for a small integer (used by NSNumber).
  */
 unsigned
@@ -497,16 +496,12 @@ GSPrivateStrExternalize(GSStr s) GS_ATTRIB_PRIVATE;
  * argv[0] (which might be something as horrible as './obj/test')
  * for classes in the main executable.
  *
- * If theCategory argument is not NULL, GSPrivateSymbolPath() will return
- * the filesystem path to the module from which the category theCategory
- * of the class theClass was loaded.
- *
  * Currently, the function will return nil if any of the following
  * conditions is satisfied:
  *  - the required functionality is not available on the platform we are
  *    running on;
  *  - memory allocation fails;
- *  - the symbol for that class/category could not be found.
+ *  - the symbol for that class could not be found.
  *
  * In general, if the function returns nil, it means something serious
  * went wrong in the system preventing it from getting the symbol path.
@@ -517,7 +512,7 @@ GSPrivateStrExternalize(GSStr s) GS_ATTRIB_PRIVATE;
  * runtime ... as far as I know.
  */
 NSString *
-GSPrivateSymbolPath (Class theClass, Category *theCategory) GS_ATTRIB_PRIVATE;
+GSPrivateSymbolPath(Class theClass) GS_ATTRIB_PRIVATE;
 
 /* Combining class for composite unichars
  */
@@ -605,7 +600,6 @@ GSPrivateThreadID()
 void
 GSPrivateEncodeBase64(const uint8_t *src, NSUInteger length, uint8_t *dst)
   GS_ATTRIB_PRIVATE;
-
 
 #endif /* _GSPrivate_h_ */
 

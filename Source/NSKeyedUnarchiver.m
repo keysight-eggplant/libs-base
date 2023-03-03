@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    */
 
@@ -53,12 +53,6 @@
 @end
 @implementation NilMarker
 @end
-
-/**
- * An unarchiving error has occurred.
- */
-NSString * const NSInvalidUnarchiveOperationException
-  = @"NSInvalidUnarchiveOperationException";
 
 static NSMapTable	*globalClassMap = 0;
 
@@ -365,6 +359,16 @@ static NSMapTable	*globalClassMap = 0;
   return YES;
 }
 
+- (BOOL)requiresSecureCoding
+{
+  return _requiresSecureCoding;
+}
+
+- (void)setRequiresSecureCoding: (BOOL)secure
+{
+  _requiresSecureCoding = secure;
+}
+
 - (Class) classForClassName: (NSString*)aString
 {
   return _clsMap == 0 ? Nil : (Class)NSMapGet(_clsMap, (void*)aString);
@@ -423,7 +427,7 @@ static NSMapTable	*globalClassMap = 0;
 		  format: @"[%@ +%@]: count mismatch for %@",
 	NSStringFromClass([self class]), NSStringFromSelector(_cmd), o];
     }
-  NSGetSizeAndAlignment(type, 0, &size);
+  NSGetSizeAndAlignment(type, &size, NULL);
   memcpy(buf, [o bytes], expected * size);
 }
 
@@ -636,6 +640,11 @@ static NSMapTable	*globalClassMap = 0;
   return nil;
 }
 
+- (id) decodeObjectOfClasses: (NSSet *)classes forKey: (NSString *)key
+{
+  return [self decodeObjectForKey: key];
+}
+
 - (NSPoint) decodePoint
 {
   NSPoint	p;
@@ -743,7 +752,7 @@ static NSMapTable	*globalClassMap = 0;
 	*(double*)address = [o doubleValue];
 	return;
 
-#if __GNUC__ > 2 && defined(_C_BOOL)
+#if defined(_C_BOOL) && (!defined(__GNUC__) || __GNUC__ > 2)
       case _C_BOOL:
 	*(_Bool*)address = (_Bool)[o unsignedCharValue];
 	return;
@@ -830,7 +839,7 @@ static NSMapTable	*globalClassMap = 0;
 	  unsigned	count;
 	  unsigned	i;
 
-	  IF_NO_GC(RETAIN(_archive);)
+	  IF_NO_ARC(RETAIN(_archive);)
 	  _archiverClass = [_archive objectForKey: @"$archiver"];
 	  _version = [_archive objectForKey: @"$version"];
 

@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 /* 
@@ -34,7 +34,7 @@
   also contain commas, most notably in the Expires field (which is not quoted
   and can contain spaces as well). The last key/value does not have to have a
   semi-colon, so this can be tricky to parse if another cookie occurs
-  after this (See GSRangeOfCookie).
+  after this (See GSCookieStrings).
 */
 
 #import "common.h"
@@ -46,19 +46,7 @@
 #import "Foundation/NSCalendarDate.h"
 #import "GNUstepBase/Unicode.h"
 
-NSString * const NSHTTPCookieComment = @"Comment";
-NSString * const NSHTTPCookieCommentURL = @"CommentURL";
-NSString * const NSHTTPCookieDiscard = @"Discard";
-NSString * const NSHTTPCookieDomain = @"Domain";
-NSString * const NSHTTPCookieExpires = @"Expires";
-NSString * const NSHTTPCookieMaximumAge = @"MaximumAge";
-NSString * const NSHTTPCookieName = @"Name";
-NSString * const NSHTTPCookieOriginURL = @"OriginURL";
-NSString * const NSHTTPCookiePath = @"Path";
-NSString * const NSHTTPCookiePort = @"Port";
-NSString * const NSHTTPCookieSecure = @"Secure";
-NSString * const NSHTTPCookieValue = @"Value";
-NSString * const NSHTTPCookieVersion = @"Version";
+static NSString * const HTTPCookieHTTPOnly = @"HTTPOnly";
 
 // Internal data storage
 typedef struct {
@@ -113,7 +101,7 @@ static const unsigned char whitespace[32] = {
 #define GS_IS_WHITESPACE(X) IS_BIT_SET(whitespace[(X)/8], (X) % 8)
 
 static id GSPropertyListFromCookieFormat(NSString *string, int version);
-static NSRange GSRangeOfCookie(NSString *string);
+static NSMutableArray *GSCookieStrings(NSString *string);
 
 @implementation NSHTTPCookie
 
@@ -140,36 +128,42 @@ static NSRange GSRangeOfCookie(NSString *string);
 		       forHeader: (NSString *)header
 			  andURL: (NSURL *)url
 {
-  int version;
-  NSString *defaultPath, *defaultDomain;
-  NSMutableArray *a;
+  int 			version;
+  NSString 		*defaultPath;
+  NSString		*defaultDomain;
+  NSMutableArray 	*cookies;
+  NSUInteger		count;
 
   if ([header isEqual: @"Set-Cookie"])
-    version = 0;
+    {
+      version = 0;
+    }
   else if ([header isEqual: @"Set-Cookie2"])
-    version = 1;
+    {
+      version = 1;
+    }
   else
-    return nil;
-
-  a = [NSMutableArray array];
+    {
+      return nil;
+    }
   defaultDomain = [url host];
   defaultPath = [url path];
   if ([[url absoluteString] hasSuffix: @"/"] == NO)
-    defaultPath = [defaultPath stringByDeletingLastPathComponent];
+    {
+      defaultPath = [defaultPath stringByDeletingLastPathComponent];
+    }
 
+  cookies = GSCookieStrings(field);
+  count = [cookies count];
   /* We could use an NSScanner here, but this string could contain all
      sorts of odd stuff. It's not quite a property list either - it has
      dates and also could have tokens without values. */
-  while (1)
+  while (count-- > 0)
     {
-      NSHTTPCookie *cookie;
-      NSMutableDictionary *dict;
-      NSString *onecookie;
-      NSRange range = GSRangeOfCookie(field);
-      
-      if (range.location == NSNotFound)
-	break;
-      onecookie = [field substringWithRange: range];
+      NSHTTPCookie 		*cookie;
+      NSMutableDictionary	*dict;
+      NSString			*onecookie = [cookies objectAtIndex: count];
+
       NS_DURING
 	dict = GSPropertyListFromCookieFormat(onecookie, version);
       NS_HANDLER
@@ -178,18 +172,25 @@ static NSRange GSRangeOfCookie(NSString *string);
       if ([dict count])
 	{
 	  if ([dict objectForKey: NSHTTPCookiePath] == nil)
-	    [dict setObject: defaultPath forKey: NSHTTPCookiePath];
-          if ([dict objectForKey: NSHTTPCookieDomain] == nil)
-            [dict setObject: defaultDomain forKey: NSHTTPCookieDomain];
+	    {
+	      [dict setObject: defaultPath forKey: NSHTTPCookiePath];
+	    }
+	  if ([dict objectForKey: NSHTTPCookieDomain] == nil)
+	    {
+	      [dict setObject: defaultDomain forKey: NSHTTPCookieDomain];
+	    }
 	  cookie = [NSHTTPCookie cookieWithProperties: dict];
 	  if (cookie)
-	    [a addObject: cookie];
+	    {
+	      [cookies replaceObjectAtIndex: count withObject: cookie];
+	    }
+	  else
+	    {
+	      [cookies removeObjectAtIndex: count];
+	    }
 	}
-      if ([field length] <= NSMaxRange(range))
-	break;
-      field = [field substringFromIndex: NSMaxRange(range)+1];
     }
-  return a;
+  return cookies;
 }
 
 + (NSArray *) cookiesWithResponseHeaderFields: (NSDictionary *)headerFields
@@ -297,7 +298,7 @@ static NSRange GSRangeOfCookie(NSString *string);
       return nil;
     }
 
-  rawProps = AUTORELEASE([properties mutableCopy]);
+  rawProps = [[properties mutableCopy] autorelease];
   if ([rawProps objectForKey: @"Created"] == nil)
     {
       NSInteger seconds;
@@ -326,6 +327,11 @@ static NSRange GSRangeOfCookie(NSString *string);
 - (BOOL) isSecure
 {
   return [[this->_properties objectForKey: NSHTTPCookieSecure] boolValue];
+}
+
+- (BOOL) isHTTPOnly
+{
+  return [[this->_properties objectForKey: HTTPCookieHTTPOnly] boolValue];
 }
 
 - (BOOL) isSessionOnly
@@ -380,13 +386,6 @@ static NSRange GSRangeOfCookie(NSString *string);
   return [[other properties] isEqual: [self properties]];
 }
 
-- (BOOL) isHTTPOnly
-{
-  if ([this->_properties objectForKey: @"HttpOnly"])
-    return [[this->_properties objectForKey: @"HttpOnly"] boolValue];
-  return NO;
-}
-
 @end
 
 #define inrange(ch,min,max) ((ch)>=(min) && (ch)<=(max))
@@ -432,7 +431,8 @@ static BOOL skipSpace(pldata *pld)
   return NO;
 }
 
-static inline id parseQuotedString(pldata* pld)
+NS_RETURNS_RETAINED static inline NSString*
+parseQuotedString(pldata* pld)
 {
   unsigned	start = ++pld->pos;
   unsigned	escaped = 0;
@@ -626,12 +626,13 @@ static inline id parseQuotedString(pldata* pld)
 
 /* In cookies, keys are terminated by '=' and values are terminated by ';'
    or and EOL */
-static inline id parseUnquotedString(pldata *pld, char endChar)
+NS_RETURNS_RETAINED static inline NSString*
+parseUnquotedString(pldata *pld, char endChar)
 {
   unsigned	start = pld->pos;
   unsigned	i;
   unsigned	length;
-  id		obj;
+  NSString	*obj;
   unichar	*chars;
 
   while (pld->pos < pld->end)
@@ -648,12 +649,11 @@ static inline id parseUnquotedString(pldata *pld, char endChar)
       chars[i] = pld->ptr[start + i];
     }
 
-    {
-      obj = [NSString alloc];
-      obj = [obj initWithCharactersNoCopy: chars
-				   length: length
-			     freeWhenDone: YES];
-    }
+  obj = [NSString alloc];
+  obj = [obj initWithCharactersNoCopy: chars
+                               length: length
+                         freeWhenDone: YES];
+
   return obj;
 }
 
@@ -697,10 +697,11 @@ _setCookieKey(NSMutableDictionary *dict, NSString *key, NSString *value)
   else if ([[key lowercaseString] isEqual: @"secure"])
     [dict setObject: [NSNumber numberWithBool: YES] 
 	     forKey: NSHTTPCookieSecure];
+  else if ([[key lowercaseString] isEqual:@"httponly"])
+    [dict setObject: [NSNumber numberWithBool: YES]
+             forKey: HTTPCookieHTTPOnly];
   else if ([[key lowercaseString] isEqual: @"version"])
     [dict setObject: value forKey: NSHTTPCookieVersion];
-  else if ([[key lowercaseString] isEqual: @"httponly"])
-    [dict setObject: @"YES" forKey: @"HttpOnly"];
   return YES;
 }
 
@@ -732,7 +733,8 @@ GSPropertyListFromCookieFormat(NSString *string, int version)
   _pld.key = NO;
   _pld.old = YES;	// OpenStep style
 
-  dict = [[NSMutableDictionary allocWithZone: NSDefaultMallocZone()] initWithCapacity: 0];
+  dict = [[NSMutableDictionary allocWithZone: NSDefaultMallocZone()]
+    initWithCapacity: 0];
   while (skipSpace(pld) == YES)
     {
       id	key;
@@ -744,7 +746,24 @@ GSPropertyListFromCookieFormat(NSString *string, int version)
 	}
       else
 	{
+	  unsigned int oldpos = pld->pos;
+	  unsigned int keyvalpos = 0;
+	  id keyval = parseUnquotedString(pld, ';');
+	  keyvalpos = pld->pos;
+	  pld->pos = oldpos;
 	  key = parseUnquotedString(pld, '=');
+
+	  // Detect value-less cookies like HTTPOnly; and Secure;
+	  if ([keyval length] < [key length])
+	    {
+	      pld->pos = keyvalpos;
+              DESTROY(key);
+	      key = keyval;
+	    }
+          else
+            {
+              DESTROY(keyval);
+            }
 	}
       if (key == nil)
 	{
@@ -820,77 +839,139 @@ GSPropertyListFromCookieFormat(NSString *string, int version)
   return AUTORELEASE(dict);
 }
 
-/* Look for the comma that separates cookies. Commas can also occur in
-   date strings, like "expires", but perhaps it can occur other places.
-   For instance, the key/value pair  key=value1,value2 is not really
-   valid, but should we handle it anyway? Definitely we should handle the
-   perfectly normal case of:
-
-   Set-Cookie: domain=test.com; expires=Thu, 12-Sep-2109 14:58:04 GMT;
-     session=foo
-   Set-Cookie: bar=baz
-
-  which gets concatenated into something like:
-
-  Set-Cookie: domain=test.com; expires=Thu, 12-Sep-2109 14:58:04 GMT;
-    session=foo,bar=baz
-
-*/
-static NSRange 
-GSRangeOfCookie(NSString *string)
+/* Split a string containing comma seprated cookeie settings into an array
+ * of individual cookie specifications.
+ * Look for the comma that separates cookies. Commas can also occur in
+ * date strings, like "expires", but perhaps it can occur other places.
+ * For instance, the key/value pair  key=value1,value2 is not really
+ * valid, but should we handle it anyway? Definitely we should handle the
+ * perfectly normal case of:
+ *
+ * Set-Cookie: domain=test.com; expires=Thu, 12-Sep-2109 14:58:04 GMT;
+ *   session=foo
+ * Set-Cookie: bar=baz
+ *
+ * which gets concatenated into something like:
+ *
+ * Set-Cookie: domain=test.com; expires=Thu, 12-Sep-2109 14:58:04 GMT;
+ *   session=foo,bar=baz
+ */
+static NSMutableArray* 
+GSCookieStrings(NSString *string)
 {
-  pldata		_pld;
-  pldata		*pld = &_pld;
+  unsigned char		*ptr;
+  unsigned		pos;
+  unsigned		end;
   NSData		*d;
-  NSRange               range;
+  NSMutableArray	*cookies;
+  unsigned		start = 0;
+  unsigned 		saved = 0;
 
-  /*
-   * An empty string is a nil property list.
-   */
-  range = NSMakeRange(NSNotFound, NSNotFound);
   if ([string length] == 0)
     {
-      return range;
+      return nil;
     }
 
   d = [string dataUsingEncoding: NSUTF8StringEncoding];
   NSCAssert(d, @"Couldn't get utf8 data from string.");
-  _pld.ptr = (unsigned char*)[d bytes];
-  _pld.pos = 0;
-  _pld.end = [d length];
-  _pld.err = nil;
-  _pld.lin = 0;
-  _pld.opt = 0;
-  _pld.key = NO;
-  _pld.old = YES;	// OpenStep style
+  ptr = (unsigned char*)[d bytes];
+  pos = 0;
+  end = [d length];
 
-  // Check for continuation for multiple cookies...
-  if (pld->ptr[pld->pos] == ',')
-    pld->pos++;
-  NSInteger initpos = pld->pos;
-  
-  while (skipSpace(pld) == YES)
+  cookies = [NSMutableArray arrayWithCapacity: 4];
+  while (pos < end)
     {
-      if (pld->ptr[pld->pos] == ',')
+      while (pos < end && isspace(ptr[pos]))
 	{
-	  /* Look ahead for something that will tell us if this is a
-	     separate cookie or not */
-          unsigned saved_pos = pld->pos++;
-	  while (pld->ptr[pld->pos] != '=' && pld->ptr[pld->pos] != ';'
-		&& pld->ptr[pld->pos] != ',' && pld->pos < pld->end )
-	    pld->pos++;
-	  if (pld->ptr[pld->pos] == '=')
-	    {
-	      /* Separate comment */
-	      range = NSMakeRange(initpos, saved_pos-initpos);
-	      break;
-	    }
-	  pld->pos = saved_pos;
+	  pos++;
 	}
-      pld->pos++;
-    }
-  if (range.location == NSNotFound)
-    range = NSMakeRange(initpos, [string length]-initpos);
+      start = pos;
 
-  return range;
+      while (pos < end)
+	{
+	  if (ptr[pos] == ',')
+	    {
+	      /* Look ahead for something that will tell us if this is a
+	       * separate cookie or not.  We look for something of the form
+	       * ' token =' where a space represents any optional whitespace. 
+	       */
+	      saved = pos++;
+	      while (pos < end && isspace(ptr[pos]))
+		{
+		  pos++;
+		}
+	      if (pos < end)
+		{
+		  const char *bad = "()<>@,;:\\\"/[]?={}";
+		  int	c = ptr[pos];
+
+		  /* skip past token characters.
+		   */
+		  while (c > 32 && c < 128 && strchr(bad, c) == 0)
+		    {
+		      pos++;
+		      if (pos < end)
+			{
+			  c = ptr[pos];
+			}
+		    }
+		  while (pos < end && isspace(ptr[pos]))
+		    {
+		      pos++;
+		    }
+		  if (pos < end && '=' == ptr[pos])
+		    {
+		      pos = saved + 1;
+		      /* We found a comma separator: so make the text before
+		       * the comma a cooke string as long as it is not empty.
+		       */
+		      while (saved > start
+			&& isspace(ptr[saved - 1]))
+			{
+			  saved--;
+			}
+		      if (saved > start)
+			{
+			  NSString	*str = [NSString alloc];
+
+			  str = [str initWithBytes: ptr + start
+					    length: saved - start
+					  encoding: NSUTF8StringEncoding];
+			  [cookies addObject: str];
+			  RELEASE(str);
+			}
+		      start = saved = pos;
+		    }
+		}
+	      pos = saved;
+	    }
+	  pos++;
+	}
+    }
+  if (pos > start)
+    {
+      /* There was data after the last comma; make it into a cookie string
+       * as long as it's not empty after removing spaces
+       */
+      saved = pos;
+      while (saved > start
+	&& isspace(ptr[saved - 1]))
+	{
+	  saved--;
+	}
+      if (saved > start)
+	{
+	  NSString	*str = [NSString alloc];
+
+	  /* There may not be room to add a nul terminator, so we use an
+	   * initialiser which doesn't need one.
+	   */
+	  str = [str initWithBytes: ptr + start
+			    length: saved - start
+			  encoding: NSUTF8StringEncoding];
+	  [cookies addObject: str];
+	  RELEASE(str);
+	}
+    }
+  return cookies;	// The individual cookies
 }

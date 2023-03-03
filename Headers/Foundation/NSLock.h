@@ -69,11 +69,12 @@ extern "C" {
  * [NSRecursiveLock], have different restrictions.
  * </p>
  */
+GS_EXPORT_CLASS
 @interface NSLock : NSObject <NSLocking>
 {
 #if	GS_EXPOSE(NSLock)
 @protected
-  gs_mutex_t	_mutex;
+  gs_mutex_public_t	_mutex;
   NSString	*_name;
 #endif
 }
@@ -120,12 +121,13 @@ extern "C" {
 /**
  * NSCondition provides an interface to POSIX condition variables.
  */
+GS_EXPORT_CLASS
 @interface NSCondition : NSObject <NSLocking>
 {
 #if	GS_EXPOSE(NSCondition)
 @protected
-  gs_cond_t	_condition;
-  gs_mutex_t	_mutex;
+  gs_cond_public_t	_condition;
+  gs_mutex_public_t	_mutex;
   NSString	*_name;
 #endif
 }
@@ -170,6 +172,7 @@ extern "C" {
  *  condition is equal to a particular value.  The condition is set on
  *  initialization and whenever the lock is relinquished.
  */
+GS_EXPORT_CLASS
 @interface NSConditionLock : NSObject <NSLocking>
 {
 #if	GS_EXPOSE(NSConditionLock)
@@ -270,11 +273,12 @@ extern "C" {
  * thread must also unlock it (n) times before another thread 
  * can acquire the lock.
  */
+GS_EXPORT_CLASS
 @interface NSRecursiveLock : NSObject <NSLocking>
 {
 #if	GS_EXPOSE(NSRecursiveLock)
 @protected
-  gs_mutex_t	_mutex;
+  gs_mutex_public_t	_mutex;
   NSString      *_name;
 #endif
 }

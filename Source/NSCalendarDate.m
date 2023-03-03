@@ -17,12 +17,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSCalendarDate class reference</title>
    $Date$ $Revision$
@@ -41,9 +41,6 @@
 #import "Foundation/NSException.h"
 #import "Foundation/NSTimeZone.h"
 #import "Foundation/NSUserDefaults.h"
-#if 1 // DHV-???:
-#import "Foundation/NSValue.h"
-#endif
 #import "GNUstepBase/GSObjCRuntime.h"
 
 #import "GSPrivate.h"
@@ -212,21 +209,10 @@ dayOfCommonEra(NSTimeInterval when)
   return r;
 }
 
-char GNU_TOGGLE = 0;
-
 static void
 gregorianDateFromAbsolute(NSInteger abs,
   NSInteger *day, NSInteger *month, NSInteger *year)
 {
-	if (abs < 0) 
-	  {
-		if (month) *month = 0;
-		if (day) *day = 0;
-		if (year) *year = 0;
-		
-		return;
-	  }
-
   NSInteger     y;
   NSInteger     m;
 
@@ -240,12 +226,11 @@ gregorianDateFromAbsolute(NSInteger abs,
   m = 1;
   while (abs > absoluteGregorianDay(lastDayOfGregorianMonth(m, y), m, y))
     {
-      m++;	  
+      m++;
     }
   *year = y;
   *month = m;
   *day = abs - absoluteGregorianDay(1, m, y) + 1;
-
 }
 
 /**

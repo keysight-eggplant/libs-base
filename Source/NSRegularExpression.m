@@ -12,12 +12,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    $Date: 2010-09-18 16:09:58 +0100 (Sat, 18 Sep 2010) $ $Revision: 31371 $
    */
@@ -27,14 +27,18 @@
 #import "common.h"
 
 #if GS_USE_ICU == 1
-#include "unicode/uregex.h"
+#if defined(HAVE_UNICODE_UREGEX_H)
+#include <unicode/uregex.h>
+#elif defined(HAVE_ICU_H)
+#include <icu.h>
+#endif
 
 /* FIXME It would be nice to use autoconf for checking whether uregex_openUText
  * is defined.  However the naive check using AC_CHECK_FUNCS(uregex_openUText)
- * wonn't work because libicu internally renames all entry points with some cpp
+ * won't work because libicu internally renames all entry points with some cpp
  * magic.
  */
-#if (U_ICU_VERSION_MAJOR_NUM > 4 || (U_ICU_VERSION_MAJOR_NUM == 4 && U_ICU_VERSION_MINOR_NUM >= 4))
+#if U_ICU_VERSION_MAJOR_NUM > 4 || (U_ICU_VERSION_MAJOR_NUM == 4 && U_ICU_VERSION_MINOR_NUM >= 4) || defined(HAVE_ICU_H)
 #define HAVE_UREGEX_OPENUTEXT 1
 #endif
 
@@ -356,15 +360,13 @@ setupRegex(URegularExpression *regex,
   UErrorCode		s = 0;
   URegularExpression	*r = uregex_clone(regex, &s);
 
-  UTextInitWithNSString(txt, string);
-  uregex_setUText(r, txt, &s);
-  uregex_setRegion(r, range.location, range.location+range.length, &s);
-
   if (options & NSMatchingReportProgress)
     {
       uregex_setMatchCallback(r, callback, block, &s);
     }
-
+  UTextInitWithNSString(txt, string);
+  uregex_setUText(r, txt, &s);
+  uregex_setRegion(r, range.location, range.location+range.length, &s);
   if (options & NSMatchingWithoutAnchoringBounds)
     {
       uregex_useAnchoringBounds(r, FALSE, &s);
@@ -833,6 +835,14 @@ prepareResult(NSRegularExpression *regex,
   UTextInitWithNSString(&replacement, template);
 
   output = uregex_replaceAllUText(r, &replacement, NULL, &s);
+  if (0 != s)
+    {
+      uregex_close(r);
+      utext_close(&replacement);
+      utext_close(&txt);
+      DESTROY(ret);
+      return 0;
+    }
   utext_clone(&ret->txt, output, TRUE, TRUE, &s);
   [string setString: ret];
   [ret release];
@@ -859,13 +869,21 @@ prepareResult(NSRegularExpression *regex,
   UTextInitWithNSString(&replacement, template);
 
   output = uregex_replaceAllUText(r, &replacement, NULL, &s);
+  if (0 != s)
+    {
+      uregex_close(r);
+      utext_close(&replacement);
+      utext_close(&txt);
+      DESTROY(ret);
+      return nil;
+    }
   utext_clone(&ret->txt, output, TRUE, TRUE, &s);
   uregex_close(r);
 
   utext_close(&txt);
   utext_close(output);
   utext_close(&replacement);
-  return ret;
+  return AUTORELEASE(ret);
 }
 
 - (NSString*) replacementStringForResult: (NSTextCheckingResult*)result
@@ -889,13 +907,21 @@ prepareResult(NSRegularExpression *regex,
   UTextInitWithNSString(&replacement, template);
 
   output = uregex_replaceFirstUText(r, &replacement, NULL, &s);
+  if (0 != s)
+    {
+      uregex_close(r);
+      utext_close(&replacement);
+      utext_close(&txt);
+      DESTROY(ret);
+      return nil;
+    }
   utext_clone(&ret->txt, output, TRUE, TRUE, &s);
   uregex_close(r);
 
   utext_close(&txt);
   utext_close(output);
   utext_close(&replacement);
-  return ret;
+  return AUTORELEASE(ret);
 }
 #else
 - (NSUInteger) replaceMatchesInString: (NSMutableString*)string

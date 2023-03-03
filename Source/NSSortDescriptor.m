@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */
 
 #import "common.h"
@@ -112,32 +112,27 @@ static BOOL     initialized = NO;
   NSComparisonResult result;
   id comparedKey1 = [object1 valueForKeyPath: _key];
   id comparedKey2 = [object2 valueForKeyPath: _key];
-  
-  // Cocoa seems to either capture the exception thrown in the nil parameter case or
-  // do some other type of comparison for it's internal sorting algorithm.  We will
-  // just capture the exception and continue for now...
-  NS_DURING
-  {
-    result = (NSComparisonResult) [comparedKey1 performSelector: _selector
-                                                     withObject: comparedKey2];
-  }
-  NS_HANDLER
-  {
-    // What should we use for the result here???
-    result = NSOrderedAscending;
-  }
-  NS_ENDHANDLER
 
+  if (_comparator == NULL)
+    {
+      result = (NSComparisonResult) [comparedKey1 performSelector: _selector
+                                                       withObject: comparedKey2];
+    }
+  else
+    {
+      result = CALL_NON_NULL_BLOCK(((NSComparator)_comparator), comparedKey1, comparedKey2);
+    }
+  
   if (_ascending == NO)
     {
       if (result == NSOrderedAscending)
-        {
-          result = NSOrderedDescending;
-        }
+	{
+	  result = NSOrderedDescending;
+	}
       else if (result == NSOrderedDescending)
-        {
-          result = NSOrderedAscending;
-        }
+	{
+	  result = NSOrderedAscending;
+	}
     }
 
   return result;
@@ -145,17 +140,29 @@ static BOOL     initialized = NO;
 
 - (id) copyWithZone: (NSZone*)zone
 {
+  NSSortDescriptor *copy = nil;
   if (NSShouldRetainWithZone(self, zone))
     {
       return RETAIN(self);
     }
-  return [[NSSortDescriptor allocWithZone: zone]
-    initWithKey: _key ascending: _ascending selector: _selector];
+
+  if (_comparator == NULL)
+    {
+      copy = [[NSSortDescriptor allocWithZone: zone]
+               initWithKey: _key ascending: _ascending selector: _selector];
+    }
+  else
+    {
+      copy = [[NSSortDescriptor allocWithZone: zone]
+               initWithKey: _key ascending: _ascending comparator: _comparator];
+    }
+  return copy;
 }
 
 - (void) dealloc
 {
   TEST_RELEASE(_key);
+  TEST_RELEASE(_comparator);
   [super dealloc];
 }
 
@@ -180,9 +187,50 @@ static BOOL     initialized = NO;
                                       selector: aSelector]);
 }
 
++ (id)sortDescriptorWithKey: (NSString *)key 
+                  ascending: (BOOL)ascending 
+                 comparator: (NSComparator)cmptr
+{
+  return AUTORELEASE([[self alloc] initWithKey: key
+                                     ascending: ascending
+                                    comparator: cmptr]);
+  
+}
+
 - (id) initWithKey: (NSString *) key ascending: (BOOL) ascending
 {
   return [self initWithKey: key ascending: ascending selector: NULL];
+}
+
+- (id) initWithKey: (NSString *) key
+         ascending: (BOOL) ascending
+        comparator: (NSComparator) cmptr
+{
+  if ([self init])
+    {
+      if (key == nil)
+        {
+          [NSException raise: NSInvalidArgumentException
+                      format: @"%@", _(@"Passed nil key when initializing "
+                                       @"an NSSortDescriptor.")];
+        }
+      if (cmptr == NULL)
+        {
+          [NSException raise: NSInvalidArgumentException
+                      format: @"%@", _(@"Passed NULL comparator when initializing "
+                                       @"an NSSortDescriptor.")];
+        }
+
+      ASSIGN(_key, key);
+      _ascending = ascending;
+      ASSIGN(_comparator, (id)cmptr);
+
+      return self;
+    }
+  else
+    {
+      return nil;
+    }
 }
 
 - (id) initWithKey: (NSString *) key
@@ -274,13 +322,10 @@ static BOOL     initialized = NO;
     {
       if ([decoder allowsKeyedCoding])
         {
-          // Cocoa defaults...
-          _ascending = YES;
-          
           ASSIGN(_key, [decoder decodeObjectForKey: @"NSKey"]);
-          if ([decoder containsValueForKey: @"NSAscending"])
-            _ascending = [decoder decodeBoolForKey: @"NSAscending"];
-          _selector = NSSelectorFromString([decoder decodeObjectForKey: @"NSSelector"]);
+          _ascending = [decoder decodeBoolForKey: @"NSAscending"];
+          _selector = NSSelectorFromString([decoder
+            decodeObjectForKey: @"NSSelector"]);
         }
       else
         {

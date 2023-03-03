@@ -13,12 +13,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    $Date: 2007-06-08 04:04:14 -0400 (Fri, 08 Jun 2007) $ $Revision: 25230 $
    */
@@ -309,10 +309,10 @@
 {
   if (notifiesObservers)
     {
-  changeInProgress = YES;
-  [object willChangeValueForKey: key
-                withSetMutation: NSKeyValueUnionSetMutation
-                   usingObjects: aSet];
+      changeInProgress = YES;
+      [object willChangeValueForKey: key
+                    withSetMutation: NSKeyValueUnionSetMutation
+                       usingObjects: aSet];
     }
   if (addSetInvocation)
     {
@@ -321,15 +321,15 @@
     }
   else
     {
-    [super unionSet: aSet];
+      [super unionSet: aSet];
     }
   if (notifiesObservers)
     {
       changeInProgress = NO;
-  [object didChangeValueForKey: key
-               withSetMutation: NSKeyValueUnionSetMutation
-                  usingObjects: aSet];
-}
+      [object didChangeValueForKey: key
+                   withSetMutation: NSKeyValueUnionSetMutation
+                      usingObjects: aSet];
+    }
 }
 
 - (void) removeObject: (id)anObject
@@ -359,10 +359,10 @@
 {
   if (notifiesObservers)
     {
-  changeInProgress = YES;
-  [object willChangeValueForKey: key
-                withSetMutation: NSKeyValueMinusSetMutation
-                   usingObjects: aSet];
+      changeInProgress = YES;
+      [object willChangeValueForKey: key
+                    withSetMutation: NSKeyValueMinusSetMutation
+                       usingObjects: aSet];
     }
   if (removeSetInvocation)
     {
@@ -375,21 +375,21 @@
     }
   if (notifiesObservers)
     {
-  [object didChangeValueForKey: key
-               withSetMutation: NSKeyValueMinusSetMutation
-                  usingObjects: aSet];
-  changeInProgress = NO;
-}
+      [object didChangeValueForKey: key
+                   withSetMutation: NSKeyValueMinusSetMutation
+                      usingObjects: aSet];
+      changeInProgress = NO;
+    }
 }
 
 - (void) intersectSet: (NSSet *)aSet
 {
   if (notifiesObservers)
     {
-  changeInProgress = YES;
-  [object willChangeValueForKey: key
-                withSetMutation: NSKeyValueIntersectSetMutation
-                   usingObjects: aSet];
+      changeInProgress = YES;
+      [object willChangeValueForKey: key
+                    withSetMutation: NSKeyValueIntersectSetMutation
+                       usingObjects: aSet];
     }
   if (intersectInvocation)
     {
@@ -402,21 +402,21 @@
     }
   if (notifiesObservers)
     {
-  [object didChangeValueForKey: key
-               withSetMutation: NSKeyValueIntersectSetMutation
-                  usingObjects: aSet];
-  changeInProgress = NO;
-}
+      [object didChangeValueForKey: key
+                   withSetMutation: NSKeyValueIntersectSetMutation
+                      usingObjects: aSet];
+       changeInProgress = NO;
+    }
 }
 
 - (void) setSet: (NSSet *)aSet
 {
   if (notifiesObservers)
     {
-  changeInProgress = YES;
-  [object willChangeValueForKey: key
-                withSetMutation: NSKeyValueSetSetMutation
-                   usingObjects: aSet];
+      changeInProgress = YES;
+      [object willChangeValueForKey: key
+                    withSetMutation: NSKeyValueSetSetMutation
+                       usingObjects: aSet];
     }
   if (setSetInvocation)
     {
@@ -429,11 +429,11 @@
     }
   if (notifiesObservers)
     {
-  [object didChangeValueForKey: key
-               withSetMutation: NSKeyValueSetSetMutation
-                  usingObjects: aSet];
-  changeInProgress = NO;
-}
+      [object didChangeValueForKey: key
+                   withSetMutation: NSKeyValueSetSetMutation
+                      usingObjects: aSet];
+      changeInProgress = NO;
+    }
 }
 
 @end
@@ -474,18 +474,18 @@
 {
   if (notifiesObservers)
     {
-  [object willChangeValueForKey: key
-                withSetMutation: NSKeyValueSetSetMutation
-                   usingObjects: aSet];
+      [object willChangeValueForKey: key
+                    withSetMutation: NSKeyValueSetSetMutation
+                       usingObjects: aSet];
     }
   [setSetInvocation setArgument: &aSet  atIndex: 2];
   [setSetInvocation invoke];
   if (notifiesObservers)
     {
-  [object didChangeValueForKey: key
-               withSetMutation: NSKeyValueSetSetMutation
-                  usingObjects: aSet];
-}
+      [object didChangeValueForKey: key
+                   withSetMutation: NSKeyValueSetSetMutation
+                      usingObjects: aSet];
+    }
 }
 
 - (void) removeAllObjects
@@ -495,19 +495,19 @@
 
   if (notifiesObservers)
     {
-  [object willChangeValueForKey: key
-                withSetMutation: NSKeyValueMinusSetMutation
-                   usingObjects: theSet];
+      [object willChangeValueForKey: key
+                    withSetMutation: NSKeyValueMinusSetMutation
+                       usingObjects: theSet];
     }
   nothing = [NSSet set];
   [setSetInvocation setArgument: &nothing  atIndex: 2];
   [setSetInvocation invoke];
   if (notifiesObservers)
     {
-  [object didChangeValueForKey: key
-               withSetMutation: NSKeyValueMinusSetMutation
-                  usingObjects: theSet];
-}
+      [object didChangeValueForKey: key
+                   withSetMutation: NSKeyValueMinusSetMutation
+                      usingObjects: theSet];
+    }
 }
 
 - (void) addObject: (id)anObject
@@ -517,9 +517,9 @@
 
   if (notifiesObservers)
     {
-  [object willChangeValueForKey: key
-                withSetMutation: NSKeyValueUnionSetMutation
-                   usingObjects: unionSet];
+      [object willChangeValueForKey: key
+                    withSetMutation: NSKeyValueUnionSetMutation
+                       usingObjects: unionSet];
     }
   temp = [NSMutableSet setWithSet: [object valueForKey: key]];
   [temp addObject: anObject];
@@ -527,10 +527,10 @@
   [setSetInvocation invoke];
   if (notifiesObservers)
     {
-  [object didChangeValueForKey: key
-               withSetMutation: NSKeyValueUnionSetMutation
-                  usingObjects: unionSet];
-}
+      [object didChangeValueForKey: key
+                   withSetMutation: NSKeyValueUnionSetMutation
+                      usingObjects: unionSet];
+    }
 }
 
 - (void) removeObject: (id)anObject
@@ -540,9 +540,9 @@
 
   if (notifiesObservers)
     {
-  [object willChangeValueForKey: key
-                withSetMutation: NSKeyValueMinusSetMutation
-                   usingObjects: minusSet];
+      [object willChangeValueForKey: key
+                    withSetMutation: NSKeyValueMinusSetMutation
+                       usingObjects: minusSet];
     }
   temp = [NSMutableSet setWithSet: [object valueForKey: key]];
   [temp removeObject: anObject];
@@ -550,10 +550,10 @@
   [setSetInvocation invoke];
   if (notifiesObservers)
     {
-  [object didChangeValueForKey: key
-               withSetMutation: NSKeyValueMinusSetMutation
-                  usingObjects: minusSet];
-}
+      [object didChangeValueForKey: key
+                   withSetMutation: NSKeyValueMinusSetMutation
+                      usingObjects: minusSet];
+    }
 }
 
 - (void) unionSet: (id)anObject
@@ -562,9 +562,9 @@
 
   if (notifiesObservers)
     {
-  [object willChangeValueForKey: key
-                withSetMutation: NSKeyValueUnionSetMutation
-                   usingObjects: anObject];
+      [object willChangeValueForKey: key
+                    withSetMutation: NSKeyValueUnionSetMutation
+                       usingObjects: anObject];
     }
   temp = [NSMutableSet setWithSet: [object valueForKey: key]];
   [temp unionSet: anObject];
@@ -572,10 +572,10 @@
   [setSetInvocation invoke];
   if (notifiesObservers)
     {
-  [object didChangeValueForKey: key
-               withSetMutation: NSKeyValueUnionSetMutation
-                  usingObjects: anObject];
-}
+      [object didChangeValueForKey: key
+                   withSetMutation: NSKeyValueUnionSetMutation
+                      usingObjects: anObject];
+    }
 }
 
 - (void) minusSet: (id)anObject
@@ -584,9 +584,9 @@
  
   if (notifiesObservers)
     {
-  [object willChangeValueForKey: key
-                withSetMutation: NSKeyValueMinusSetMutation
-                   usingObjects: anObject];
+      [object willChangeValueForKey: key
+                    withSetMutation: NSKeyValueMinusSetMutation
+                       usingObjects: anObject];
     }
   temp = [NSMutableSet setWithSet: [object valueForKey: key]];
   [temp minusSet: anObject];
@@ -594,10 +594,10 @@
   [setSetInvocation invoke];
   if (notifiesObservers)
     {
-  [object didChangeValueForKey: key
-               withSetMutation: NSKeyValueMinusSetMutation
-                  usingObjects: anObject];
-}
+      [object didChangeValueForKey: key
+                   withSetMutation: NSKeyValueMinusSetMutation
+                      usingObjects: anObject];
+    }
 }
 
 - (void) intersectSet: (id)anObject
@@ -606,9 +606,9 @@
 
   if (notifiesObservers)
   {
-  [object willChangeValueForKey: key
-                withSetMutation: NSKeyValueIntersectSetMutation
-                   usingObjects: anObject];
+    [object willChangeValueForKey: key
+                  withSetMutation: NSKeyValueIntersectSetMutation
+                     usingObjects: anObject];
   }
   temp = [NSMutableSet setWithSet: [object valueForKey: key]];
   [temp intersectSet: anObject];
@@ -616,10 +616,10 @@
   [setSetInvocation invoke];
   if (notifiesObservers)
     {
-  [object didChangeValueForKey: key
-               withSetMutation: NSKeyValueIntersectSetMutation
-                  usingObjects: anObject];
-}
+      [object didChangeValueForKey: key
+                   withSetMutation: NSKeyValueIntersectSetMutation
+                      usingObjects: anObject];
+    }
 }
 
 @end

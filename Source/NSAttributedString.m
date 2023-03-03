@@ -20,7 +20,7 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    If you are interested in a warranty or support for this source code,
    contact Scott Christley <scottc@net-community.com> for more information.
@@ -28,7 +28,7 @@
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSAttributedString class reference</title>
    $Date$ $Revision$
@@ -243,7 +243,9 @@ appendUIntData(NSMutableData *d, NSUInteger i)
 
       if (![aDecoder containsValueForKey: @"NSAttributeInfo"])
         {
-          NSDictionary *attributes = [aDecoder decodeObjectForKey: @"NSAttributes"];
+          NSDictionary *attributes;
+
+          attributes = [aDecoder decodeObjectForKey: @"NSAttributes"];
           self = [self initWithString: string attributes: attributes];
         }
       else
@@ -550,7 +552,8 @@ appendUIntData(NSMutableData *d, NSUInteger i)
   if (NSMaxRange(rangeLimit) > [self length])
     {
       [NSException raise: NSRangeException
-		  format: @"RangeError in method -attribute:atIndex:longestEffectiveRange:inRange: in class NSAttributedString"];
+		  format: @"RangeError in method %@ in class %@",
+        NSStringFromSelector(_cmd), NSStringFromClass([self class])];
     }
 
   if (attributeName == nil)
@@ -713,7 +716,7 @@ appendUIntData(NSMutableData *d, NSUInteger i)
       RELEASE(m);
     }
 
-  IF_NO_GC(AUTORELEASE(newAttrString));
+  IF_NO_ARC(AUTORELEASE(newAttrString);)
   return newAttrString;
 }
 
@@ -745,7 +748,9 @@ appendUIntData(NSMutableData *d, NSUInteger i)
 
       if (![aDecoder containsValueForKey: @"NSAttributeInfo"])
         {
-          NSDictionary *attributes = [aDecoder decodeObjectForKey: @"NSAttributes"];
+          NSDictionary *attributes;
+
+          attributes = [aDecoder decodeObjectForKey: @"NSAttributes"];
           self = [self initWithString: string attributes: attributes];
         }
       else
@@ -889,7 +894,7 @@ appendUIntData(NSMutableData *d, NSUInteger i)
 	  newDict = (*initDictImp)(newDict, initDictSel, attrDict);
 	  (*setDictImp)(newDict, setDictSel, value, name);
 	  (*setImp)(self, setSel, newDict, effectiveRange);
-	  IF_NO_GC((*relDictImp)(newDict, relDictSel));
+	  IF_NO_ARC((*relDictImp)(newDict, relDictSel);)
 	
 	  if (NSMaxRange(effectiveRange) >= NSMaxRange(aRange))
 	    {
@@ -949,7 +954,7 @@ appendUIntData(NSMutableData *d, NSUInteger i)
 	  newDict = (*initDictImp)(newDict, initDictSel, attrDict);
 	  (*addDictImp)(newDict, addDictSel, attributes);
 	  (*setImp)(self, setSel, newDict, effectiveRange);
-	  IF_NO_GC((*relDictImp)(newDict, relDictSel));
+	  IF_NO_ARC((*relDictImp)(newDict, relDictSel);)
 	
 	  if (NSMaxRange(effectiveRange) >= NSMaxRange(aRange))
 	    {
@@ -998,7 +1003,7 @@ appendUIntData(NSMutableData *d, NSUInteger i)
 	  newDict = (*initDictImp)(newDict, initDictSel, attrDict);
 	  (*remDictImp)(newDict, remDictSel, name);
 	  (*setImp)(self, setSel, newDict, effectiveRange);
-	  IF_NO_GC((*relDictImp)(newDict, relDictSel));
+	  IF_NO_ARC((*relDictImp)(newDict, relDictSel);)
 	
 	  if (NSMaxRange(effectiveRange) >= NSMaxRange(aRange))
 	    {

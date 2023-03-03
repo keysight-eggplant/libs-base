@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 */
 
 #import	<GNUstepBase/GSVersionMacros.h>
@@ -37,49 +37,22 @@
 #import "Foundation/NSDate.h"
 #import "Foundation/NSString.h"
 #import "Foundation/NSTimeZone.h"
-#import "Foundation/NSUserDefaults.h"
-
-NSString * const NSUserNotificationDefaultSoundName = @"NSUserNotificationDefaultSoundName";
 
 @interface NSUserNotification ()
-// Testplant-MAL-09272016: Need to copy this...
-@property (readwrite, copy) NSDate *actualDeliveryDate;
+@property (readwrite) NSDate *actualDeliveryDate;
 @property (readwrite, getter=isPresented) BOOL presented;
 @property (readwrite, getter=isRemote) BOOL remote;
 @property (readwrite) NSUserNotificationActivationType activationType;
-// Testplant-MAL-09272016: Need to copy this...
-@property (readwrite, copy) NSAttributedString *response;
+@property (readwrite) NSAttributedString *response;
 @end
 
 @implementation NSUserNotification
-
-// Testplant-MAL-09272016: Our clang version doens't seem to work without this...
-@synthesize title;
-@synthesize subtitle;
-@synthesize informativeText;
-@synthesize actionButtonTitle;
-@synthesize userInfo;
-@synthesize deliveryDate;
-@synthesize deliveryTimeZone;
-@synthesize deliveryRepeatInterval;
-@synthesize actualDeliveryDate;
-@synthesize presented;
-@synthesize remote;
-@synthesize soundName;
-@synthesize hasActionButton;
-@synthesize activationType;
-@synthesize otherButtonTitle;
-@synthesize identifier;
-@synthesize contentImage;
-@synthesize hasReplyButton;
-@synthesize responsePlaceholder;
-@synthesize response;
 
 - (id) init
 {
   if (nil != (self = [super init]))
     {
-      self.hasActionButton = YES;
+      [self setHasActionButton: YES];
     }
   return self;
 }
@@ -95,20 +68,21 @@ NSString * const NSUserNotificationDefaultSoundName = @"NSUserNotificationDefaul
   return NSCopyObject(self, 0, zone);
 }
 
-- (NSString *)description
+- (NSString *) description
 {
   NSMutableString *d = [NSMutableString stringWithCapacity:80];
-  [d appendFormat:@"<%s:%p< {", object_getClassName(self), self];
-  [d appendFormat:@" title: \"%@\"", self.title];
-  [d appendFormat:@" informativeText: \"%@\"", self.informativeText];
-  [d appendFormat:@" actionButtonTitle: \"%@\"", self.actionButtonTitle];
-  if (self.actualDeliveryDate)
-  {
-    [d appendFormat:@" actualDeliveryDate: %@", self.actualDeliveryDate];
-    [d appendFormat:@" presented: %s", self.presented ? "YES" : "NO"];
-  }
-  [d appendFormat:@" next delivery date: %@", self.deliveryDate];
-  [d appendString:@" }"];
+
+  [d appendFormat: @"<%s:%p< {", object_getClassName(self), self];
+  [d appendFormat: @" title: \"%@\"", [self title]];
+  [d appendFormat: @" informativeText: \"%@\"", [self informativeText]];
+  [d appendFormat: @" actionButtonTitle: \"%@\"", [self actionButtonTitle]];
+  if ([self actualDeliveryDate])
+    {
+      [d appendFormat: @" actualDeliveryDate: %@", [self actualDeliveryDate]];
+      [d appendFormat: @" presented: %s", [self isPresented] ? "YES" : "NO"];
+    }
+  [d appendFormat: @" next delivery date: %@", [self deliveryDate]];
+  [d appendString: @" }"];
   return d;
 }
 
@@ -129,38 +103,18 @@ NSString * const NSUserNotificationDefaultSoundName = @"NSUserNotificationDefaul
 
 static NSUserNotificationCenter *defaultUserNotificationCenter = nil;
 
-// Testplant-MAL-09272016: Our clang version doesn't seem to work without this...
-@synthesize scheduledNotifications = _scheduledNotifications;
-@synthesize deliveredNotifications = _deliveredNotifications;
-@synthesize delegate = _delegate;
-
 + (Class) defaultUserNotificationCenterClass
 {
-#if defined(__MINGW__)
-  // TESTPLANT-MAL-02022018: TESTPLANT ONLY:
-  // Avoid loading user notification DLL's on Windows to avoid potential application exit
-  // with bad termination status when running in CLI mode...
-  if ([[NSUserDefaults standardUserDefaults] boolForKey: @"GSEnableUserNotificationCenter"])
-#endif
+  NSBundle *bundle = [NSBundle bundleForClass: [self class]];
+  NSString *bundlePath = [bundle pathForResource: @"NSUserNotification"
+                                          ofType: @"bundle"
+                                     inDirectory: nil];
+  if (bundlePath)
     {
-      NSBundle *bundle = [NSBundle bundleForClass: [self class]];
-      NSString *bundlePath = [bundle pathForResource: @"NSUserNotification"
-                                              ofType: @"bundle"
-                                         inDirectory: nil];
-      if (bundlePath)
+      bundle = [NSBundle bundleWithPath: bundlePath];
+      if (bundle)
         {
-          bundle = [NSBundle bundleWithPath: bundlePath];
-          // Testplant-MAL-09272016: Added debug...
-#if defined(DEBUG)
-          NSLog(@"%s:bundlePath: %@ bundle: %@", __PRETTY_FUNCTION__, bundlePath, bundle);
-#endif
-          if (bundle)
-            {
-#if defined(DEBUG)
-              NSLog(@"%s:principal class: %@", __PRETTY_FUNCTION__, [bundle principalClass]);
-#endif
-              return [bundle principalClass];
-            }
+          return [bundle principalClass];
         }
     }
   return self;
@@ -214,13 +168,13 @@ static NSUserNotificationCenter *defaultUserNotificationCenter = nil;
 
 - (void) scheduleNotification: (NSUserNotification *)un
 {
-  if (!un.deliveryDate)
+  if (![un deliveryDate])
     {
       [self deliverNotification: un];
       return;
     }
   [_scheduledNotifications addObject: un];
-  NSTimeInterval delay = [un.deliveryDate timeIntervalSinceNow];
+  NSTimeInterval delay = [[un deliveryDate] timeIntervalSinceNow];
   [self performSelector: @selector(deliverNotification:)
              withObject: un
              afterDelay: delay];
@@ -236,12 +190,13 @@ static NSUserNotificationCenter *defaultUserNotificationCenter = nil;
 
 - (void) _deliverNotification: (NSUserNotification *)un
 {
-  un.presented = YES;
+  [un setPresented: YES];
+  NSLog(@"NOTE: %@", un);
 }
 
 - (NSDate *) nextDeliveryDateForNotification: (NSUserNotification *)un
 {
-  NSDateComponents *repeatInterval = un.deliveryRepeatInterval;
+  NSDateComponents *repeatInterval = [un deliveryRepeatInterval];
   if (!repeatInterval)
     return nil;
 
@@ -253,9 +208,10 @@ static NSUserNotificationCenter *defaultUserNotificationCenter = nil;
   if (![cal timeZone])
     [cal setTimeZone:[NSTimeZone localTimeZone]];
 
-  NSDate *nextDeliveryDate = [cal dateByAddingComponents: repeatInterval
-                                                  toDate: un.actualDeliveryDate
-                                                 options: 0];
+  NSDate *nextDeliveryDate
+    = [cal dateByAddingComponents: repeatInterval
+                           toDate: [un actualDeliveryDate]
+                          options: 0];
   RELEASE(cal);
   return nextDeliveryDate;
 }
@@ -265,19 +221,19 @@ static NSUserNotificationCenter *defaultUserNotificationCenter = nil;
   [self removeScheduledNotification: un];
   [self _deliverNotification: un];
 
-  NSDate *actualDeliveryDate = un.deliveryDate;
+  NSDate *actualDeliveryDate = [un deliveryDate];
   if (!actualDeliveryDate)
     actualDeliveryDate = [NSDate date];
-  un.actualDeliveryDate = actualDeliveryDate;
+  [un setActualDeliveryDate: actualDeliveryDate];
   [_deliveredNotifications addObject: un];
-  un.deliveryDate = [self nextDeliveryDateForNotification: un];
-  if (un.deliveryDate)
+  [un setDeliveryDate: [self nextDeliveryDateForNotification: un]];
+  if ([un deliveryDate])
     [self scheduleNotification: un];
 
-  if (self.delegate && [self.delegate respondsToSelector:
+  if ([self delegate] && [[self delegate] respondsToSelector:
     @selector(userNotificationCenter:didDeliverNotification:)])
     {
-      [self.delegate userNotificationCenter: self didDeliverNotification: un];
+      [[self delegate] userNotificationCenter: self didDeliverNotification: un];
     }
 }
 

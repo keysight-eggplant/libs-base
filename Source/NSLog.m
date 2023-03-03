@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSLog reference</title>
    $Date$ $Revision$
@@ -151,10 +151,8 @@ _NSLog_standard_printf_handler(NSString* message)
     }
 
 #if	defined(_WIN32)
-#if defined(_WIN64) // OutputDebugString raises exceptions screwing up vectored exception handling
-  write(_NSLogDescriptor, buf, len);
-#else
   null_terminated_buf = UNISTR(message);
+
   OutputDebugStringW(null_terminated_buf);
 
   if ((GSPrivateDefaultsFlag(GSLogSyslog) == YES
@@ -180,7 +178,6 @@ _NSLog_standard_printf_handler(NSString* message)
 	    NULL);			// pointer to data
 	}
     }
-#endif
 #else
 
 #if	defined(HAVE_SYSLOG)
@@ -335,11 +332,15 @@ void
 NSLogv(NSString* format, va_list args)
 {
   NSMutableString	*prefix;
-  NSString		*message;
+  NSString              *message;
   NSString              *threadName = nil;
   NSThread              *t = nil;
+  /* NB. On systems like Android where there is no operating system thread
+   * ID available, the value returned by GSPrivateThreadID() should actually
+   * be the pointer to the NSThread object.  We will check for that later.
+   */
+  NSUInteger            tid = GSPrivateThreadID();
   static int		pid = 0;
-  NSAutoreleasePool	*arp = [NSAutoreleasePool new];
 
   if (_NSLog_printf_handler == NULL)
     {
@@ -362,28 +363,28 @@ NSLogv(NSString* format, va_list args)
        */
       t = GSCurrentThread();
       threadName = [t name];
-        }
+    }
 
   prefix = [[NSMutableString alloc] initWithCapacity: 1000];
 
 #ifdef	HAVE_SYSLOG
   if (GSPrivateDefaultsFlag(GSLogSyslog) == YES)
     {
-      if (nil == t)
-	{
+      if (nil == t || ((NSThread*)tid == t && nil == threadName))
+        {
           [prefix appendFormat: @"[thread:%"PRIuPTR"] ",
-            GSPrivateThreadID()];
-	}
+            tid];
+        }
       else if (nil == threadName)
         {
           [prefix appendFormat: @"[thread:%"PRIuPTR",%p] ",
-            GSPrivateThreadID(), t];
+            tid, t];
         }
       else
-	{
+        {
           [prefix appendFormat: @"[thread:%"PRIuPTR",%@] ",
-            GSPrivateThreadID(), threadName];
-	}
+            tid, threadName];
+        }
     }
   else
 #endif
@@ -392,32 +393,32 @@ NSLogv(NSString* format, va_list args)
       NSString  *cal;
 
       if (GSPrivateDefaultsFlag(GSLogOffset) == YES)
-	{
+        {
           fmt = @"%Y-%m-%d %H:%M:%S.%F %z";
-	}
+        }
       else
-	{
+        {
           fmt = @"%Y-%m-%d %H:%M:%S.%F";
-	}
+        }
       cal = [[NSCalendarDate calendarDate] descriptionWithCalendarFormat: fmt];
 
       [prefix appendString: cal];
       [prefix appendString: @" "];
       [prefix appendString: [[NSProcessInfo processInfo] processName]];
-      if (nil == t)
+      if (nil == t || ((NSThread*)tid == t && nil == threadName))
         {
           [prefix appendFormat: @"[%d:%"PRIuPTR"] ",
-            pid, GSPrivateThreadID()];
-    }
+            pid, tid];
+        }
       else if (nil == threadName)
         {
           [prefix appendFormat: @"[%d:%"PRIuPTR",%p] ",
-            pid, GSPrivateThreadID(), t];
+            pid, tid, t];
         }
       else
         {
           [prefix appendFormat: @"[%d:%"PRIuPTR",%@] ",
-            pid, GSPrivateThreadID(), threadName];
+            pid, tid, threadName];
         }
     }
 
@@ -441,6 +442,5 @@ NSLogv(NSString* format, va_list args)
   (*unlockImp)(myLock, @selector(unlock));
 
   [prefix release];
-  [arp drain];
 }
 

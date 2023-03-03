@@ -60,7 +60,7 @@
 {
 @public
   GSIMapTable_t	map;
-  NSUInteger _version;
+  unsigned long	_version;
 }
 @end
 
@@ -213,7 +213,7 @@ static SEL	objSel;
       node = GSIMapNodeForKey(&map, (GSIMapKey)(id)keys[i]);
       if (node)
 	{
-	  IF_NO_GC(RETAIN(objs[i]));
+	  IF_NO_ARC(RETAIN(objs[i]);)
 	  RELEASE(node->value.obj);
 	  node->value.obj = objs[i];
 	}
@@ -372,27 +372,6 @@ static SEL	objSel;
     (&map, state, stackbuf, len);
 }
 
-- (NSUInteger) sizeInBytesExcluding: (NSHashTable*)exclude
-{
-  NSUInteger	size = GSPrivateMemorySize(self, exclude);
-
-  if (size > 0)
-    {
-      GSIMapEnumerator_t	enumerator = GSIMapEnumeratorForMap(&map);
-      GSIMapNode 		node = GSIMapEnumeratorNextNode(&enumerator);
-
-      size += GSIMapSize(&map) - sizeof(map);
-      while (node != 0)
-        {
-          size += [node->key.obj sizeInBytesExcluding: exclude];
-          size += [node->value.obj sizeInBytesExcluding: exclude];
-          node = GSIMapEnumeratorNextNode(&enumerator);
-        }
-      GSIMapEndEnumerator(&enumerator);
-    }
-  return size;
-}
-
 @end
 
 @implementation GSMutableDictionary
@@ -431,20 +410,6 @@ static SEL	objSel;
   return self;
 }
 
-// TESTPLANT-MAL-10162017: Set comment/code in +initialize
-// ANY method added will REPLACE the swizzling copy from GSDictionary
-// so THIS MUST be a FULL implementation of the dealloc method...
-- (void) dealloc
-{
-  // TESTPLANT-MAL-10062017: Added dealloc method from GSDictionary
-  // in order to try to debug potential fast enumeration issue(s)
-  // in ePF...by changing _version the enumeration mutation check
-  // might catch the release before a crash...
-  _version = 0xDEADDEAD;
-  GSIMapEmptyMap(&map);
-  [super dealloc];
-}
-
 - (BOOL) makeImmutable
 {
   GSClassSwizzle(self, [GSDictionary class]);
@@ -461,7 +426,6 @@ static SEL	objSel;
 {
   GSIMapNode	node;
 
-  _version++;
   if (aKey == nil)
     {
       NSException	*e;
@@ -483,10 +447,11 @@ static SEL	objSel;
 				userInfo: self];
       [e raise];
     }
+  _version++;
   node = GSIMapNodeForKey(&map, (GSIMapKey)aKey);
   if (node)
     {
-      IF_NO_GC(RETAIN(anObject));
+      IF_NO_ARC(RETAIN(anObject);)
       RELEASE(node->value.obj);
       node->value.obj = anObject;
     }
@@ -520,7 +485,7 @@ static SEL	objSel;
 				   objects: (__unsafe_unretained id[])stackbuf
 				     count: (NSUInteger)len
 {
-  state->mutationsPtr = (unsigned long *)&_version;
+  state->mutationsPtr = &_version;
   return GSIMapCountByEnumeratingWithStateObjectsCount
     (&map, state, stackbuf, len);
 }
@@ -530,9 +495,11 @@ static SEL	objSel;
 
 - (id) initWithDictionary: (NSDictionary*)d
 {
-  [super init];
-  dictionary = (GSDictionary*)RETAIN(d);
-  enumerator = GSIMapEnumeratorForMap(&dictionary->map);
+  if (nil != (self = [super init]))
+    {
+      dictionary = (GSDictionary*)RETAIN(d);
+      enumerator = GSIMapEnumeratorForMap(&dictionary->map);
+    }
   return self;
 }
 

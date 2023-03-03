@@ -13,12 +13,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 */ 
 
 #ifndef __NSUndoManager_h_OBJECTS_INCLUDE
@@ -82,6 +82,7 @@ GS_EXPORT NSString* const NSUndoManagerWillRedoChangeNotification;
  */
 GS_EXPORT NSString* const NSUndoManagerWillUndoChangeNotification;
 
+GS_EXPORT_CLASS
 @interface NSUndoManager : NSObject
 {
 #if	GS_EXPOSE(NSUndoManager)
@@ -143,19 +144,6 @@ GS_EXPORT NSString* const NSUndoManagerWillUndoChangeNotification;
 - (NSString*) undoMenuTitleForUndoActionName: (NSString*)actionName;
 - (void) undoNestedGroup;
 
-@end
-
-// Testplant-MAL-09142016: This is added code for additional support
-@interface NSCellUndoManager : NSUndoManager
-// Special undo manager for the field editor so that it doesn't interfere with the window's undo manager.
-{
-  NSUndoManager * _nextUndoManager;
-}
-- (BOOL)canUndo;
-- (void)undo;
-- (BOOL)canRedo;
-- (void)redo;
-- (void)setNextUndoManager:(NSUndoManager *)manager;
 @end
 
 #if	defined(__cplusplus)

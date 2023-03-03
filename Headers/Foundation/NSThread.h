@@ -15,12 +15,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 */ 
 
 #ifndef __NSThread_h_GNUSTEP_BASE_INCLUDE
@@ -54,6 +54,7 @@ extern "C" {
  * without threading.  Non-threaded applications are more efficient
  * (no locking is required) and are easier to debug during development.
  */
+GS_EXPORT_CLASS
 @interface NSThread : NSObject
 {
 #if	GS_EXPOSE(NSThread)
@@ -73,6 +74,9 @@ extern "C" {
   void                  *_runLoopInfo;  // Per-thread runloop related info.
 #endif
 #if     GS_NONFRAGILE
+#  if defined(GS_NSThread_IVARS)
+@public GS_NSThread_IVARS;
+#  endif
 #else
   /* Pointer to private additional data used to avoid breaking ABI
    * when we don't have the non-fragile ABI available.
@@ -130,7 +134,7 @@ extern "C" {
 
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_2,GS_API_LATEST) \
   && GS_API_VERSION( 10200,GS_API_LATEST)
-+ (void) setThreadPriority: (double)pri;
++ (BOOL) setThreadPriority: (double)pri;
 + (double) threadPriority;
 #endif
 
@@ -367,6 +371,29 @@ GS_EXPORT BOOL GSRegisterCurrentThread (void);
  * this method call is not safe.  Posts an NSThreadWillExit
  * notification.  */
 GS_EXPORT void GSUnregisterCurrentThread (void);
+
+/* Internal API used by traced locks.
+ */
+@interface NSThread (GSLockInfo)
+
+/* Removes the mutex (either as the one we are waiting for or as a held mutex.
+ * For internal use only ... do not call this method.<br />
+ */
+- (NSString *) mutexDrop: (id)mutex;
+
+/* Converts a waiting mutex to a held one (if mutex is nil), or increments
+ * the recursion count of a mutex already held by this thread.<br />
+ * For internal use only ... do not call this method.
+ */
+- (NSString *) mutexHold: (id)mutex;
+
+/* Register the mutex that the thread is waiting for.<br />
+ * For internal use only ... do not call this method.
+ */
+- (NSString *) mutexWait: (id)mutex;
+
+@end
+
 #endif
 
 /*

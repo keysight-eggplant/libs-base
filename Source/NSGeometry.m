@@ -14,12 +14,12 @@
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Library General Public License for more details.
+ * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free
  * Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA 02111 USA.
+ * Boston, MA 02110 USA.
 
    <title>NSGeometry class reference</title>
    $Date$ $Revision$
@@ -365,40 +365,32 @@ NSRectFromString(NSString* string)
       return rect;
     }
   else
-  {
-    [scanner setScanLocation: 0];
-    if ((*scanStringImp)(scanner, scanStringSel, @"{", NULL)
-        && (*scanStringImp)(scanner, scanStringSel, @"{", NULL)
-        && (*scanFloatImp)(scanner, scanFloatSel, &rect.origin.x)
-        && (*scanStringImp)(scanner, scanStringSel, @",", NULL)
-        
-        && (*scanFloatImp)(scanner, scanFloatSel, &rect.origin.y)
-        && (*scanStringImp)(scanner, scanStringSel, @"}", NULL)
-        && (*scanStringImp)(scanner, scanStringSel, @",", NULL)
-        
-        && (*scanStringImp)(scanner, scanStringSel, @"{", NULL)
-        && (*scanFloatImp)(scanner, scanFloatSel, &rect.size.width)
-        && (*scanStringImp)(scanner, scanStringSel, @",", NULL)
-        
-        && (*scanFloatImp)(scanner, scanFloatSel, &rect.size.height)
-        && (*scanStringImp)(scanner, scanStringSel, @"}", NULL)
-        && (*scanStringImp)(scanner, scanStringSel, @"}", NULL))
-      {
-        return rect;
-      }
-    else
-      {
-        [scanner setScanLocation: 0];
-        if ((*scanFloatImp)(scanner, scanFloatSel, &rect.origin.x)
-            && (*scanFloatImp)(scanner, scanFloatSel, &rect.origin.y)
-            && (*scanFloatImp)(scanner, scanFloatSel, &rect.size.width)
-            && (*scanFloatImp)(scanner, scanFloatSel, &rect.size.height))
-          {
-            return rect;
-          }
-      }
-  }
-  return NSMakeRect(0, 0, 0, 0);
+    {
+      [scanner setScanLocation: 0];
+      if ((*scanStringImp)(scanner, scanStringSel, @"{", NULL)
+	&& (*scanStringImp)(scanner, scanStringSel, @"{", NULL)
+	&& (*scanFloatImp)(scanner, scanFloatSel, &rect.origin.x)
+	&& (*scanStringImp)(scanner, scanStringSel, @",", NULL)
+
+	&& (*scanFloatImp)(scanner, scanFloatSel, &rect.origin.y)
+	&& (*scanStringImp)(scanner, scanStringSel, @"}", NULL)
+	&& (*scanStringImp)(scanner, scanStringSel, @",", NULL)
+	
+	&& (*scanStringImp)(scanner, scanStringSel, @"{", NULL)
+	&& (*scanFloatImp)(scanner, scanFloatSel, &rect.size.width)
+	&& (*scanStringImp)(scanner, scanStringSel, @",", NULL)
+	
+	&& (*scanFloatImp)(scanner, scanFloatSel, &rect.size.height)
+	&& (*scanStringImp)(scanner, scanStringSel, @"}", NULL)
+	&& (*scanStringImp)(scanner, scanStringSel, @"}", NULL))
+	{
+	  return rect;
+	}
+      else
+	{
+	  return NSMakeRect(0, 0, 0, 0);
+	}
+    }
 }
 
 /* Tests for equality of floats/doubles.
@@ -505,5 +497,16 @@ NSEqualPoints(NSPoint aPoint, NSPoint bPoint)
 {
   return (almostEqual(aPoint.x, bPoint.x)
     && almostEqual(aPoint.y, bPoint.y)) ? YES : NO;
+}
+
+BOOL
+NSEdgeInsetsEqual(NSEdgeInsets e1, NSEdgeInsets e2)
+{
+  return (
+    almostEqual(e1.top, e2.top)
+    && almostEqual(e1.left, e2.left)
+    && almostEqual(e1.bottom, e2.bottom)
+    && almostEqual(e1.right, e2.right)
+  );
 }
 

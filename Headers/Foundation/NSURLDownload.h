@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 #ifndef __NSURLDownload_h_GNUSTEP_BASE_INCLUDE
@@ -44,6 +44,7 @@ extern "C" {
 /**
  * Handles download to file.
  */
+GS_EXPORT_CLASS
 @interface NSURLDownload : NSObject
 {
 #if	GS_EXPOSE(NSURLDownload)
@@ -119,7 +120,18 @@ extern "C" {
 /**
  * Protocol for delegate used to report the progress of the download.
  */
+
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_7, GS_API_LATEST)
+@protocol NSURLDownloadDelegate <NSObject>
+#if GS_PROTOCOLS_HAVE_OPTIONAL
+@optional
+#else
+@end
 @interface NSObject (NSURLDownloadDelegate)
+#endif
+#else
+@interface NSObject (NSURLDownloadDelegate)
+#endif
 
 /**
  * Called immediately once the download has started.

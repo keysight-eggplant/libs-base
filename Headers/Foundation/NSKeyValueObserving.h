@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 #ifndef __NSKeyValueObserving_h_GNUSTEP_BASE_INCLUDE
@@ -136,13 +136,7 @@ GS_EXPORT NSString *const NSKeyValueChangeNotificationIsPriorKey;
 	     context: (void*)aContext;
 
 - (void) removeObserver: (NSObject*)anObserver
-             forKeyPath: (NSString*)aPath;
-
-#if OS_API_VERSION(MAC_OS_X_VERSION_10_7,GS_API_LATEST)
-- (void) removeObserver: (NSObject*)anObserver
-             forKeyPath: (NSString*)aPath
-                context: (void *)context;
-#endif
+	     forKeyPath: (NSString*)aPath;
 
 @end
 

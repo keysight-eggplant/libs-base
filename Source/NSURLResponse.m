@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 #import "common.h"
@@ -81,8 +81,12 @@ typedef struct {
 	}
       s = [NSScanner scannerWithString: v];
       p = [GSMimeParser new];
-      c = AUTORELEASE([GSMimeHeader new]);
-      [p scanHeaderBody: s into: c];
+      c = AUTORELEASE([[GSMimeHeader alloc] initWithName: @"content-type"
+                                                   value: nil]);
+      /* We just set the header body, so we know it will scan and don't need
+       * to check the retrurn type.
+       */
+      (void)[p scanHeaderBody: s into: c];
       RELEASE(p);
       ASSIGNCOPY(this->MIMEType, [c value]);
       v = [c parameterForKey: @"charset"];
@@ -110,23 +114,30 @@ typedef struct {
     {
       GSMimeHeader	*h;
 
+      /* Remove existing headers matching the ones we are setting.
+       */
+      e = [(NSArray*)headers objectEnumerator];
+      while ((h = [e nextObject]) != nil)
+	{
+	  NSString	*n = [h namePreservingCase: YES];
+
+	  [this->headers removeObjectForKey: n];
+	}
+      /* Set new headers, joining values where we have multiple headers
+       * with the same name.
+       */
       e = [(NSArray*)headers objectEnumerator];
       while ((h = [e nextObject]) != nil)
         {
 	  NSString	*n = [h namePreservingCase: YES];
+	  NSString	*o = [this->headers objectForKey: n];
 	  NSString	*v = [h fullValue];
 
-          // If key == "Set-Cookie"/"Set-Cookie2" there could be multiple ones...
-          if ([n containsString: @"Set-Cookie"] && [self _valueForHTTPHeaderField: n])
-            {
-              NSMutableString *c = AUTORELEASE([[self _valueForHTTPHeaderField: n] mutableCopy]);
-              [c appendFormat: @", %@", v];
-              [self _setValue: c forHTTPHeaderField: n];
-            }
-          else // Otherwise just set the header field...
-            {
-              [self _setValue: v forHTTPHeaderField: n];
-            }
+	  if (nil != o)
+	    {
+	      n = [NSString stringWithFormat: @"%@, %@", o, n];
+	    }
+	  [self _setValue: v forHTTPHeaderField: n];
 	}
     }
   [self _checkHeaders];
@@ -208,6 +219,11 @@ typedef struct {
       NSZoneFree([self zone], this);
     }
   [super dealloc];
+}
+
+- (NSString*) description
+{
+  return [NSString stringWithFormat: @"%@ { URL: %@ } { Status Code: %d, Headers %@ }", [super description], this->URL, this->statusCode, this->headers];
 }
 
 - (void) encodeWithCoder: (NSCoder*)aCoder
@@ -308,7 +324,7 @@ typedef struct {
       p = AUTORELEASE([GSMimeParser new]);
       h = [[GSMimeHeader alloc] initWithName: @"content-displosition"
 				       value: disp];
-      IF_NO_GC([h autorelease];)
+      IF_NO_ARC([h autorelease];)
       sc = [NSScanner scannerWithString: [h value]];
       if ([p scanHeaderBody: sc into: h] == YES)
         {

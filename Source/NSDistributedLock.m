@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSDistributedLock class reference</title>
    $Date$ $Revision$
@@ -39,14 +39,6 @@
 #  include	<sys/fcntl.h>
 #elif	defined(HAVE_FCNTL_H)
 #  include	<fcntl.h>
-#endif
-
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
-
-#ifdef HAVE_WINDOWS_H
-#  include <windows.h>
 #endif
 
 
@@ -88,10 +80,6 @@ static NSFileManager	*mgr = nil;
     {
       NSDictionary	*attributes;
 
-      if (nil != _lockTime)
-	{
-	  NSLog(@"Breaking our own distributed lock %@", _lockPath);
-        }
       DESTROY(_lockTime);
       attributes = [mgr fileAttributesAtPath: _lockPath traverseLink: YES];
       if (attributes != nil)
@@ -239,35 +227,39 @@ static NSFileManager	*mgr = nil;
       [attributesToSet setObject: [NSNumber numberWithUnsignedInt: 0755]
 			  forKey: NSFilePosixPermissions];
 
-      /* We must not use the NSFileManager directory creation methods,
-       * since they consider the presence of an existing directory a
-       * success, and we need to know if we can actually create a new
-       * directory.
+      /* Here we depend on the fact that directory creation will fail if
+       * the directory already exists.
+       * We don't worry about any intermediate directories since we checked
+       * those when the receiver was initialised in the -initWithPath: method.
        */
-#if defined(_WIN32)
-      {
-        const unichar   *lpath;
-
-        lpath = [mgr fileSystemRepresentationWithPath: _lockPath];
-        locked = (CreateDirectoryW(lpath, 0) != FALSE) ? YES : NO;
-      }
-#else
-      {
-        const char      *lpath;
-
-        lpath = [mgr fileSystemRepresentationWithPath: _lockPath];
-        locked = (mkdir(lpath, 0777) == 0) ? YES : NO;
-      }
-#endif
-
+      locked = [mgr createDirectoryAtPath: _lockPath
+			       attributes: attributesToSet];
       if (NO == locked)
-        {
-          NSLog(@"Failed to create lock directory '%@' - %@",
-            _lockPath, [NSError _last]);
-        }
-      else
 	{
-          [mgr changeFileAttributes: attributesToSet atPath: _lockPath];
+	  BOOL	dir;
+
+	  /* We expect the directory creation to have failed because
+	   * it already exists as another processes lock.
+	   * If the directory doesn't exist, then either the other
+	   * process has removed it's lock (and we can retry)
+	   * or we have a severe problem!
+	   */
+	  if ([mgr fileExistsAtPath: _lockPath isDirectory: &dir] == NO)
+	    {
+	      locked = [mgr createDirectoryAtPath: _lockPath
+		      withIntermediateDirectories: YES
+				       attributes: attributesToSet
+					    error: NULL];
+	      if (NO == locked)
+		{
+		  NSLog(@"Failed to create lock directory '%@' - %@",
+		    _lockPath, [NSError _last]);
+		}
+	    }
+	}
+
+      if (YES == locked)
+	{
 	  attributes = [mgr fileAttributesAtPath: _lockPath
 				    traverseLink: YES];
 	  if (attributes == nil)

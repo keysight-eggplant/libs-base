@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    $Date$ $Revision$
 */
@@ -30,6 +30,7 @@
 #import "Foundation/NSEnumerator.h"
 #import "Foundation/NSException.h"
 #import "Foundation/NSHashTable.h"
+#import "Foundation/NSIndexSet.h"
 #import "Foundation/NSKeyValueCoding.h"
 #import "Foundation/NSKeyValueObserving.h"
 #import "Foundation/NSLock.h"
@@ -67,12 +68,6 @@
  * with a another generic setter.
  */
 
-NSString *const NSKeyValueChangeIndexesKey = @"indexes";
-NSString *const NSKeyValueChangeKindKey = @"kind";
-NSString *const NSKeyValueChangeNewKey = @"new";
-NSString *const NSKeyValueChangeOldKey = @"old";
-NSString *const NSKeyValueChangeNotificationIsPriorKey = @"notificationIsPrior";
-
 static NSRecursiveLock	*kvoLock = nil;
 static NSMapTable	*classTable = 0;
 static NSMapTable	*infoTable = 0;
@@ -88,7 +83,7 @@ setup()
       [gnustep_global_lock lock];
       if (nil == kvoLock)
 	{
-	  kvoLock = [GSLazyRecursiveLock new];
+	  kvoLock = [NSRecursiveLock new];
 	  null = [[NSNull null] retain];
 	  classTable = NSCreateMapTable(NSNonOwnedPointerMapKeyCallBacks,
 	    NSNonOwnedPointerMapValueCallBacks, 128);
@@ -177,7 +172,7 @@ setup()
 @interface	GSKVOInfo : NSObject
 {
   NSObject	        *instance;	// Not retained.
-  GSLazyRecursiveLock	        *iLock;
+  NSRecursiveLock	        *iLock;
   NSMapTable	        *paths;
 }
 - (GSKVOPathInfo *) lockReturningPathInfoForKey: (NSString *)key;
@@ -443,6 +438,11 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
   NSString		*superName;
   NSString		*name;
 
+  if (nil == (self = [super init]))
+    {
+      return nil;
+    }
+
   if ([aClass instanceMethodForSelector: @selector(takeValue:forKey:)]
     != [NSObject instanceMethodForSelector: @selector(takeValue:forKey:)])
     {
@@ -573,7 +573,7 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
                 imp = [[GSKVOSetter class]
                   instanceMethodForSelector: @selector(setterDouble:)];
                 break;
-#if __GNUC__ > 2 && defined(_C_BOOL)
+#if defined(_C_BOOL) && (!defined(__GNUC__) || __GNUC__ > 2)
               case _C_BOOL:
                 imp = [[GSKVOSetter class]
                   instanceMethodForSelector: @selector(setterChar:)];
@@ -1209,7 +1209,7 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
   instance = i;
   paths = NSCreateMapTable(NSObjectMapKeyCallBacks,
     NSObjectMapValueCallBacks, 8);
-  iLock = [GSLazyRecursiveLock new];
+  iLock = [NSRecursiveLock new];
   return self;
 }
 
@@ -1262,69 +1262,32 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
   [iLock unlock];
 }
 
-- (void) removeObserver: (NSObject*)anObserver
-             forKeyPath: (NSString*)aPath
-                context: (void *)context
+- (void*) contextForObserver: (NSObject*)anObserver ofKeyPath: (NSString*)aPath
 {
   GSKVOPathInfo	*pathInfo;
-  
+  void          *context = 0;
+
   [iLock lock];
   pathInfo = (GSKVOPathInfo*)NSMapGet(paths, (void*)aPath);
   if (pathInfo != nil)
     {
       unsigned  count = [pathInfo->observations count];
-      
-      pathInfo->allOptions = 0;
+
       while (count-- > 0)
         {
           GSKVOObservation      *o;
-          
-          o = [pathInfo->observations objectAtIndex: count];
-          if ((o->observer == anObserver || o->observer == nil) &&
-              (o->context == context))
-            {
-              [pathInfo->observations removeObjectAtIndex: count];
-              if ([pathInfo->observations count] == 0)
-                {
-                  NSMapRemove(paths, (void*)aPath);
-                }
-            }
-          else
-            {
-              pathInfo->allOptions |= o->options;
-            }
-        }
-    }
-  [iLock unlock];
-}
 
-- (void*) contextForObserver: (NSObject*)anObserver ofKeyPath: (NSString*)aPath
-{
-  GSKVOPathInfo	*pathInfo;
-  void          *context = 0;
-  
-  [iLock lock];
-  pathInfo = (GSKVOPathInfo*)NSMapGet(paths, (void*)aPath);
-  if (pathInfo != nil)
-  {
-    unsigned  count = [pathInfo->observations count];
-    
-    while (count-- > 0)
-    {
-      GSKVOObservation      *o;
-      
-      o = [pathInfo->observations objectAtIndex: count];
-      if (o->observer == anObserver)
-      {
-        context = o->context;
-        break;
-      }
+          o = [pathInfo->observations objectAtIndex: count];
+          if (o->observer == anObserver)
+            {
+              context = o->context;
+              break;
+            }
+	}
     }
-  }
   [iLock unlock];
   return context;
 }
-
 @end
 
 @implementation NSKeyValueObservationForwarder
@@ -1334,8 +1297,13 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
             withTarget: (id)aTarget
                context: (void *)context
 {
-  NSString * remainingKeyPath;
-  NSRange dot;
+  NSString	*remainingKeyPath;
+  NSRange 	dot;
+
+  if (nil == (self = [super init]))
+    {
+      return nil;
+    }
 
   target = aTarget;
   keyPathToForward = [keyPath copy];
@@ -1521,6 +1489,7 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
   NSRange               dot;
 
   setup();
+
   [kvoLock lock];
 
   // Use the original class
@@ -1570,10 +1539,8 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
 - (void) removeObserver: (NSObject*)anObserver forKeyPath: (NSString*)aPath
 {
   GSKVOInfo	*info;
-  id forwarder;
+  id            forwarder;
 
-  setup();
-  [kvoLock lock];
   /*
    * Get the observation information and remove this observation.
    */
@@ -1587,38 +1554,11 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
        * turn off key-value-observing for it.
        */
       object_setClass(self, [self class]);
-      IF_NO_GC(AUTORELEASE(info);)
+      IF_NO_ARC(AUTORELEASE(info);)
       [self setObservationInfo: nil];
     }
-  [kvoLock unlock];
   if ([aPath rangeOfString:@"."].location != NSNotFound)
     [forwarder finalize];
-}
-
-- (void) removeObserver: (NSObject*)anObserver
-             forKeyPath: (NSString*)aPath
-                context: (void *)context
-{
-  GSKVOInfo	*info;
-  
-  setup();
-  [kvoLock lock];
-  /*
-   * Get the observation information and remove this observation.
-   */
-  info = (GSKVOInfo*)[self observationInfo];
-  [info removeObserver: anObserver forKeyPath: aPath context: context];
-  if ([info isUnobserved] == YES)
-    {
-      /*
-       * The instance is no longer being observed ... so we can
-       * turn off key-value-observing for it.
-       */
-      object_setClass(self, [self class]);
-      IF_NO_GC(AUTORELEASE(info);)
-      [self setObservationInfo: nil];
-    }
-  [kvoLock unlock];
 }
 
 @end
@@ -1645,7 +1585,19 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
 	     options: (NSKeyValueObservingOptions)options
 	     context: (void*)aContext
 {
-  [self notImplemented: _cmd];
+  NSUInteger i = [indexes firstIndex];
+
+  while (i != NSNotFound)
+    {
+      NSObject *elem = [self objectAtIndex: i];
+
+      [elem addObserver: anObserver
+             forKeyPath: aPath
+                options: options
+                context: aContext];
+
+      i = [indexes indexGreaterThanIndex: i];
+    }
 }
 
 - (void) removeObserver: (NSObject*)anObserver forKeyPath: (NSString*)aPath
@@ -1656,19 +1608,20 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
 }
 
 - (void) removeObserver: (NSObject*)anObserver
-             forKeyPath: (NSString*)aPath
-                context: (void *)context
-{
-  [NSException raise: NSGenericException
-              format: @"[%@-%@]: This class is not observable",
-   NSStringFromClass([self class]), NSStringFromSelector(_cmd)];
-}
-
-- (void) removeObserver: (NSObject*)anObserver
    fromObjectsAtIndexes: (NSIndexSet*)indexes
 	     forKeyPath: (NSString*)aPath
 {
-  [self notImplemented: _cmd];
+  NSUInteger i = [indexes firstIndex];
+
+  while (i != NSNotFound)
+    {
+      NSObject *elem = [self objectAtIndex: i];
+
+      [elem removeObserver: anObserver
+                forKeyPath: aPath];
+
+      i = [indexes indexGreaterThanIndex: i];
+    }
 }
 
 @end
@@ -1694,15 +1647,6 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
   [NSException raise: NSGenericException
 	      format: @"[%@-%@]: This class is not observable",
     NSStringFromClass([self class]), NSStringFromSelector(_cmd)];
-}
-
-- (void) removeObserver: (NSObject*)anObserver
-             forKeyPath: (NSString*)aPath
-                context: (void *)context
-{
-  [NSException raise: NSGenericException
-              format: @"[%@-%@]: This class is not observable",
-   NSStringFromClass([self class]), NSStringFromSelector(_cmd)];
 }
 
 @end
@@ -1812,7 +1756,7 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
 {
   GSKVOPathInfo *pathInfo;
   GSKVOInfo	*info;
-  
+
   info = (GSKVOInfo *)[self observationInfo];
   if (info == nil)
     {
@@ -1952,7 +1896,9 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
             {
               set = [self valueForKey: aKey];
             }
-          [pathInfo->change setValue: [set mutableCopy] forKey: @"oldSet"];
+	  set = [set mutableCopy];
+          [pathInfo->change setValue: set forKey: @"oldSet"];
+	  RELEASE(set);
           [pathInfo notifyForKey: aKey ofInstance: [info instance] prior: YES];
         }
       [info unlock];
@@ -1982,7 +1928,7 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
           NSMutableSet  *oldSet;
           id            set = objects;
 
-          oldSet = [pathInfo->change valueForKey: @"oldSet"];
+          oldSet = RETAIN([pathInfo->change valueForKey: @"oldSet"]);
           if (nil == set)
             {
               set = [self valueForKey: aKey];
@@ -1998,6 +1944,7 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
                         forKey: NSKeyValueChangeKindKey];
               [pathInfo->change setValue: set
                                   forKey: NSKeyValueChangeNewKey];
+	      RELEASE(set);
             }
           else if (mutationKind == NSKeyValueMinusSetMutation
             || mutationKind == NSKeyValueIntersectSetMutation)
@@ -2025,8 +1972,10 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
                                   forKey: NSKeyValueChangeOldKey];
               [pathInfo->change setValue: new
                                   forKey: NSKeyValueChangeNewKey];
+	      RELEASE(old);
+	      RELEASE(new);
             }
-
+	  RELEASE(oldSet);
           [pathInfo notifyForKey: aKey ofInstance: [info instance] prior: NO];
         }
       if (pathInfo->recursion > 0)
@@ -2109,7 +2058,7 @@ triggerChangeNotificationsForDependentKey: (NSString*)dependentKey
   setup();
   [kvoLock lock];
   info = NSMapGet(infoTable, (void*)self);
-  IF_NO_GC(AUTORELEASE(RETAIN((id)info));)
+  IF_NO_ARC(AUTORELEASE(RETAIN((id)info));)
   [kvoLock unlock];
   return info;
 }

@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSCountedSet class reference</title>
    $Date$ $Revision$
@@ -42,7 +42,7 @@
 /*
  *	Class variables for uniquing objects;
  */
-static GSLazyRecursiveLock	*uniqueLock = nil;
+static NSRecursiveLock	*uniqueLock = nil;
 static NSCountedSet	*uniqueSet = nil;
 static IMP		uniqueImp = 0;
 static IMP		lockImp = 0;
@@ -72,7 +72,7 @@ static Class NSCountedSet_concrete_class;
     {
       NSCountedSet_abstract_class = self;
       NSCountedSet_concrete_class = [GSCountedSet class];
-      uniqueLock = [GSLazyRecursiveLock new];
+      uniqueLock = [NSRecursiveLock new];
       [[NSObject leakAt: &uniqueLock] release];
       lockImp = [uniqueLock methodForSelector: @selector(lock)];
       unlockImp = [uniqueLock methodForSelector: @selector(unlock)];

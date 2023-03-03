@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 #ifndef __NSCoder_h_GNUSTEP_BASE_INCLUDE
@@ -28,6 +28,7 @@
 
 #import	<Foundation/NSObject.h>
 #import	<Foundation/NSGeometry.h>
+#import	<Foundation/NSSet.h>
 #import	<Foundation/NSZone.h>
 
 #if	defined(__cplusplus)
@@ -47,10 +48,8 @@ extern "C" {
  *  preferred for new implementations, since they provide greater
  *  forward/backward compatibility in the face of class changes.</p>
  */
+GS_EXPORT_CLASS
 @interface NSCoder : NSObject
-
-+ (NSInteger) coderVersion;
-
 // Encoding Data
 
 /**
@@ -306,6 +305,8 @@ extern "C" {
  */
 - (id) decodeObjectForKey: (NSString*)aKey;
 
+
+
 /** <override-subclass />
  * Encodes aBool and associates the encoded value with aKey.
  */
@@ -366,6 +367,20 @@ extern "C" {
  * Decodes an NSInteger associated with the key.
  */
 - (NSInteger) decodeIntegerForKey: (NSString *)key;
+#endif
+
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_8, GS_API_LATEST)
+
+#if GS_HAS_DECLARED_PROPERTIES
+@property (nonatomic, assign) BOOL requiresSecureCoding;
+#else
+- (BOOL) requiresSecureCoding;
+- (void) setRequiresSecureCoding: (BOOL)requires;
+#endif
+
+- (id) decodeObjectOfClass: (Class)cls forKey: (NSString *)key;
+- (id) decodeObjectOfClasses: (NSSet *)classes forKey: (NSString *)key;
+
 #endif
 @end
 

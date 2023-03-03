@@ -1749,14 +1749,8 @@ NSDictionary *locale)
 	      }
 	    else
 	      {
-#if 1 // Testplant-MAL-09142016: merge with trunk revision 40072.
-      // Not sure which version to choose here, setting to a static char *
-      // is dangerous practice.  Deciding on Testplant branch code for now...
-		string = (unichar *) {'\0'};
-#else
-		static unichar  empty = 0;
+                static unichar  empty = 0;
 		string = &empty;
-#endif
 		len = 0;
 	      }
 	  }

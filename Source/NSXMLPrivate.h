@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 */
 
 #ifndef	_INCLUDED_NSXMLPRIVATE_H
@@ -109,6 +109,23 @@ StringFromXMLString(const unsigned char *bytes, unsigned length)
   return AUTORELEASE(str);
 }
 
+#if defined(HAVE_LIBXML)
+
+#define	GS_XMLNODETYPE \
+union\
+{\
+	xmlDoc *doc;\
+	xmlDtd *dtd;\
+	xmlEntity *entity;\
+	xmlNode *node;\
+}
+
+#else
+#define GS_XMLNODETYPE void*
+
+#endif
+
+
 /* Instance variables for NSXMLNode.  This macro needs to be defined before
  * the NSXMLNode.h header is imported and before GSInternal.h is imported.
  *
@@ -139,7 +156,7 @@ StringFromXMLString(const unsigned char *bytes, unsigned length)
  */
 #define GS_NSXMLNode_IVARS \
   NSUInteger	  kind; \
-  GS_XMLNODETYPE *node;  \
+  GS_XMLNODETYPE node;  \
   NSUInteger      options; \
   id              objectValue; \
   NSMutableArray *subNodes;

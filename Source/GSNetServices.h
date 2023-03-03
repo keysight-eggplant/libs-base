@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */
 
 #import "common.h"
@@ -134,23 +134,12 @@ NSString* GSNetServiceDotTerminatedNSStringFromString(const char* string);
 
 #else // GS_USE_MDNS
 
-// Testplant-MAL-09162016: patches...
-// Include(s)...
-#import <dns_sd.h>
-
-
 // Subclasses using mDNSResponder:
 
 /**
  * NSNetService using the mDNSResponder API.
  */
 @interface GSMDNSNetService : NSNetService <NSNetServiceDelegate>
-{
-  // Testplant-MAL-09162016: patches...
-  DNSServiceRef _resolverRef;
-  DNSServiceRef _queryRef;
-  BOOL          _didNotifyOfResolve;
-}
 @end
 
 /**

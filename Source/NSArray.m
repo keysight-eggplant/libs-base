@@ -86,7 +86,7 @@ static Class GSPlaceholderArrayClass;
 
 static GSPlaceholderArray	*defaultPlaceholderArray;
 static NSMapTable		*placeholderMap;
-static pthread_mutex_t          placeholderLock = PTHREAD_MUTEX_INITIALIZER;
+static gs_mutex_t		placeholderLock = GS_MUTEX_INIT_STATIC;
 
 
 /**
@@ -167,7 +167,7 @@ static SEL	rlSel;
 	   * locate the correct placeholder in the (lock protected)
 	   * table of placeholders.
 	   */
-	  (void)pthread_mutex_lock(&placeholderLock);
+	  GS_MUTEX_LOCK(placeholderLock);
 	  obj = (id)NSMapGet(placeholderMap, (void*)z);
 	  if (obj == nil)
 	    {
@@ -178,7 +178,7 @@ static SEL	rlSel;
 	      obj = (id)NSAllocateObject(GSPlaceholderArrayClass, 0, z);
 	      NSMapInsert(placeholderMap, (void*)z, (void*)obj);
 	    }
-	  (void)pthread_mutex_unlock(&placeholderLock);
+	  GS_MUTEX_UNLOCK(placeholderLock);
 	  return obj;
 	}
     }
@@ -1146,7 +1146,7 @@ compare(id elem1, id elem2, void* context)
     }
   if (range.length == 1)
     {
-      switch (CALL_BLOCK(comparator, key, [self objectAtIndex: range.location]))
+      switch (CALL_NON_NULL_BLOCK(comparator, key, [self objectAtIndex: range.location]))
         {
           case NSOrderedSame:
             return range.location;
@@ -1212,7 +1212,7 @@ compare(id elem1, id elem2, void* context)
        * For a search from the left, we'd have the correct index anyways. Check
        * whether it's equal to the key and return NSNotFound otherwise
        */
-      return (NSOrderedSame == CALL_BLOCK(comparator,
+      return (NSOrderedSame == CALL_NON_NULL_BLOCK(comparator,
         key, [self objectAtIndex: index]) ? index : NSNotFound);
     }
   // Never reached
@@ -1843,30 +1843,30 @@ compare(id elem1, id elem2, void* context)
 #     if __has_feature(blocks) && (GS_USE_LIBDISPATCH == 1)
       if (enumQueue != NULL)
         {
-      dispatch_group_async(enumQueueGroup, enumQueue, ^(void){
-        if (shouldStop)
-        {
-	  return;
-        }
-        if (predicate(obj, count, &shouldStop))
-        {
-	  [setLock lock];
-	  [set addIndex: count];
-	  [setLock unlock];
-        }
-      });
+          dispatch_group_async(enumQueueGroup, enumQueue, ^(void){
+            if (shouldStop)
+            {
+              return;
+            }
+            if (predicate(obj, count, &shouldStop))
+            {
+              [setLock lock];
+              [set addIndex: count];
+              [setLock unlock];
+            }
+          });
         }
       else // call block directly
 #     endif
-      if (CALL_BLOCK(predicate, obj, count, &shouldStop))
+      if (CALL_NON_NULL_BLOCK(predicate, obj, count, &shouldStop))
         {
-	  /* TODO: It would be more efficient to collect an NSRange and only
-	   * pass it to the index set when CALL_BLOCK returned NO. */
-	  [set addIndex: count];
+          /* TODO: It would be more efficient to collect an NSRange and only
+           * pass it to the index set when CALL_NON_NULL_BLOCK returned NO. */
+          [set addIndex: count];
         }
       if (shouldStop)
         {
-	  break;
+          break;
         }
       count++;
     END_FOR_IN(enumerator)
@@ -1886,8 +1886,8 @@ compare(id elem1, id elem2, void* context)
 			      passingTest: (GSPredicateBlock)predicate
 {
   NSIndexSet *rindexes =[[self objectsAtIndexes: indexSet]
-    indexesOfObjectsWithOptions: opts
-    passingTest: predicate];
+			 indexesOfObjectsWithOptions: opts
+					 passingTest: predicate];
   NSUInteger count = [indexSet count];
   NSUInteger resultCount = [rindexes count];
   NSUInteger indexArray[count], resultIndexArray[resultCount];
@@ -1940,33 +1940,33 @@ compare(id elem1, id elem2, void* context)
 #     if __has_feature(blocks) && (GS_USE_LIBDISPATCH == 1)
       if (enumQueue != NULL)
         {
-      dispatch_group_async(enumQueueGroup, enumQueue, ^(void){
-        if (shouldStop)
-        {
-	  return;
-        }
-        if (predicate(obj, count, &shouldStop))
-        {
-	  // FIXME: atomic operation on the shouldStop variable would be nicer,
-	  // but we don't expose the GSAtomic* primitives anywhere.
-	  [indexLock lock];
-	  index =  count;
-	  // Cancel all other predicate evaluations:
-	  shouldStop = YES;
-	  [indexLock unlock];
-        }
-      });
+          dispatch_group_async(enumQueueGroup, enumQueue, ^(void){
+            if (shouldStop)
+            {
+              return;
+            }
+            if (predicate(obj, count, &shouldStop))
+            {
+              // FIXME: atomic operation on the shouldStop variable would be nicer,
+              // but we don't expose the GSAtomic* primitives anywhere.
+              [indexLock lock];
+              index =  count;
+              // Cancel all other predicate evaluations:
+              shouldStop = YES;
+              [indexLock unlock];
+            }
+          });
         }
       else // call block directly
 #     endif
-      if (CALL_BLOCK(predicate, obj, count, &shouldStop))
+      if (CALL_NON_NULL_BLOCK(predicate, obj, count, &shouldStop))
         {
-	  index = count;
-	  shouldStop = YES;
+          index = count;
+          shouldStop = YES;
         }
       if (shouldStop)
         {
-	  break;
+          break;
         }
       count++;
     END_FOR_IN(enumerator)
@@ -1986,8 +1986,8 @@ compare(id elem1, id elem2, void* context)
 			  passingTest: (GSPredicateBlock)predicate
 {
   NSUInteger index = [[self objectsAtIndexes: indexSet]
-        indexOfObjectWithOptions: 0
-                     passingTest: predicate];
+		       indexOfObjectWithOptions: 0
+				    passingTest: predicate];
   NSUInteger count = [indexSet count];
   NSUInteger indexArray[count];
 
@@ -1998,25 +1998,6 @@ compare(id elem1, id elem2, void* context)
   return indexArray[index];
 }
 
-- (NSUInteger) sizeInBytesExcluding: (NSHashTable*)exclude
-{
-  NSUInteger	size = [super sizeInBytesExcluding: exclude];
-
-  if (size > 0)
-    {
-      NSUInteger	count = [self count];
-      GS_BEGINIDBUF(objects, count);
-
-      size += count*sizeof(void*);
-      [self getObjects: objects];
-      while (count-- > 0)
-	{
-	  size += [objects[count] sizeInBytesExcluding: exclude];
-	}
-      GS_ENDIDBUF();
-    }
-  return size;
-}
 @end
 
 
@@ -2531,7 +2512,7 @@ compare(id elem1, id elem2, void* context)
       [self removeAllObjects];
     }
   else if (otherArray != nil)
-{
+    {
       NSUInteger	c;
 
       if (NO == [otherArray isKindOfClass: NSArrayClass])
@@ -2540,10 +2521,10 @@ compare(id elem1, id elem2, void* context)
 		      format: @"-removeObjectsInArray: non-array argument"];
 	}
       if ((c = [otherArray count]) > 0)
-    {
-      NSUInteger	i;
-      IMP	get = [otherArray methodForSelector: oaiSel];
-      IMP	rem = [self methodForSelector: @selector(removeObject:)];
+	{
+	  NSUInteger	i;
+	  IMP	get = [otherArray methodForSelector: oaiSel];
+	  IMP	rem = [self methodForSelector: @selector(removeObject:)];
 
 	  /* Guard otherArray in case it's a subclass which does not
 	   * retain its contents; in that case it would be possible
@@ -2551,7 +2532,7 @@ compare(id elem1, id elem2, void* context)
 	   * deallocated during the loop below.
 	   */
 	  RETAIN(otherArray);
-      for (i = 0; i < c; i++)
+	  for (i = 0; i < c; i++)
 	    {
 	      (*rem)(self, @selector(removeObject:),
 		(*get)(otherArray, oaiSel, i));
@@ -2677,7 +2658,7 @@ compare(id elem1, id elem2, void* context)
   if (self != nil)
     {
       array = anArray;
-      IF_NO_GC(RETAIN(array));
+      IF_NO_ARC(RETAIN(array);)
       pos = 0;
       get = [array methodForSelector: oaiSel];
       cnt = (NSUInteger (*)(NSArray*, SEL))[array methodForSelector: countSel];

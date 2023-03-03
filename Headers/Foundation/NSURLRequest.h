@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 #ifndef __NSURLRequest_h_GNUSTEP_BASE_INCLUDE
@@ -41,18 +41,18 @@ extern "C" {
 @class NSString;
 @class NSURL;
 
-enum
-{
-  NSURLRequestUseProtocolCachePolicy,
-  NSURLRequestReloadIgnoringLocalCacheData,
-  NSURLRequestReturnCacheDataElseLoad,
-  NSURLRequestReturnCacheDataDontLoad,
-  NSURLRequestReloadIgnoringLocalAndRemoteCacheData, // Unimplemented per Cocoa docs
-  NSURLRequestReloadRevalidatingCacheData,           // Unimplemented per Cocoa docs
-  
-  NSURLRequestReloadIgnoringCacheData = NSURLRequestReloadIgnoringLocalCacheData,
+enum {
+    NSURLRequestUseProtocolCachePolicy = 0,
+
+    NSURLRequestReloadIgnoringLocalCacheData = 1,
+    NSURLRequestReloadIgnoringLocalAndRemoteCacheData = 4,
+    NSURLRequestReloadIgnoringCacheData = NSURLRequestReloadIgnoringLocalCacheData,
+
+    NSURLRequestReturnCacheDataElseLoad = 2,
+    NSURLRequestReturnCacheDataDontLoad = 3,
+
+    NSURLRequestReloadRevalidatingCacheData = 5
 };
-  
 /**
  * <deflist>
  *   <term>NSURLRequestUseProtocolCachePolicy</term>
@@ -76,18 +76,6 @@ enum
  *   <desc>
  *     Says to use cached data if any is available, but to
  *     return nil without loading if the cache is empty.
- *   </desc>
- *   <term>NSURLRequestReloadIgnoringLocalAndRemoteCacheData</term>
- *   <desc>
- *     Says that not only should the local cache data be
- *     ignored, but that proxies and other intermediates should be
- *     instructed to disregard their caches so far as the protocol allows.
- *   </desc>
- *   <term>NSURLRequestReloadRevalidatingCacheData</term>
- *   <desc>
- *     Says that the existing cache data may be used provided
- *     the origin source confirms its validity, otherwise the
- *     URL is loaded from the origin source.
  *   </desc>
  * </deflist>
  */
@@ -137,12 +125,12 @@ enum
 typedef NSUInteger NSURLRequestNetworkServiceType;
 #endif
 
-
 /**
  * This class encapsulates information about a request to load a
  * URL, how to cache the results, and when to deal with a slow/hung
  * load process by timing out.
  */
+GS_EXPORT_CLASS
 @interface NSURLRequest : NSObject <NSCoding, NSCopying, NSMutableCopying>
 {
 #if	GS_EXPOSE(NSURLRequest)
@@ -155,15 +143,15 @@ typedef NSUInteger NSURLRequestNetworkServiceType;
  * and with the default cache policy (NSURLRequestUseProtocolCachePolicy)
  * and a sixty second timeout.
  */
-+ (id) requestWithURL: (NSURL *)URL;
++ (instancetype) requestWithURL: (NSURL *)URL;
 
 /**
  * Returns an autoreleased instance initialised with the specified URL,
  * cachePolicy, and timeoutInterval.
  */
-+ (id) requestWithURL: (NSURL *)URL
-	  cachePolicy: (NSURLRequestCachePolicy)cachePolicy
-      timeoutInterval: (NSTimeInterval)timeoutInterval;
++ (instancetype) requestWithURL: (NSURL *)URL
+                    cachePolicy: (NSURLRequestCachePolicy)cachePolicy
+                timeoutInterval: (NSTimeInterval)timeoutInterval;
 
 /**
  * Returns the cache policy associated with the receiver.
@@ -175,15 +163,15 @@ typedef NSUInteger NSURLRequestNetworkServiceType;
  * and with the default cache policy (NSURLRequestUseProtocolCachePolicy)
  * and a sixty second timeout.
  */
-- (id) initWithURL: (NSURL *)URL;
+- (instancetype) initWithURL: (NSURL *)URL;
 
 /**
  * Initialises the receiver with the specified URL,
  * cachePolicy, and timeoutInterval.
  */
-- (id) initWithURL: (NSURL *)URL
-       cachePolicy: (NSURLRequestCachePolicy)cachePolicy
-   timeoutInterval: (NSTimeInterval)timeoutInterval;
+- (instancetype) initWithURL: (NSURL *)URL
+                 cachePolicy: (NSURLRequestCachePolicy)cachePolicy
+             timeoutInterval: (NSTimeInterval)timeoutInterval;
 
 /**
  * Returns the main document URL for the receiver.<br />
@@ -211,6 +199,7 @@ typedef NSUInteger NSURLRequestNetworkServiceType;
 
 /**
  */
+GS_EXPORT_CLASS
 @interface NSMutableURLRequest : NSURLRequest
 
 /**
@@ -337,6 +326,25 @@ typedef NSUInteger NSURLRequestNetworkServiceType;
  */
 - (void) setValue: (NSString *)value forHTTPHeaderField: (NSString *)field;
 
+@end
+
+@protocol GSLogDelegate;
+@interface NSMutableURLRequest (GNUstep)
+
+/** Sets a flag to turn on low level debug logging for this request and the
+ * corresponding response.  The previous vaue of the setting is returned.
+ */
+- (int) setDebug: (int)d;
+
+/** Sets a delegate object to override logging of low level I/O of the
+ * request as it is sent and the corresponding response as it arrives.<br />
+ * The delegate object is not retained, so it is the responsibility of the
+ * caller to ensure that it persists until all I/O has completed.<br />
+ * This has no effect unless debug is turned on, but if debug is turned on
+ * it permits the delegate to override the default behavior of writing the
+ * data to stderr.
+ */
+- (id<GSLogDelegate>) setDebugLogDelegate: (id<GSLogDelegate>)d;
 @end
 
 #if	defined(__cplusplus)

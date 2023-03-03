@@ -190,12 +190,30 @@ static inline void GSeq_normalize(GSeq seq)
 				   *second = tmp;
 				   notdone = YES;
 				}
+			      else if (*first == *second)
+				{
+				  unichar	*end = seq->chars + count;
+
+				  while (*first == *second && second < end)
+				    {
+				      second++;
+				      count--;
+				    }
+				  first++;
+				  while (second < end)
+				    {
+				      *first++ = *second++;
+				    }
+				  notdone = YES;
+				  break;
+				}
 			    }
 			}
 		      first++;
 		      second++;
 		    }
 		}
+	      seq->count = count;
 	    }
 	}
       seq->normalized = YES;
@@ -715,7 +733,7 @@ GSEQ_STRRANGE(NSString *ss, NSString *os, NSUInteger mask, NSRange aRange)
 	      unichar	myCharacter = GSEQ_SGETC(myIndex);
 	      unichar	strCharacter = strFirstCharacter;
 
-	      for (;;)
+              for (;;)
 		{
 		  if ((myCharacter != strCharacter) &&
 		      ((uni_tolower(myCharacter) != uni_tolower(strCharacter))))
@@ -788,7 +806,7 @@ GSEQ_STRRANGE(NSString *ss, NSString *os, NSUInteger mask, NSRange aRange)
 	      unichar	myCharacter = GSEQ_SGETC(myIndex);
 	      unichar	strCharacter = strFirstCharacter;
 
-	      for (;;)
+              for (;;)
 		{
 		  if (myCharacter != strCharacter)
 		    break;
@@ -1049,9 +1067,9 @@ GSEQ_STRRANGE(NSString *ss, NSString *os, NSUInteger mask, NSRange aRange)
 		  while (uni_isnonsp(GSEQ_SGETC(myIndex))
 		    && (myIndex > 0))
                     {
-		    myIndex--;
+                      myIndex--;
+                    }
 		}
-	    }
 	    }
 	  return (NSRange){NSNotFound, 0};
 	}
@@ -1076,7 +1094,7 @@ GSEQ_STRRANGE(NSString *ss, NSString *os, NSUInteger mask, NSRange aRange)
 
 	      GSEQ_OGETR(iBuf, iRange);
 
-	      for (;;)
+              for (;;)
 		{
 		  NSRange	sRange = GSEQ_SRANGE(myIndex);
 		  GSEQ_MAKE(sBuf, sSeq, sRange.length);
@@ -1122,7 +1140,6 @@ GSEQ_STRRANGE(NSString *ss, NSString *os, NSUInteger mask, NSRange aRange)
 	  return (NSRange){NSNotFound, 0};
 	}
     }
-  return (NSRange){NSNotFound, 0};
 }
 #undef	GSEQ_STRRANGE
 #endif

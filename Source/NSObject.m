@@ -85,13 +85,11 @@
 
 
 /* platforms which do not support weak */
-#if (__GNUC__ == 3) && defined (__WIN32)
+#if defined (__WIN32)
 #define WEAK_ATTRIBUTE
-#undef SUPPORT_WEAK
 #else
 /* all platforms which support weak */
 #define WEAK_ATTRIBUTE __attribute__((weak))
-#define SUPPORT_WEAK 1
 #endif
 
 /* When this is `YES', every call to release/autorelease, checks to
@@ -133,7 +131,7 @@ GS_ROOT_CLASS @interface	NSZombie
 /* allocationLock is needed when for protecting the map table of zombie
  * information and if atomic operations are not available.
  */
-static pthread_mutex_t  allocationLock = PTHREAD_MUTEX_INITIALIZER;
+static gs_mutex_t  allocationLock = GS_MUTEX_INIT_STATIC;
 
 BOOL	NSZombieEnabled = NO;
 BOOL	NSDeallocateZombies = NO;
@@ -148,12 +146,12 @@ static void GSMakeZombie(NSObject *o, Class c)
   object_setClass(o, zombieClass);
   if (0 != zombieMap)
     {
-      pthread_mutex_lock(&allocationLock);
+      GS_MUTEX_LOCK(allocationLock);
       if (0 != zombieMap)
         {
           NSMapInsert(zombieMap, (void*)o, (void*)c);
         }
-      pthread_mutex_unlock(&allocationLock);
+      GS_MUTEX_UNLOCK(allocationLock);
     }
 }
 #endif
@@ -164,12 +162,12 @@ static void GSLogZombie(id o, SEL sel)
 
   if (0 != zombieMap)
     {
-      pthread_mutex_lock(&allocationLock);
+      GS_MUTEX_LOCK(allocationLock);
       if (0 != zombieMap)
         {
           c = NSMapGet(zombieMap, (void*)o);
         }
-      pthread_mutex_unlock(&allocationLock);
+      GS_MUTEX_UNLOCK(allocationLock);
     }
   if (c == 0)
     {
@@ -397,6 +395,8 @@ GSAtomicDecrement(gsatomic_t X)
 
 #if	!defined(GSATOMICREAD)
 
+#include <pthread.h>
+
 typedef int     gsrefcount_t;   // No atomics, use a simple integer
 
 /* Having just one allocationLock for all leads to lock contention
@@ -474,16 +474,16 @@ typedef	struct obj_layout *obj;
  * runtime.  When linked against an older version, we will use our internal
  * versions.
  */
-WEAK_ATTRIBUTE
+GS_IMPORT WEAK_ATTRIBUTE
 BOOL objc_release_fast_no_destroy_np(id anObject);
 
-WEAK_ATTRIBUTE
+GS_IMPORT WEAK_ATTRIBUTE
 void objc_release_fast_np(id anObject);
 
-WEAK_ATTRIBUTE
+GS_IMPORT WEAK_ATTRIBUTE
 size_t object_getRetainCount_np(id anObject);
 
-WEAK_ATTRIBUTE
+GS_IMPORT WEAK_ATTRIBUTE
 id objc_retain_fast_np(id anObject);
 
 
@@ -548,7 +548,7 @@ static BOOL objc_release_fast_no_destroy_internal(id anObject)
 
 static BOOL release_fast_no_destroy(id anObject)
 {
-#ifdef SUPPORT_WEAK
+#ifdef __GNUSTEP_RUNTIME__
   if (objc_release_fast_no_destroy_np)
     {
       return objc_release_fast_no_destroy_np(anObject);
@@ -570,7 +570,7 @@ static void objc_release_fast_np_internal(id anObject)
 
 static void release_fast(id anObject)
 {
-#ifdef SUPPORT_WEAK
+#ifdef __GNUSTEP_RUNTIME__
   if (objc_release_fast_np)
     {
       objc_release_fast_np(anObject);
@@ -601,7 +601,7 @@ size_t object_getRetainCount_np_internal(id anObject)
 
 size_t getRetainCount(id anObject)
 {
-#ifdef SUPPORT_WEAK
+#ifdef __GNUSTEP_RUNTIME__
   if (object_getRetainCount_np)
     {
       return object_getRetainCount_np(anObject);
@@ -698,7 +698,7 @@ static id objc_retain_fast_np_internal(id anObject)
 
 static id retain_fast(id anObject)
 {
-#ifdef SUPPORT_WEAK
+#ifdef __GNUSTEP_RUNTIME__
   if (objc_retain_fast_np)
     {
       return objc_retain_fast_np(anObject);
@@ -843,12 +843,12 @@ NSDeallocateObject(id anObject)
 #ifdef OBJC_CAP_ARC
 	  if (0 != zombieMap)
 	    {
-              pthread_mutex_lock(&allocationLock);
+              GS_MUTEX_LOCK(allocationLock);
               if (0 != zombieMap)
                 {
                   NSMapInsert(zombieMap, (void*)anObject, (void*)aClass);
                 }
-              pthread_mutex_unlock(&allocationLock);
+              GS_MUTEX_UNLOCK(allocationLock);
 	    }
 	  if (NSDeallocateZombies == YES)
 	    {
@@ -979,11 +979,14 @@ static id gs_weak_load(id obj)
   if (self == [NSObject class])
     {
 #ifdef _WIN32
-      {
-        // See libgnustep-base-entry.m
-        extern void gnustep_base_socket_init(void);
-        gnustep_base_socket_init();
-      }
+      /* Start of sockets so we can get host name and other info */
+      WORD wVersionRequested = MAKEWORD(2, 2);
+      WSADATA wsaData;
+      int wsaResult = WSAStartup(wVersionRequested, &wsaData);
+      if (wsaResult != 0)
+        {
+          fprintf(stderr, "Error %d initializing Windows Sockets\n", wsaResult);
+        }
 #else /* _WIN32 */
 
 #ifdef	SIGPIPE
@@ -1089,12 +1092,9 @@ static id gs_weak_load(id obj)
       autorelease_sel = @selector(addObject:);
       autorelease_imp = [autorelease_class methodForSelector: autorelease_sel];
 
-      /* Make sure the constant string class works and set up well-known
-       * string constants etc.
+      /* Make sure the constant string class works.
        */
       NSConstantStringClass = [NSString constantStringClass];
-
-      GSPrivateBuildStrings();
 
       /* Now that the string class (and autorelease) is set up, we can set
        * the name of the lock to a string value safely.
@@ -1121,9 +1121,12 @@ static id gs_weak_load(id obj)
 
 + (void) _atExit
 {
-  pthread_mutex_lock(&allocationLock);
-  DESTROY(zombieMap);
-  pthread_mutex_unlock(&allocationLock);
+  NSMapTable	*m = nil;
+  GS_MUTEX_LOCK(allocationLock);
+  m = zombieMap;
+  zombieMap = nil;
+  GS_MUTEX_UNLOCK(allocationLock);
+  DESTROY(m);
 }
 
 /**
@@ -1148,7 +1151,7 @@ static id gs_weak_load(id obj)
  *   instance is performed apart from setup to be an instance of
  *   the correct class: it is your responsibility to initialize the
  *   instance by calling an appropriate <code>init</code>
- *   method.  If you are not using the garbage collector, it is
+ *   method.  If you are not using ARC, it is
  *   also your responsibility to make sure the returned
  *   instance is destroyed when you finish using it, by calling
  *   the <code>release</code> method to destroy the instance
@@ -1201,7 +1204,7 @@ static id gs_weak_load(id obj)
  *   initialized instance, as would be generated by an
  *   <code>alloc</code> method followed by a corresponding
  *   <code>init...</code> method.  Please note that if you are
- *   not using a garbage collector, this means that instances
+ *   not using ARC, this means that instances
  *   generated by the <code>new...</code> methods are not
  *   autoreleased, that is, you are responsible for releasing
  *   (autoreleasing) the instances yourself.  So when you use
@@ -2502,12 +2505,12 @@ static id gs_weak_load(id obj)
 
   if (0 != zombieMap)
     {
-      pthread_mutex_lock(&allocationLock);
+      GS_MUTEX_LOCK(allocationLock);
       if (0 != zombieMap)
         {
           c = NSMapGet(zombieMap, (void*)self);
         }
-      pthread_mutex_unlock(&allocationLock);
+      GS_MUTEX_UNLOCK(allocationLock);
     }
   return c;
 }
@@ -2529,9 +2532,9 @@ static id gs_weak_load(id obj)
     {
       return nil;
     }
-  pthread_mutex_lock(&allocationLock);
+  GS_MUTEX_LOCK(allocationLock);
   c = zombieMap ? NSMapGet(zombieMap, (void*)self) : Nil;
-  pthread_mutex_unlock(&allocationLock);
+  GS_MUTEX_UNLOCK(allocationLock);
 
   return [c instanceMethodSignatureForSelector: aSelector];
 }

@@ -79,7 +79,7 @@
  */
 #define GS_DISPATCH_SUBMIT_BLOCK(group, queue, before, after, block, args, ...) \
   if (queue != NULL) {\
-    dispatch_group_async(group, queue, ^(void){before; block(args, ## __VA_ARGS__); after});\
+    dispatch_group_async(group, queue, ^(void){before block(args, ## __VA_ARGS__); after});\
   } else {\
     before\
     block(args, ## __VA_ARGS__);\
@@ -111,10 +111,10 @@
  */
 #define GS_DISPATCH_TEARDOWN_QUEUE_AND_GROUP_FOR_ENUMERATION(queue, opts)\
   if (queue != NULL) { \
-  GS_DISPATCH_GROUP_FINISH(queue ## Group);\
+    GS_DISPATCH_GROUP_FINISH(queue ## Group);\
     GS_DISPATCH_RELEASE(queue ## Group);\
-  if (NO == (opts & NSEnumerationConcurrent))\
-  {\
+    if (NO == (opts & NSEnumerationConcurrent))\
+    {\
       GS_DISPATCH_RELEASE(queue);\
     }\
   }

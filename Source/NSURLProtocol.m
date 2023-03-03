@@ -25,14 +25,18 @@
 
 #import "common.h"
 
-#define	EXPOSE_NSURLProtocol_IVARS	1
+//#define	EXPOSE_NSURLProtocol_IVARS	1
 #import "Foundation/NSError.h"
 #import "Foundation/NSHost.h"
 #import "Foundation/NSNotification.h"
 #import "Foundation/NSRunLoop.h"
-#import "Foundation/NSTimer.h"
-#import "Foundation/NSUserDefaults.h"
 #import "Foundation/NSValue.h"
+
+#if     GS_HAVE_NSURLSESSION
+#import "Foundation/NSURLSession.h"
+#else
+@class	NSURLSessionTask;
+#endif
 
 #import "GSPrivate.h"
 #import "GSURLPrivate.h"
@@ -42,6 +46,11 @@
 #import "GNUstepBase/NSStream+GNUstepBase.h"
 #import "GNUstepBase/NSString+GNUstepBase.h"
 #import "GNUstepBase/NSURL+GNUstepBase.h"
+
+@interface GSMimeHeader (HTTPRequest)
+- (void) addToBuffer: (NSMutableData*)buf
+             masking: (NSMutableData**)masked;
+@end
 
 /* Define to 1 for experimental (net yet working) compression support
  */
@@ -72,14 +81,17 @@ zfree(void *opaque, void *mem)
 #endif
 
 
+@interface	NSURLProtocol (Debug)
+- (NSString*) in;
+- (NSString*) out;
+@end
+
 static void
 debugRead(id handle, int len, const unsigned char *ptr)
 {
   int           pos;
   uint8_t       *hex;
   NSUInteger    hl;
-  id            handlein = ((NO == [handle respondsToSelector:@selector(in)]) ?
-				nil : [handle in]);
 
   hl = ((len + 2) / 3) * 4;
   hex = malloc(hl + 1);
@@ -99,7 +111,7 @@ debugRead(id handle, int len, const unsigned char *ptr)
           esc = [data escapedRepresentation: 0];
 
           NSLog(@"Read for %p %@ of %d bytes (escaped) - '%s'\n<[%s]>",
-            handle, handlein, len, esc, hex); 
+            handle, [handle in], len, esc, hex); 
           free(esc);
           RELEASE(data);
           free(hex);
@@ -107,7 +119,7 @@ debugRead(id handle, int len, const unsigned char *ptr)
         }
     }
   NSLog(@"Read for %p %@ of %d bytes - '%*.*s'\n<[%s]>",
-    handle, handlein, len, len, len, ptr, hex); 
+    handle, [handle in], len, len, len, ptr, hex); 
   free(hex);
 }
 static void
@@ -116,8 +128,6 @@ debugWrite(id handle, int len, const unsigned char *ptr)
   int           pos;
   uint8_t       *hex;
   NSUInteger    hl;
-  id            handleout = ((NO == [handle respondsToSelector:@selector(out)]) ?
-				nil : [handle out]);
 
   hl = ((len + 2) / 3) * 4;
   hex = malloc(hl + 1);
@@ -136,7 +146,7 @@ debugWrite(id handle, int len, const unsigned char *ptr)
                                         freeWhenDone: NO];
           esc = [data escapedRepresentation: 0];
           NSLog(@"Write for %p %@ of %d bytes (escaped) - '%s'\n<[%s]>",
-            handle, handleout, len, esc, hex); 
+            handle, [handle out], len, esc, hex); 
           free(esc);
           RELEASE(data);
           free(hex);
@@ -144,7 +154,7 @@ debugWrite(id handle, int len, const unsigned char *ptr)
         }
     }
   NSLog(@"Write for %p %@ of %d bytes - '%*.*s'\n<[%s]>",
-    handle, handleout, len, len, len, ptr, hex); 
+    handle, [handle out], len, len, len, ptr, hex); 
   free(hex);
 }
 
@@ -350,8 +360,9 @@ static NSLock		*pairLock = nil;
   float			_version;	// The HTTP version in use.
   int			_statusCode;	// The HTTP status code returned.
   NSInputStream		*_body;		// for sending the body
-  unsigned		_writeOffset;	// Request data to write
-  NSData		*_writeData;	// Request bytes written so far
+  unsigned		_writeOffset;	// Request bytes written so far
+  NSData		*_writeData;	// Request data to write
+  NSData		*_masked;	// Request masked data
   BOOL			_complete;
   BOOL			_debug;
   BOOL			_isLoading;
@@ -359,6 +370,7 @@ static NSLock		*pairLock = nil;
   NSURLAuthenticationChallenge	*_challenge;
   NSURLCredential		*_credential;
   NSHTTPURLResponse		*_response;
+  id<GSLogDelegate>             _logDelegate;
 }
 @end
 
@@ -367,33 +379,6 @@ static NSLock		*pairLock = nil;
 
 @interface _NSDataURLProtocol : NSURLProtocol
 @end
-
-
-// Internal data storage
-typedef struct {
-  NSInputStream			*input;
-  NSOutputStream		*output;
-  NSCachedURLResponse		*cachedResponse;
-  id <NSURLProtocolClient>	client;
-  NSURLRequest			*request;
-  unsigned char     *_inputBuffer;
-  unsigned char     *_outputBuffer;
-  NSTimer           *_timer;
-#if	USE_ZLIB
-  z_stream			z;		// context for decompress
-  BOOL				compressing;	// are we compressing?
-  BOOL				decompressing;	// are we decompressing?
-  NSData			*compressed;	// only partially decompressed
-#endif
-} Internal;
- 
-#define	this          ((Internal*)(self->_NSURLProtocolInternal))
-#define	inst          ((Internal*)(o->_NSURLProtocolInternal))
-#define READ_BUFFER   (this->_inputBuffer)
-#define WRITE_BUFFER  (this->_outputBuffer)
-
-#define MAX_READ_BUFFER  BUFSIZ*64
-#define MAX_WRITE_BUFFER MAX_READ_BUFFER
 
 static NSMutableArray	*registered = nil;
 static NSLock		*regLock = nil;
@@ -426,7 +411,43 @@ static NSURLProtocol	*placeholder = nil;
 }
 @end
 
+
+
 @implementation	NSURLProtocol
+
+#if	GS_NONFRAGILE
+{
+  @protected
+#else
+// Internal data storage
+typedef struct {
+#endif
+
+  NSInputStream			*input;
+  NSOutputStream		*output;
+  NSCachedURLResponse		*cachedResponse;
+  id <NSURLProtocolClient>	client;
+  NSURLRequest			*request;
+  NSURLSessionTask  		*task;
+  NSString                      *in;
+  NSString                      *out;
+#if	USE_ZLIB
+  z_stream			z;		// context for decompress
+  BOOL				compressing;	// are we compressing?
+  BOOL				decompressing;	// are we decompressing?
+  NSData			*compressed;	// only partially decompressed
+#endif
+
+#if	GS_NONFRAGILE
+}
+#define	this	self
+#define	inst	o
+#else
+} Internal;
+#define	this	((Internal*)(self->_NSURLProtocolInternal))
+#define	inst	((Internal*)(o->_NSURLProtocolInternal))
+#endif
+
 
 + (id) allocWithZone: (NSZone*)z
 {
@@ -515,7 +536,6 @@ static NSURLProtocol	*placeholder = nil;
 {
   if (this != 0)
     {
-      [self stopLoading];
       if (this->input != nil)
 	{
 	  [this->input setDelegate: nil];
@@ -528,13 +548,16 @@ static NSURLProtocol	*placeholder = nil;
           [this->output close];
           DESTROY(this->input);
           DESTROY(this->output);
+          DESTROY(this->in);
+          DESTROY(this->out);
 	}
-      NSZoneFree([self zone], READ_BUFFER);
-      NSZoneFree([self zone], WRITE_BUFFER);
-      
       DESTROY(this->cachedResponse);
       DESTROY(this->request);
+#if     GS_HAVE_NSURLSESSION
+      DESTROY(this->task);
+#endif
       DESTROY(this->client);
+
 #if	USE_ZLIB
       if (this->compressing == YES)
 	{
@@ -546,8 +569,10 @@ static NSURLProtocol	*placeholder = nil;
 	}
       DESTROY(this->compressed);
 #endif
+#if	!GS_NONFRAGILE
       NSZoneFree([self zone], this);
       _NSURLProtocolInternal = 0;
+#endif
     }
   [super dealloc];
 }
@@ -562,6 +587,7 @@ static NSURLProtocol	*placeholder = nil;
 {
   if ((self = [super init]) != nil)
     {
+#if	!GS_NONFRAGILE
       Class	c = object_getClass(self);
 
       if (c != abstractClass && c != placeholderClass)
@@ -569,13 +595,14 @@ static NSURLProtocol	*placeholder = nil;
 	  _NSURLProtocolInternal = NSZoneCalloc([self zone],
 	    1, sizeof(Internal));
 	}
+#endif
     }
   return self;
 }
 
-- (id) initWithRequest: (NSURLRequest *)request
-	cachedResponse: (NSCachedURLResponse *)cachedResponse
-		client: (id <NSURLProtocolClient>)client
+- (id) initWithRequest: (NSURLRequest*)_request
+	cachedResponse: (NSCachedURLResponse*)_cachedResponse
+		client: (id <NSURLProtocolClient>)_client
 {
   Class	c = object_getClass(self);
 
@@ -590,25 +617,44 @@ static NSURLProtocol	*placeholder = nil;
         {
 	  Class	proto = [registered objectAtIndex: count];
 
-	  if ([proto canInitWithRequest: request] == YES)
+	  if ([proto canInitWithRequest: _request] == YES)
 	    {
 	      self = [proto alloc];
 	      break;
 	    }
 	}
       [regLock unlock];
-      return [self initWithRequest: request
-		    cachedResponse: cachedResponse
-			    client: client];
+      return [self initWithRequest: _request
+		    cachedResponse: _cachedResponse
+			    client: _client];
     }
   if ((self = [self init]) != nil)
     {
-      this->request = [request copy];
-      this->cachedResponse = RETAIN(cachedResponse);
-      this->client = RETAIN(client);
-      READ_BUFFER = NSZoneCalloc([self zone], 1, MAX_READ_BUFFER);
-      WRITE_BUFFER = NSZoneCalloc([self zone], 1, MAX_WRITE_BUFFER);
+      this->request = [_request copy];
+      this->cachedResponse = RETAIN(_cachedResponse);
+      if (nil == _client)
+	{
+	  _client = [[self class] _ProtocolClient];
+	}
+      this->client = RETAIN(_client);
     }
+  return self;
+}
+
+- (instancetype) initWithTask: (NSURLSessionTask*)_task 
+               cachedResponse: (NSCachedURLResponse*)_cachedResponse 
+                       client: (id<NSURLProtocolClient>)_client
+{
+#if     GS_HAVE_NSURLSESSION
+  if (nil != (self = [self initWithRequest: [_task currentRequest] 
+                            cachedResponse: _cachedResponse 
+                                    client: _client]))
+    {
+      ASSIGN(this->task, _task);
+    }
+#else
+  DESTROY(self);
+#endif
   return self;
 }
 
@@ -617,6 +663,22 @@ static NSURLProtocol	*placeholder = nil;
   return this->request;
 }
 
+- (NSURLSessionTask*) task
+{
+  return this->task;
+}
+
+@end
+
+@implementation	NSURLProtocol (Debug)
+- (NSString*) in
+{
+  return (this) ? (this->in) : nil;
+}
+- (NSString*) out
+{
+  return (this) ? (this->out) : nil;
+}
 @end
 
 @implementation	NSURLProtocol (Private)
@@ -636,60 +698,19 @@ static NSURLProtocol	*placeholder = nil;
 	{
 	  protoClass = proto;
 	  break;
-}
+	}
     }
   [regLock unlock];
   return protoClass;
 }
 
-- (NSDictionary*) _userInfoForErrorCode: (NSUInteger) errorCode description: (NSString*) description host: (NSHost*)host
+/* Internal method to return a client to handle callbacks if the protocol
+ * is initialised without one.
+ */
++ (id<NSURLProtocolClient>) _ProtocolClient
 {
-  return [NSDictionary dictionaryWithObjectsAndKeys:
-          [this->request URL],  NSURLErrorFailingURLErrorKey,
-          host,                 NSErrorFailingURLStringKey,
-          description,          NSLocalizedDescriptionKey,
-          description,          NSLocalizedFailureReasonErrorKey,
-          nil];
+  return nil;
 }
-
-- (NSDictionary*) _userInfoForErrorCode: (NSUInteger) errorCode description: (NSString*) description
-{
-  NSURL   *url  = [this->request URL];
-  NSHost	*host = [NSHost hostWithName: [url host]];
-  //int	port = [[url port] intValue];
-  
-  if (host == nil)
-  {
-    host = [NSHost hostWithAddress: [url host]];	// try dotted notation
-  }
-  if (host == nil)
-  {
-    host = [NSHost hostWithAddress: @"127.0.0.1"];	// final default
-  }
-  
-  if (host)
-    return [self _userInfoForErrorCode: errorCode description: description host: host];
-
-  return [NSDictionary dictionaryWithObjectsAndKeys:
-          [this->request URL],                  NSURLErrorFailingURLErrorKey,
-          [[this->request URL] absoluteString], NSErrorFailingURLStringKey,
-          description,                          NSLocalizedDescriptionKey,
-          description,                          NSLocalizedFailureReasonErrorKey,
-          nil];
-}
-
-- (NSDictionary*) _userInfoForErrorCode: (NSUInteger) errorCode
-{
-  return [NSDictionary dictionaryWithObjectsAndKeys:
-          [this->request URL],                  @"URL",
-          [[this->request URL] path],           @"path",
-          [this->request URL],                  NSURLErrorFailingURLErrorKey,
-          [[this->request URL] absoluteString], NSErrorFailingURLStringKey,
-          @"unknown error occurred",            NSLocalizedDescriptionKey,
-          @"unknown error occurred",            NSLocalizedFailureReasonErrorKey,
-          nil];
-}
-
 @end
 
 @implementation	NSURLProtocol (Subclassing)
@@ -761,81 +782,13 @@ static NSURLProtocol	*placeholder = nil;
 
 - (void) dealloc
 {
-  RELEASE(_parser);     // received headers
-  RELEASE(_body);       // for sending the body
-  RELEASE(_response);
-  RELEASE(_credential);
+  [_parser release];			// received headers
+  [_body release];			// for sending the body
+  [_response release];
+  [_credential release];
+  DESTROY(_writeData);
+  DESTROY(_masked);
   [super dealloc];
-}
-
-- (void) _timedout: (NSTimer*)timer
-{
-  if (_debug)
-  {
-    NSWarnMLog(@"request timed out: %@ after %f secs", this->request, [[timer userInfo] doubleValue]);
-  }
-  NSTimeInterval timeInterval = [[timer userInfo] doubleValue]; // the original timeout value used...
-  NSString       *description = [NSString stringWithFormat: @"Timeout: Host failed to respond after %.0f seconds",timeInterval];
-  NSDictionary   *userinfo    = [self _userInfoForErrorCode: 0 description: description];
-  NSError        *error       = [NSError errorWithDomain: @"Timeout on connection"
-                                                    code: 0
-                                                userInfo: userinfo];
-  [self stopLoading];
-  [this->client URLProtocol: self didFailWithError: error];
-  DESTROY(this->client);
-}
-
-- (NSTimeInterval) _timeInterval
-{
-  static const NSTimeInterval DefaultConnectionTimeout = 60.0;
-  NSTimeInterval timeout = [this->request timeoutInterval];
-  if (timeout <= 0)
-  {
-    // Check defaults next for a value...
-    if ([[NSUserDefaults standardUserDefaults] objectForKey: @"GSURLProtocolConnectionTimeout"])
-    {
-      timeout = [[NSUserDefaults standardUserDefaults] doubleForKey: @"GSURLProtocolConnectionTimeout"];
-      if (timeout <= 0)
-      {
-        timeout = DefaultConnectionTimeout;
-      }
-    }
-    else
-    {
-      timeout = DefaultConnectionTimeout;
-    }
-  }
-  
-  return timeout;
-}
-
-- (void) _stopTimer
-{
-  if ((NULL != this) && (this->_timer))
-  {
-    [this->_timer invalidate];
-    this->_timer = nil; // We hold a weak reference...
-  }
-}
-
-- (void) _startTimer
-{
-  // First stop any current timer...
-  [self _stopTimer];
-  
-  // TESTPLANT-MAL-090892017: Start a timer for this operation to avoid hangs...
-  NSTimeInterval timeout = [self _timeInterval];
-  
-  // Log the timeout value...
-  if (_debug)
-    NSWarnMLog(@"req: %@ using connection timeout: %f", this->request, timeout);
-  
-  // Start and schedule the timer...weak reference to avoid circular...
-  this->_timer = [NSTimer scheduledTimerWithTimeInterval: timeout
-                                                  target: self
-                                                selector: @selector(_timedout:)
-                                                userInfo: [NSNumber numberWithDouble: timeout]
-                                                 repeats: NO];
 }
 
 - (void) startLoading
@@ -843,7 +796,14 @@ static NSURLProtocol	*placeholder = nil;
   static NSDictionary *methods = nil;
 
   _debug = GSDebugSet(@"NSURLProtocol");
-  if (YES == [this->request _debug]) _debug = YES;
+  if (YES == [this->request _debug])
+    {
+      _debug = YES;
+    }
+  if (_debug)
+    {
+      _logDelegate = [this->request _debugLogDelegate];
+    }
 
   if (methods == nil)
     {
@@ -851,7 +811,6 @@ static NSURLProtocol	*placeholder = nil;
 	self, @"HEAD",
 	self, @"GET",
 	self, @"POST",
-	self, @"PATCH",
 	self, @"PUT",
 	self, @"DELETE",
 	self, @"TRACE",
@@ -864,10 +823,9 @@ static NSURLProtocol	*placeholder = nil;
       NSLog(@"Invalid HTTP Method: %@", this->request);
       [self stopLoading];
       [this->client URLProtocol: self didFailWithError:
-       [NSError errorWithDomain: @"Invalid HTTP Method"
-                           code: 0
-                       userInfo: [self _userInfoForErrorCode: 0]]];
-      DESTROY(this->client);
+	[NSError errorWithDomain: @"Invalid HTTP Method"
+			    code: 0
+			userInfo: nil]];
       return;
     }
   if (_isLoading == YES)
@@ -907,22 +865,20 @@ static NSURLProtocol	*placeholder = nil;
 
 	  e = [NSError errorWithDomain: @"Invalid redirect request"
 				  code: 0
-			      userInfo: [self _userInfoForErrorCode: 0]];
+			      userInfo: nil];
 	  [self stopLoading];
-	  [this->client URLProtocol: self didFailWithError: e];
-    DESTROY(this->client);
+	  [this->client URLProtocol: self
+		   didFailWithError: e];
 	}
       else
 	{
-	  NSMutableURLRequest	*request;
+	  NSMutableURLRequest	*r;
 
-	  request = AUTORELEASE([this->request mutableCopy]);
-	  [request setURL: url];
-          // This invocation may end up detroying us so need to retain/autorelease...
-          AUTORELEASE(RETAIN(self));
-    [this->client URLProtocol: self
-       wasRedirectedToRequest: request
-             redirectResponse: nil];
+	  r = [[this->request mutableCopy] autorelease];
+	  [r setURL: url];
+	  [this->client URLProtocol: self
+	     wasRedirectedToRequest: r
+		   redirectResponse: nil];
 	}
       if (NO == _isLoading)
         {
@@ -974,9 +930,12 @@ static NSURLProtocol	*placeholder = nil;
 	    }
 	  [self stopLoading];
 	  [this->client URLProtocol: self didFailWithError:
-           [NSError errorWithDomain: @"can't connect" code: 0
-                           userInfo: [self _userInfoForErrorCode: 0 description: @"can't find host" host: host]]];
-    DESTROY(this->client);
+	    [NSError errorWithDomain: @"can't connect" code: 0 userInfo: 
+	      [NSDictionary dictionaryWithObjectsAndKeys: 
+		url, @"NSErrorFailingURLKey",
+		host, @"NSErrorFailingURLStringKey",
+		@"can't find host", @"NSLocalizedDescription",
+		nil]]];
 	  return;
 	}
       [this->input retain];
@@ -998,6 +957,8 @@ static NSURLProtocol	*placeholder = nil;
                 GSTLSCertificateKeyFile,
                 GSTLSCertificateKeyPassword,
                 GSTLSDebug,
+                GSTLSIssuers,
+                GSTLSOwners,
                 GSTLSPriority,
                 GSTLSRemoteHosts,
                 GSTLSRevokeFile,
@@ -1040,9 +1001,6 @@ static NSURLProtocol	*placeholder = nil;
 			      forMode: NSDefaultRunLoopMode];
       [this->input open];
       [this->output open];
-      
-      // TESTPLANT-MAL-090892017: Start a timer for this operation to avoid hangs...
-      [self _startTimer];
     }
 }
 
@@ -1050,10 +1008,11 @@ static NSURLProtocol	*placeholder = nil;
 {
   if (_debug == YES)
     {
-      NSWarnMLog(@"%@ stopLoading", self);
+      NSLog(@"%@ stopLoading", self);
     }
   _isLoading = NO;
   DESTROY(_writeData);
+  DESTROY(_masked);
   if (this->input != nil)
     {
       [this->input setDelegate: nil];
@@ -1066,7 +1025,6 @@ static NSURLProtocol	*placeholder = nil;
       [this->output close];
       DESTROY(this->input);
       DESTROY(this->output);
-      [self _stopTimer];
     }
 }
 
@@ -1077,105 +1035,36 @@ static NSURLProtocol	*placeholder = nil;
 
 - (void) _got: (NSStream*)stream
 {
-  int 		readCount = -1;
+  unsigned char	buffer[BUFSIZ*64];
+  int 		readCount;
   NSError	*e;
   NSData	*d;
   BOOL		wasInHeaders = NO;
-  int           totalRead = 0;
-  
-  if (_debug)
-    {
-      NSWarnMLog(@"streamStatus: %ld hasBytesAvailable: %ld",
-                 (long)[stream  streamStatus], (long)[(NSInputStream *)stream hasBytesAvailable]);
-    }
 
-  // Continue reading until we've either filled our buffer or nothing
-  // left to read - as the event for another *may* not happen depending on timing...
-
-  NSStreamStatus sstat = [stream streamStatus];
-  while ((totalRead < MAX_READ_BUFFER) && ([(NSInputStream *)stream hasBytesAvailable] || sstat == NSStreamStatusReading))
+  readCount = [(NSInputStream *)stream read: buffer
+				  maxLength: sizeof(buffer)];
+  if (readCount < 0)
     {
-      readCount = [(NSInputStream *)stream read: &READ_BUFFER[totalRead] maxLength: MAX_READ_BUFFER-totalRead];
-      sstat = [stream streamStatus];
-      
-      if (_debug)
-        {
-          NSWarnMLog(@"-> readCount: %ld totalRead: %ld", (long)readCount, (long)totalRead);
-        }
-
-#if defined(_WIN32)
-      // If the Tcp-Wait-For-Server-Close header was specfied in the request,
-      // then hold the stream open until the server closes it.
-      if ([[[this->request valueForHTTPHeaderField:@"Tcp-Wait-For-Server-Close"] lowercaseString] isEqualToString:@"true"])
-        {
-          // On Windows, the socket call is non-blocking, so we can't rely
-          // on the readCount alone to tell us whether or not we're done.
-          if (readCount < 0)
-            {
-              if (WSAGetLastError() == WSAEWOULDBLOCK)
-                {
-                  //  Try to read again
-                  sstat = NSStreamStatusReading;
-                  continue;
-                }
-              else
-                {
-                  // Error
-                  break;
-                }
-            }
-          else if (readCount == 0)
-            {
-              // EOF
-              break;
-            }
-        }
-      else
-        {
-          // Break on error...
-          if (readCount <= 0)
-            break;
-        }
-#else
-      // Break on error...
-      if (readCount <= 0)
-        break;
-#endif
-      
-      // Otherwise update the total read count...
-      totalRead += readCount;
-    }
-  
-  if (_debug)
-    {
-      NSWarnMLog(@"readCount: %ld totalRead: %ld", (long)readCount, (long)totalRead);
-    }
-  
-  if ((readCount <= 0) && (totalRead == 0))
-    {
-      if (_debug)
-        {
-          NSWarnMLog(@"streamStatus: %ld", (long)[stream  streamStatus]);
-        }
-      
       if ([stream  streamStatus] == NSStreamStatusError)
         {
 	  e = [stream streamError];
 	  if (_debug)
 	    {
-	      NSWarnMLog(@"%@ receive error %@", self, e);
+	      NSLog(@"%@ receive error %@", self, e);
 	    }
-          [self stopLoading];
-          [this->client URLProtocol: self didFailWithError: e];
-          DESTROY(this->client);
+	  [self stopLoading];
+	  [this->client URLProtocol: self didFailWithError: e];
 	}
       return;
     }
-  
-  readCount = totalRead;
   if (_debug)
     {
-      debugRead(self, readCount, READ_BUFFER);
+      if (NO == [_logDelegate getBytes: buffer
+                              ofLength: readCount
+                              byHandle: self])
+        {
+          debugRead(self, readCount, buffer);
+        }
     }
 
   if (_parser == nil)
@@ -1184,20 +1073,18 @@ static NSURLProtocol	*placeholder = nil;
       [_parser setIsHttp];
     }
   wasInHeaders = [_parser isInHeaders];
-  d = [NSData dataWithBytes: READ_BUFFER length: readCount];
-  
+  d = [NSData dataWithBytes: buffer length: readCount];
   if ([_parser parse: d] == NO && (_complete = [_parser isComplete]) == NO)
     {
-      if (_debug == YES)
+      if (_debug)
 	{
-	  NSWarnMLog(@"%@ HTTP parse failure - %@", self, _parser);
+	  NSLog(@"%@ HTTP parse failure - %@", self, _parser);
 	}
       e = [NSError errorWithDomain: @"parse error"
 			      code: 0
 			  userInfo: nil];
       [self stopLoading];
       [this->client URLProtocol: self didFailWithError: e];
-      DESTROY(this->client);
       return;
     }
   else
@@ -1205,29 +1092,8 @@ static NSURLProtocol	*placeholder = nil;
       BOOL		isInHeaders = [_parser isInHeaders];
       GSMimeDocument	*document = [_parser mimeDocument];
       unsigned		bodyLength;
-      
-      if (_debug)
-        {
-          NSWarnMLog(@"document: %@", document);
-        }
 
       _complete = [_parser isComplete];
-      if ((_complete == NO) && ([stream  streamStatus] == NSStreamStatusAtEnd))
-        {
-          if (_debug)
-          {
-            NSWarnMLog(@"premature stream status at END (NSStreamStatusAtEnd) complete: %ld", (long)_complete);
-          }
-          // Force to complete...
-          _complete = YES;
-        }
-
-      if (_debug)
-        {
-          NSWarnMLog(@"_complete: %ld wasInHeaders: %ld isInHeaders: %ld", (long)_complete,
-                     (long)wasInHeaders, (long)isInHeaders);
-        }
-      
       if (YES == wasInHeaders && NO == isInHeaders)
         {
 	  GSMimeHeader		*info;
@@ -1261,12 +1127,7 @@ static NSURLProtocol	*placeholder = nil;
 	    {
 	      len = [s intValue];
 	    }
-          
-          if (_debug)
-            {
-              NSWarnMLog(@"statusCode: %ld len: %ld", (long)_statusCode, (long)len);
-            }
-          
+
 	  s = [info objectForKey: NSHTTPPropertyStatusReasonKey];
 
 /* Should use this?
@@ -1297,13 +1158,8 @@ static NSURLProtocol	*placeholder = nil;
 	  [_response _setStatusCode: _statusCode text: s];
 	  [document deleteHeaderNamed: @"http"];
 	  [_response _setHeaders: [document allHeaders]];
-          
-          if (_debug)
-            {
-              NSWarnMLog(@"[document allHeaders]: %@", [document allHeaders]);
-            }
-          
-          if (_statusCode == 204 || _statusCode == 304 || _statusCode == 404)
+
+	  if (_statusCode == 204 || _statusCode == 304)
 	    {
 	      _complete = YES;	// No body expected.
 	    }
@@ -1317,58 +1173,40 @@ static NSURLProtocol	*placeholder = nil;
 	      /* This is an authentication challenge, so we keep reading
 	       * until the challenge is complete, then try to deal with it.
 	       */
-              _complete = _complete || ([this->input hasBytesAvailable] == NO);
-              if (_debug)
-                {
-                  NSWarnMLog(@"[this->input hasBytesAvailable]: %ld streamStatus]: %ld",
-                             (long)[this->input hasBytesAvailable], (long)[stream  streamStatus]);
-                }
-            }
-          else if (((_statusCode >= 300) && (_statusCode <= 310)) && // Redirect status codes...
-                   ([@"HEAD" isEqualToString: [this->request HTTPMethod]] == NO) && // Skip if a head request...
-                   ((s = [[document headerNamed: @"location"] value]) != nil)) // Skip if no location specified...
-            {
-              // Some sites are a bit wierd...with the '//' or '/' prefix the redirect
-              // don't work properly so we need to add/default the scheme if not present...
-              if ([s hasPrefix: @"//"])
-                {
-                  s = [@"http:" stringByAppendingString: s];
-                }
-              else if ([s hasPrefix: @"/"])
-                {
-                  s = [@"http:/" stringByAppendingString: s];
-                }
-              
-              // Create the URL...
-              NSURL	*url = [NSURL URLWithString: s];
-              
-              if (url == nil)
-                {
-                  NSError	*e;
-                  
-                  e = [NSError errorWithDomain: @"Invalid redirect request"
-                                          code: 0
-                                      userInfo: nil];
-                  [self stopLoading];
-                  [this->client URLProtocol: self
-                           didFailWithError: e];
-                  DESTROY(this->client);
-                }
-              else
-                {
-                  NSMutableURLRequest	*request = AUTORELEASE([this->request mutableCopy]);
-                  
-                  [request setURL: url];
-                  
-                  // This invocation may end up detroying us so need to retain/autorelease...
-                  AUTORELEASE(RETAIN(self));
-                  
-                  // Redirect to the new URL...
-                  [this->client URLProtocol: self
-                     wasRedirectedToRequest: request
-                           redirectResponse: _response];
-                }
-            }
+	    }
+	  else if (_statusCode >= 300 && _statusCode < 400)
+	    {
+	      NSURL	*url;
+
+              NS_DURING
+                s = [[document headerNamed: @"location"] value];
+                url = [NSURL URLWithString: s];
+              NS_HANDLER
+                url = nil;
+              NS_ENDHANDLER
+
+	      if (url == nil)
+	        {
+		  NSError	*e;
+
+		  e = [NSError errorWithDomain: @"Invalid redirect request"
+					  code: 0
+				      userInfo: nil];
+		  [self stopLoading];
+		  [this->client URLProtocol: self
+			   didFailWithError: e];
+		}
+	      else
+	        {
+		  NSMutableURLRequest	*r;
+
+		  r = AUTORELEASE([this->request mutableCopy]);
+		  [r setURL: url];
+		  [this->client URLProtocol: self
+		     wasRedirectedToRequest: r
+			   redirectResponse: _response];
+		}
+	    }
 	  else
 	    {
 	      NSURLCacheStoragePolicy policy;
@@ -1387,12 +1225,6 @@ static NSURLProtocol	*placeholder = nil;
 		  hdrs = [_response allHeaderFields];
 		  cookies = [NSHTTPCookie cookiesWithResponseHeaderFields: hdrs
 								   forURL: url];
-                  if (_debug)
-                    {
-                      NSWarnMLog(@"cookies: %@", cookies);
-                    }
-                  
-                  // Store the cookie(s)...
 		  [[NSHTTPCookieStorage sharedHTTPCookieStorage]
 		    setCookies: cookies
 		    forURL: url
@@ -1440,12 +1272,7 @@ static NSURLProtocol	*placeholder = nil;
 	    }
 #endif
 	}
-      
-      if (_debug)
-        {
-          NSWarnMLog(@"complete: %ld d-length: %ld", (long)_complete, (long)[d length]);
-        }
-      
+
       if (_complete == YES)
 	{
 	  if (_statusCode == 401)
@@ -1528,8 +1355,8 @@ static NSURLProtocol	*placeholder = nil;
 					  code: 0
 				      userInfo: nil];
 		  [self stopLoading];
-		  [this->client URLProtocol: self didFailWithError: e];
-      DESTROY(this->client);
+		  [this->client URLProtocol: self
+			   didFailWithError: e];
 		}
 	      else
 		{
@@ -1593,18 +1420,18 @@ static NSURLProtocol	*placeholder = nil;
 		    }
 		  else
 		    {
-		      NSMutableURLRequest	*request;
+		      NSMutableURLRequest	*r;
 
 		      /* To answer the authentication challenge,
 		       * we must retry with a modified request and
 		       * with the cached response cleared.
 		       */
-		      request = [this->request mutableCopy];
-		      [request setValue: auth
+		      r = [this->request mutableCopy];
+		      [r setValue: auth
 			forHTTPHeaderField: @"Authorization"];
 		      [self stopLoading];
-		      [this->request release];
-		      this->request = request;
+		      RELEASE(this->request);
+		      this->request = r;
 		      DESTROY(this->cachedResponse);
 		      [self startLoading];
 		      return;
@@ -1624,7 +1451,6 @@ static NSURLProtocol	*placeholder = nil;
 	      [this->output close];
 	      DESTROY(this->input);
 	      DESTROY(this->output);
-              [self _stopTimer];
 	    }
 
 	  /*
@@ -1653,7 +1479,6 @@ static NSURLProtocol	*placeholder = nil;
 	        {
 		  _isLoading = NO;
 	          [this->client URLProtocolDidFinishLoading: self];
-            DESTROY(this->client);
 		}
 	    }
 	}
@@ -1677,15 +1502,6 @@ static NSURLProtocol	*placeholder = nil;
 		  [self _didLoad: d];
 		}
 	    }
-          
-          // Status code 200 with HEAD request is complete at this point...
-          //if ((_statusCode == 200) && ([[this->request HTTPMethod] isEqualToString: @"HEAD"]))
-          if (([[this->request HTTPMethod] isEqualToString: @"HEAD"]) && (isInHeaders == NO))
-            {
-              _isLoading = NO;
-              [this->client URLProtocolDidFinishLoading: self];
-              DESTROY(this->client);
-            }
 	}
 
       if (_complete == NO && readCount == 0 && _isLoading == YES)
@@ -1695,31 +1511,196 @@ static NSURLProtocol	*placeholder = nil;
 	   * lost in the network or the remote end received it and
 	   * the response was lost.
 	   */
-	  if (_debug == YES)
+	  if (_debug)
 	    {
-	      NSWarnMLog(@"%@ HTTP response not received - %@", self, _parser);
+	      NSLog(@"%@ HTTP response not received - %@", self, _parser);
 	    }
 	  [self stopLoading];
-    NSError *error = [NSError errorWithDomain: @"receive incomplete" code: 0 userInfo: nil];
-    [this->client URLProtocol: self didFailWithError:error];
-    //[self _userInfoForErrorCode: 0 description: @"receive incomplete"]
-    DESTROY(this->client);
+	  [this->client URLProtocol: self didFailWithError:
+	    [NSError errorWithDomain: @"receive incomplete"
+				code: 0
+			    userInfo: nil]];
 	}
     }
 }
 
-- (void) stream: (NSStream*) stream handleEvent: (NSStreamEvent) event
+- (void) _put
+{
+  BOOL	sent = NO;
+
+  while ((_writeData || _body) && [this->output hasSpaceAvailable])
+    {
+      int	written;
+
+      // FIXME: should also send out relevant Cookies
+      if (_writeData != nil)
+	{
+	  const unsigned char	*bytes = [_writeData bytes];
+	  unsigned		len = [_writeData length];
+
+	  written = [this->output write: bytes + _writeOffset
+			      maxLength: len - _writeOffset];
+	  if (written > 0)
+	    {
+	      if (_debug)
+		{
+		  const unsigned char   *b = [_masked bytes];
+
+		  if (NULL == b)
+		    {
+		      b = bytes;
+		    }
+		  if (NO == [_logDelegate putBytes: b + _writeOffset
+					  ofLength: written
+					  byHandle: self])
+		    {
+		      debugWrite(self, written, b + _writeOffset);
+		    }
+		}
+	      _writeOffset += written;
+	      if (_writeOffset >= len)
+		{
+		  DESTROY(_writeData);
+		  DESTROY(_masked);
+		  if (_body == nil)
+		    {
+		      _body = RETAIN([this->request HTTPBodyStream]);
+		      if (_body == nil)
+			{
+			  NSData	*d = [this->request HTTPBody];
+
+			  if (d != nil)
+			    {
+			      _body = [NSInputStream alloc];
+			      _body = [_body initWithData: d];
+			      [_body open];
+			    }
+			  else
+			    {
+			      sent = YES;
+			    }
+			}
+		    }
+		}
+	    }
+	}
+      else if (_body != nil)
+	{
+	  if ([_body hasBytesAvailable])
+	    {
+	      unsigned char	buffer[BUFSIZ*64];
+	      int		len;
+
+	      len = [_body read: buffer maxLength: sizeof(buffer)];
+	      if (len < 0)
+		{
+		  if (_debug)
+		    {
+		      NSLog(@"%@ error reading from HTTPBody stream %@",
+			self, [NSError _last]);
+		    }
+		  [self stopLoading];
+		  [this->client URLProtocol: self didFailWithError:
+		    [NSError errorWithDomain: @"can't read body"
+					code: 0
+				    userInfo: nil]];
+		  return;
+		}
+	      else if (len > 0)
+		{
+		  written = [this->output write: buffer maxLength: len];
+		  if (written > 0)
+		    {
+		      if (_debug)
+			{
+			  if (NO == [_logDelegate putBytes: buffer
+						  ofLength: written
+						  byHandle: self])
+			    {
+			      debugWrite(self, written, buffer);
+			    }
+			}
+		      len -= written;
+		      if (len > 0)
+			{
+			  /* Couldn't write it all now, save and try
+			   * again later.
+			   */
+			  _writeData = [[NSData alloc] initWithBytes:
+			    buffer + written length: len];
+			  _writeOffset = 0;
+			}
+		      else if (len == 0 && ![_body hasBytesAvailable])
+			{
+			  /* all _body's bytes are read and written
+			   * so we shouldn't wait for another
+			   * opportunity to close _body and set
+			   * the flag 'sent'.
+			   */
+			  [_body close];
+			  DESTROY(_body);
+			  sent = YES;
+			}
+		    }
+		  else if ([this->output streamStatus]
+		    == NSStreamStatusWriting)
+		    {
+		      /* Couldn't write it all now, save and try
+		       * again later.
+		       */
+		      _writeData = [[NSData alloc] initWithBytes:
+			buffer length: len];
+		      _writeOffset = 0;
+		    }
+		}
+	      else
+		{
+		  [_body close];
+		  DESTROY(_body);
+		  sent = YES;
+		}
+	    }
+	  else
+	    {
+	      [_body close];
+	      DESTROY(_body);
+	      sent = YES;
+	    }
+	}
+    }
+  if (sent)
+    {
+      if (_shouldClose)
+	{
+	  if (_debug)
+	    {
+	      NSLog(@"%@ request sent ... closing", self);
+	    }
+	  [this->output setDelegate: nil];
+	  [this->output removeFromRunLoop:
+	    [NSRunLoop currentRunLoop]
+	    forMode: NSDefaultRunLoopMode];
+	  [this->output close];
+	  DESTROY(this->output);
+	}
+      else if (_debug)
+	{
+	  NSLog(@"%@ request sent", self);
+	}
+    }
+}
+
+- (void) stream: (NSStream*)stream handleEvent: (NSStreamEvent)event
 {
   /* Make sure no action triggered by anything else destroys us prematurely.
    */
-  IF_NO_GC([[self retain] autorelease];)
+  IF_NO_ARC([[self retain] autorelease];)
 
-  if (_debug)
-    {
-      NSWarnMLog(@"stream: %@ handleEvent: %p for: %@ (ip %p, op %p)",
-            stream, (void*)event, self, this->input, this->output);
-    }
-  
+#if 0
+  NSLog(@"stream: %@ handleEvent: %x for: %@ (ip %p, op %p)",
+    stream, event, self, this->input, this->output);
+#endif
+
   if (stream == this->input) 
     {
       switch(event)
@@ -1730,9 +1711,9 @@ static NSURLProtocol	*placeholder = nil;
 	    return;
 
 	  case NSStreamEventOpenCompleted: 
-	    if (_debug == YES)
+	    if (_debug)
 	      {
-		NSWarnMLog(@"%@ HTTP input stream opened", self);
+		NSLog(@"%@ HTTP input stream opened", self);
 	      }
 	    return;
 
@@ -1742,22 +1723,37 @@ static NSURLProtocol	*placeholder = nil;
     }
   else if (stream == this->output)
     {
-      switch(event)
+      switch (event)
 	{
 	  case NSStreamEventOpenCompleted: 
 	    {
 	      NSMutableData	*m;
+	      NSMutableData	*mm = nil;
 	      NSDictionary	*d;
 	      NSEnumerator	*e;
 	      NSString		*s;
 	      NSURL		*u;
 	      int		l;		
+	      NSData		*bytes;
 
-	      if (_debug == YES)
+	      if (_debug)
 	        {
-	          NSWarnMLog(@"%@ HTTP output stream opened", self);
+	          NSLog(@"%@ HTTP output stream opened", self);
 	        }
+              this->in = [[NSString alloc]
+                initWithFormat: @"(%@:%@ <-- %@:%@)",
+                [stream propertyForKey: GSStreamLocalAddressKey],
+                [stream propertyForKey: GSStreamLocalPortKey],
+                [stream propertyForKey: GSStreamRemoteAddressKey],
+                [stream propertyForKey: GSStreamRemotePortKey]];
+              this->out = [[NSString alloc]
+                initWithFormat: @"(%@:%@ --> %@:%@)",
+                [stream propertyForKey: GSStreamLocalAddressKey],
+                [stream propertyForKey: GSStreamLocalPortKey],
+                [stream propertyForKey: GSStreamRemoteAddressKey],
+                [stream propertyForKey: GSStreamRemotePortKey]];
 	      DESTROY(_writeData);
+	      DESTROY(_masked);
 	      _writeOffset = 0;
 	      if ([this->request HTTPBodyStream] == nil)
 	        {
@@ -1770,9 +1766,7 @@ static NSURLProtocol	*placeholder = nil;
 		  // Stream and close
 		  l = -1;
 	          _version = 1.0;
-		  // TESTPLANT-MAL-20201209: This closes the stream before it completely
-		  // is able to finish writing out the data...
-		  //_shouldClose = YES;
+		  _shouldClose = YES;
 		}
 
 	      m = [[NSMutableData alloc] initWithCapacity: 1024];
@@ -1810,8 +1804,14 @@ static NSURLProtocol	*placeholder = nil;
                   h = [[GSMimeHeader alloc] initWithName: s
                                                    value: [d objectForKey: s]
                                               parameters: nil];
-                  [m appendData:
-                    [h rawMimeDataPreservingCase: YES foldedAt: 0]];
+		  if (_debug || mm)
+		    {
+		      [h addToBuffer: m masking: &mm];
+		    }
+		  else
+		    {
+		      [h addToBuffer: m masking: NULL];
+		    }
                   RELEASE(h);
 		}
 
@@ -1828,12 +1828,16 @@ static NSURLProtocol	*placeholder = nil;
                   static char   *ct
                     = "Content-Type: application/x-www-form-urlencoded\r\n";
 		  [m appendBytes: ct length: strlen(ct)];
+		  if (mm)
+		    {
+		      [mm appendBytes: ct length: strlen(ct)];
+		    }
 		}
 	      if ([this->request valueForHTTPHeaderField: @"Host"] == nil)
 		{
                   NSString      *s = [u scheme];
-		  id	p = [u port];
-		  id	h = [u host];
+		  id	        p = [u port];
+		  id	        h = [u host];
 
 		  if (h == nil)
 		    {
@@ -1841,7 +1845,7 @@ static NSURLProtocol	*placeholder = nil;
 		    }
                   if (([s isEqualToString: @"http"] && [p intValue] == 80)
                     || ([s isEqualToString: @"https"] && [p intValue] == 443))
-		    {
+                    {
                       /* Some buggy systems object to the port being in
                        * the Host header when it's the default (optional)
                        * value.
@@ -1857,183 +1861,37 @@ static NSURLProtocol	*placeholder = nil;
 		    {
 		      s = [NSString stringWithFormat: @"Host: %@:%@\r\n", h, p];
 		    }
-                  [m appendData: [s dataUsingEncoding: NSASCIIStringEncoding]];
+                  bytes = [s dataUsingEncoding: NSASCIIStringEncoding];
+                  [m appendData: bytes];
+		  if (mm)
+		    {
+		      [mm appendData: bytes];
+		    }
 		}
 	      if (l >= 0 && [this->request
 	        valueForHTTPHeaderField: @"Content-Length"] == nil)
 		{
                   s = [NSString stringWithFormat: @"Content-Length: %d\r\n", l];
-                  [m appendData: [s dataUsingEncoding: NSASCIIStringEncoding]];
+                  bytes = [s dataUsingEncoding: NSASCIIStringEncoding];
+                  [m appendData: bytes];
+		  if (mm)
+		    {
+		      [mm appendData: bytes];
+		    }
 		}
 	      [m appendBytes: "\r\n" length: 2];	// End of headers
-	      _writeData  = m;
+	      if (mm)
+		{
+		  [mm appendBytes: "\r\n" length: 2];
+		}
+	      _writeData = m;
+	      ASSIGN(_masked, mm);
 	    }			// Fall through to do the write
 
 	  case NSStreamEventHasSpaceAvailable: 
-	    {
-	      int	written;
-	      BOOL	sent = NO;
+	    [self _put];
+	    return;
 
-	      // FIXME: should also send out relevant Cookies
-	      if (_writeData != nil)
-		{
-		  const unsigned char	*bytes = [_writeData bytes];
-		  unsigned		len = [_writeData length];
-                  
-                  if (_debug)
-                    {
-                      NSWarnMLog(@"self: %@ writing _writeData len: %ld", self, (long)len);
-                    }
-
-		  written = [this->output write: bytes + _writeOffset
-				      maxLength: len - _writeOffset];
-                  
-                  if (_debug)
-                    {
-                      NSWarnMLog(@"self: %@ wrote len: %ld", self, (long)written);
-                    }
-
-                  if (written > 0)
-		    {
-		      if (_debug == YES)
-		        {
-                          debugWrite(self, written, bytes + _writeOffset);
-			}
-		      _writeOffset += written;
-		      if (_writeOffset >= len)
-		        {
-			  DESTROY(_writeData);
-			  if (_body == nil)
-			    {
-			      _body = RETAIN([this->request HTTPBodyStream]);
-			      if (_body == nil)
-				{
-				  NSData	*d = [this->request HTTPBody];
-
-				  if (d != nil)
-				    {
-				      _body = [NSInputStream alloc];
-				      _body = [_body initWithData: d];
-				      [_body open];
-				    }
-				  else
-				    {
-				      sent = YES;
-				    }
-				}
-			      else //if ([_body streamStatus] == NSStreamStatusNotOpen)
-				{
-				    // TESTPLANT-MAL-20201203:
-				    // Ensure that the body stream we get is open...
-				    // NOTE: invoking streamStatus in the if above makes
-				    // this fail for some reason...
-				    [_body open];
-				}
-			    }
-			}
-		    }
-		}
-	      else if (_body != nil)
-		{
-		  if ([_body hasBytesAvailable])
-		    {
-		      int len;
-
-                      // Probably need a read until end here also similar to _got...
-		      len = [_body read: WRITE_BUFFER maxLength: MAX_WRITE_BUFFER];
-                      if (_debug)
-                        {
-                          NSWarnMLog(@"self: %@ _body read len: %ld streamStatus: %ld", self, (long)len, (long)[_body streamStatus]);
-                        }
-		      if (len < 0)
-			{
-			  if (_debug == YES)
-			    {
-			      NSWarnMLog(@"%@ error reading from HTTPBody stream %@", self, [NSError _last]);
-			    }
-			  [self stopLoading];
-			  NSError *error = [NSError errorWithDomain: @"can't read body" code: 0 userInfo: nil];
-			  [this->client URLProtocol: self didFailWithError: error];
-			  DESTROY(this->client);
-			  return;
-			}
-		      else if (len > 0)
-		        {
-			  written = [this->output write: WRITE_BUFFER maxLength: len];
-			  if (written > 0)
-			    {
-			      if (_debug == YES)
-				{
-                                  debugWrite(self, written, WRITE_BUFFER);
-				}
-			      len -= written;
-			      if (len > 0)
-			        {
-				  /* Couldn't write it all now, save and try
-				   * again later.
-				   */
-				  _writeData = [[NSData alloc] initWithBytes:
-				    WRITE_BUFFER + written length: len];
-				  _writeOffset = 0;
-				}
-			      else if (len == 0 && ![_body hasBytesAvailable])
-				{
-				  /* all _body's bytes are read and written
-                                   * so we shouldn't wait for another
-                                   * opportunity to close _body and set
-				   * the flag 'sent'.
-				   */
-				  [_body close];
-				  DESTROY(_body);
-				  sent = YES;
-                                }
-			    }
-                          else if ([this->output streamStatus] == NSStreamStatusWriting)
-                            {
-                              /* Couldn't write it all now, save and try
-                               * again later.
-                               */
-                              if (_debug)
-                                {
-                                  NSWarnMLog(@"self: %@ saving _writeData len: %ld", self, (long)len);
-                                }
-                              _writeData = [[NSData alloc] initWithBytes:
-                                            WRITE_BUFFER length: len];
-                              _writeOffset = 0;
-                            }
-                        }
-		      else
-		        {
-			  [_body close];
-			  DESTROY(_body);
-			  sent = YES;
-			}
-		    }
-		  else
-		    {
-		      [_body close];
-		      DESTROY(_body);
-		      sent = YES;
-		    }
-		}
-	      if (sent == YES)
-		{
-		  if (_debug)
-		    {
-		      NSWarnMLog(@"%@ request sent - should close: %ld", self, (long)_shouldClose);
-		    }
-		  if (_shouldClose == YES)
-		    {
-		      [this->output setDelegate: nil];
-		      [this->output removeFromRunLoop:
-			[NSRunLoop currentRunLoop]
-			forMode: NSDefaultRunLoopMode];
-		      [this->output close];
-		      DESTROY(this->output);
-		    }
-		}
-	      return;  // done
-	    }
 	  default: 
 	    break;
 	}
@@ -2046,11 +1904,10 @@ static NSURLProtocol	*placeholder = nil;
     }
   if (event == NSStreamEventErrorOccurred)
     {
-      NSError	*error = AUTORELEASE(RETAIN([stream streamError]));
+      NSError	*error = [[[stream streamError] retain] autorelease];
 
       [self stopLoading];
       [this->client URLProtocol: self didFailWithError: error];
-      DESTROY(this->client);
     }
   else
     {
@@ -2110,9 +1967,10 @@ static NSURLProtocol	*placeholder = nil;
 		    outputStream: &this->output];
       if (this->input == nil || this->output == nil)
 	{
-    NSError *error = [NSError errorWithDomain: @"can't connect" code: 0 userInfo: nil];
-	  [this->client URLProtocol: self didFailWithError: error];
-    DESTROY(this->client);
+	  [this->client URLProtocol: self didFailWithError:
+	    [NSError errorWithDomain: @"can't connect"
+				code: 0
+			    userInfo: nil]];
 	  return;
 	}
       [this->input retain];
@@ -2162,14 +2020,13 @@ static NSURLProtocol	*placeholder = nil;
 	  case NSStreamEventHasBytesAvailable: 
 	    {
 	    NSLog(@"FTP input stream has bytes available");
-      // implement FTP protocol
-      //[this->client URLProtocol: self didLoadData: [NSData dataWithBytes: buffer length: len]];	// notify
+	    // implement FTP protocol
+//			[this->client URLProtocol: self didLoadData: [NSData dataWithBytes: buffer length: len]];	// notify
 	    return;
 	    }
 	  case NSStreamEventEndEncountered: 	// can this occur in parallel to NSStreamEventHasBytesAvailable???
 		  NSLog(@"FTP input stream did end");
 		  [this->client URLProtocolDidFinishLoading: self];
-      DESTROY(this->client);
 		  return;
 	  case NSStreamEventOpenCompleted: 
 		  // prepare to receive header
@@ -2193,10 +2050,9 @@ static NSURLProtocol	*placeholder = nil;
   if (event == NSStreamEventErrorOccurred)
     {
       NSLog(@"An error %@ occurred on stream %@ of %@",
-            [stream streamError], stream, self);
+	[stream streamError], stream, self);
       [self stopLoading];
       [this->client URLProtocol: self didFailWithError: [stream streamError]];
-      DESTROY(this->client);
     }
   else
     {
@@ -2229,13 +2085,12 @@ static NSURLProtocol	*placeholder = nil;
   /* options: error: - don't use that because it is based on self */];
   if (data == nil)
     {
-      NSDictionary *errorinfo = [NSDictionary dictionaryWithObjectsAndKeys:
-                                 [this->request URL], @"URL",
-                                 [[this->request URL] path], @"path",
-                                 nil];
-      NSError      *error = [NSError errorWithDomain: @"can't load file" code: 0 userInfo: errorinfo];
-      [this->client URLProtocol: self didFailWithError: error];
-      DESTROY(this->client);
+      [this->client URLProtocol: self didFailWithError:
+	[NSError errorWithDomain: @"can't load file" code: 0 userInfo:
+	  [NSDictionary dictionaryWithObjectsAndKeys: 
+	    [this->request URL], @"URL",
+	    [[this->request URL] path], @"path",
+	    nil]]];
       return;
     }
 
@@ -2250,7 +2105,6 @@ static NSURLProtocol	*placeholder = nil;
     cacheStoragePolicy: NSURLRequestUseProtocolCachePolicy];
   [this->client URLProtocol: self didLoadData: data];
   [this->client URLProtocolDidFinishLoading: self];
-  DESTROY(this->client);
   RELEASE(r);
 }
 
@@ -2298,7 +2152,6 @@ static NSURLProtocol	*placeholder = nil;
                                   code: 0
                               userInfo: ui];
       [this->client URLProtocol: self didFailWithError: error];
-      DESTROY(this->client);
       return;
     }
   types = [[[spec substringToIndex: comma.location]
@@ -2339,7 +2192,6 @@ static NSURLProtocol	*placeholder = nil;
 	 cacheStoragePolicy: NSURLRequestUseProtocolCachePolicy];
   [this->client URLProtocol: self didLoadData: data];
   [this->client URLProtocolDidFinishLoading: self];
-  DESTROY(this->client);
   RELEASE(r);
 }
 
@@ -2377,7 +2229,6 @@ static NSURLProtocol	*placeholder = nil;
     cacheStoragePolicy: NSURLRequestUseProtocolCachePolicy];
   [this->client URLProtocol: self didLoadData: data];
   [this->client URLProtocolDidFinishLoading: self];
-  DESTROY(this->client);
   RELEASE(r);
 }
 

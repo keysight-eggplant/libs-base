@@ -17,12 +17,12 @@
    This library is distributed in the hope that it will be useful, but
    WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSTimeZone class reference</title>
    $Date$ $Revision$
@@ -108,24 +108,19 @@
 #import "Foundation/NSLocale.h"
 #import "GNUstepBase/NSString+GNUstepBase.h"
 #import "GSPrivate.h"
+#import "GSPThread.h"
 
-#ifdef HAVE_TZHEAD
-#include <tzfile.h>
-#else
-#include "nstzfile.h"
-#endif
+/* In systems without POSIX time zone information we can use our own builtin
+ * time zone data.
+ */
 
 #if defined(HAVE_UNICODE_UCAL_H)
 #define id id_ucal
 #include <unicode/ucal.h>
 #undef id
-#if (U_ICU_VERSION_MAJOR_NUM >= 52)
-#define HAVE_WINDOWS_TO_IANA_CONVERSION 1
+#elif defined(HAVE_ICU_H)
+#include <icu.h>
 #endif
-#endif
-
-NSString * const NSSystemTimeZoneDidChangeNotification
-  = @"NSSystemTimeZoneDidChangeNotification";
 
 /* Key for local time zone in user defaults. */
 #define LOCALDBKEY @"Local Time Zone"
@@ -167,6 +162,11 @@ NSString * const NSSystemTimeZoneDidChangeNotification
 
 #define BUFFER_SIZE 512
 #define WEEK_MILLISECONDS (7.0*24.0*60.0*60.0*1000.0)
+
+/* Include public domain code (modified for use here) to parse standard
+ * posix time zone files.
+ */
+#include "tzdb.h"
 
 #if GS_USE_ICU == 1
 static inline int
@@ -246,20 +246,15 @@ typedef struct {
   BOOL		isdst;
   unsigned char	abbr_idx;
   char		pad[2];
-  NSString	*abbreviation;
+  const char	*abbreviation;
 } TypeInfo;
 
 @interface	GSTimeZone : NSTimeZone
 {
 @public
   NSString	*timeZoneName;
-  NSArray	*abbreviations;
   NSData	*timeZoneData;
-  unsigned int	n_trans;
-  unsigned int	n_types;
-  int32_t	*trans;
-  TypeInfo	*types;
-  unsigned char	*idxs;
+  struct state  *sp;
 }
 @end
 
@@ -271,7 +266,6 @@ typedef struct {
   NSString	*daylightZoneName;
   NSString	*timeZoneNameAbbr;
   NSString	*daylightZoneNameAbbr;
-  NSString	*standardZoneIdentifier; // the IANA/Olson identifier
   LONG		Bias;
   LONG		StandardBias;
   LONG		DaylightBias;
@@ -295,7 +289,7 @@ static NSMutableDictionary *abbreviationDictionary = nil;
 static NSMutableDictionary *abbreviationMap = nil;
 
 /* Lock for creating time zones. */
-static NSRecursiveLock *zone_mutex = nil;
+static gs_mutex_t zone_mutex;
 
 static Class	NSTimeZoneClass;
 static Class	GSPlaceholderTimeZoneClass;
@@ -393,20 +387,14 @@ static NSString *_time_zone_path(NSString *subpath, NSString *type)
    * Return a cached time zone if possible.
    * NB. if data of cached zone does not match new data ... don't use cache
    */
-  if (zone_mutex != nil)
-    {
-      [zone_mutex lock];
-    }
+  GS_MUTEX_LOCK(zone_mutex);
   zone = [zoneDictionary objectForKey: name];
   if (data != nil && [data isEqual: [zone data]] == NO)
     {
       zone = nil;
     }
-  IF_NO_GC(RETAIN(zone));
-  if (zone_mutex != nil)
-    {
-      [zone_mutex unlock];
-    }
+  IF_NO_ARC(RETAIN(zone);)
+  GS_MUTEX_UNLOCK(zone_mutex);
 
   if (zone == nil)
     {
@@ -518,7 +506,7 @@ static NSString *_time_zone_path(NSString *subpath, NSString *type)
                 {
                   zone = [[GSWindowsTimeZone alloc] initWithName: name data: 0];
                   DESTROY(self);
-                  return (GSPlaceholderTimeZone*)zone;
+                  return zone;
                 }
 #else
 		{
@@ -564,6 +552,16 @@ static NSString *_time_zone_path(NSString *subpath, NSString *type)
 }
 
 - (id) autorelease
+{
+  return self;
+}
+
+- (id) copy
+{
+  return self;
+}
+
+- (id) copyWithZone: (NSZone*)z
 {
   return self;
 }
@@ -659,15 +657,13 @@ static NSMapTable	*absolutes = 0;
 {
   if (offset != uninitialisedOffset)
     {
-      if (zone_mutex != nil)
-	[zone_mutex lock];
+      GS_MUTEX_LOCK(zone_mutex);
       NSMapRemove(absolutes, (void*)(uintptr_t)offset);
-      if (zone_mutex != nil)
-	[zone_mutex unlock];
+      GS_MUTEX_UNLOCK(zone_mutex);
     }
   RELEASE(name);
   RELEASE(detail);
-  [super dealloc];
+  DEALLOC;
 }
 
 - (void) encodeWithCoder: (NSCoder*)aCoder
@@ -713,20 +709,17 @@ static NSMapTable	*absolutes = 0;
       z = commonAbsolutes[anOffset/900 + 72];
       if (z != nil)
         {
-          IF_NO_GC(RETAIN(z));
+          IF_NO_ARC(RETAIN(z);)
           DESTROY(self);
           return z;
         }
     }
 
-  if (zone_mutex != nil)
-    {
-      [zone_mutex lock];
-    }
+  GS_MUTEX_LOCK(zone_mutex);
   z = (GSAbsTimeZone*)NSMapGet(absolutes, (void*)(uintptr_t)anOffset);
   if (z != nil)
     {
-      IF_NO_GC(RETAIN(z));
+      IF_NO_ARC(RETAIN(z);)
       DESTROY(self);
     }
   else
@@ -736,12 +729,12 @@ static NSMapTable	*absolutes = 0;
 	  if (anOffset % 60 == 0)
 	    {
 	      char	s = (anOffset >= 0) ? '+' : '-';
-	      int	i = (anOffset >= 0) ? anOffset / 60 : -anOffset / 60;
-	      int	h = i / 60;
-	      int	m = i % 60;
+	      unsigned	i = (anOffset >= 0) ? anOffset / 60 : -anOffset / 60;
+	      unsigned	h = (i / 60) % 24;
+	      unsigned	m = i % 60;
 	      char	buf[9];
 
-	      snprintf(buf, sizeof(buf), "GMT%c%02d%02d", s, h, m);
+	      snprintf(buf, sizeof(buf), "GMT%c%02u%02u", s, h, m);
 	      name = [[NSString alloc] initWithUTF8String: buf];
 	    }
 	  else
@@ -773,10 +766,7 @@ static NSMapTable	*absolutes = 0;
           commonAbsolutes[index] = RETAIN(self);
         }
     }
-  if (zone_mutex != nil)
-    {
-      [zone_mutex unlock];
-    }
+  GS_MUTEX_UNLOCK(zone_mutex);
   return z;
 }
 
@@ -817,7 +807,7 @@ static NSMapTable	*absolutes = 0;
 - (void) dealloc
 {
   RELEASE(timeZone);
-  [super dealloc];
+  DEALLOC
 }
 
 - (id) initWithCoder: (NSCoder*)aDecoder
@@ -893,7 +883,7 @@ static NSMapTable	*absolutes = 0;
 - (void) dealloc
 {
   RELEASE(zone);
-  [super dealloc];
+  DEALLOC
 }
 
 - (id) initWithTimeZone: (GSAbsTimeZone*)aZone
@@ -996,10 +986,7 @@ static NSMapTable	*absolutes = 0;
     {
       return abbreviationDictionary;
     }
-  if (zone_mutex != nil)
-    {
-      [zone_mutex lock];
-    }
+  GS_MUTEX_LOCK(zone_mutex);
   if (abbreviationDictionary == nil)
     {
       NSAutoreleasePool	*pool = [NSAutoreleasePool new];
@@ -1056,10 +1043,7 @@ static NSMapTable	*absolutes = 0;
 	}
       [pool drain];
     }
-  if (zone_mutex != nil)
-    {
-      [zone_mutex unlock];
-    }
+  GS_MUTEX_UNLOCK(zone_mutex);
   return abbreviationDictionary;
 }
 
@@ -1077,10 +1061,7 @@ static NSMapTable	*absolutes = 0;
     {
       return abbreviationMap;
     }
-  if (zone_mutex != nil)
-    {
-      [zone_mutex lock];
-    }
+  GS_MUTEX_LOCK(zone_mutex);
   if (abbreviationMap == nil)
     {
       NSAutoreleasePool		*pool = [NSAutoreleasePool new];
@@ -1114,10 +1095,7 @@ static NSMapTable	*absolutes = 0;
 #endif
 	  if (file == NULL)
 	    {
-	      if (zone_mutex != nil)
-		{
-		  [zone_mutex unlock];
-		}
+              GS_MUTEX_UNLOCK(zone_mutex);
 	      [NSException
 		raise: NSInternalInconsistencyException
 		format: @"Failed to open time zone abbreviation map."];
@@ -1208,10 +1186,7 @@ static NSMapTable	*absolutes = 0;
         }
       [pool drain];
     }
-  if (zone_mutex != nil)
-    {
-      [zone_mutex unlock];
-    }
+  GS_MUTEX_UNLOCK(zone_mutex);
 
   return abbreviationMap;
 }
@@ -1221,13 +1196,6 @@ static NSMapTable	*absolutes = 0;
  */
 + (NSArray*) knownTimeZoneNames
 {
-#if GS_USE_ICU == 1
-  NSArray *stdArray = [self standardTimeZoneNames];	
-  if ([stdArray count] > 0)
-    {
-      return stdArray;
-    }
-#else
   static NSArray *namesArray = nil;
 
   /* We create the array only when we need it to reduce overhead. */
@@ -1236,10 +1204,7 @@ static NSMapTable	*absolutes = 0;
       return namesArray;
     }
 
-  if (zone_mutex != nil)
-    {
-      [zone_mutex lock];
-    }
+  GS_MUTEX_LOCK(zone_mutex);
   if (namesArray == nil)
     {
       unsigned		i;
@@ -1265,66 +1230,7 @@ static NSMapTable	*absolutes = 0;
           RELEASE(ma);
         }
     }
-  if (zone_mutex != nil)
-    {
-      [zone_mutex unlock];
-    }
-  return namesArray;
-#endif
-}
-
-/**
- * Returns an array of all known time zone names as obtained from the ICU library.
- */
-+ (NSArray*) standardTimeZoneNames
-{
-  static NSArray *namesArray = nil;
-
-#if GS_USE_ICU == 1
-  /* We create the array only when we need it to reduce overhead. */
-  if (namesArray != nil)
-    {
-      return namesArray;
-    }
-
-  if (zone_mutex != nil)
-    {
-      [zone_mutex lock];
-    }
-  if (namesArray == nil)
-    {
-      NSMutableArray *standardNames = [NSMutableArray new];
-      UErrorCode ec = 0;
-      UEnumeration *en = ucal_openTimeZones	(&ec); // enumerate all time zones
-      if (en) {
-        const char *str;
-        int32_t len;
-	    while ((str = uenum_next (en, &len, &ec)) != NULL)
-	      {
-            if (len > 0)
-              {
-    	        NSString *stdName = [[NSString alloc] initWithBytes:str length:len encoding:NSUTF8StringEncoding];
-		    	[standardNames addObject:stdName];
-	          }
-	      }
-        uenum_close(en);
-      }
-      if ([standardNames makeImmutable] == YES)
-        {
-          namesArray = standardNames;
-        }
-      else
-        {
-          namesArray = [standardNames copy];
-          RELEASE(standardNames);
-        }
-	}
-  if (zone_mutex != nil)
-    {
-      [zone_mutex unlock];
-    }
-#endif
-
+  GS_MUTEX_UNLOCK(zone_mutex);
   return namesArray;
 }
 
@@ -1354,10 +1260,7 @@ static NSMapTable	*absolutes = 0;
 	   * locate the correct placeholder in the (lock protected)
 	   * table of placeholders.
 	   */
-	  if (zone_mutex != nil)
-	    {
-	      [zone_mutex lock];
-	    }
+          GS_MUTEX_LOCK(zone_mutex);
 	  obj = (id)NSMapGet(placeholderMap, (void*)z);
 	  if (obj == nil)
 	    {
@@ -1368,10 +1271,7 @@ static NSMapTable	*absolutes = 0;
 	      obj = (id)NSAllocateObject(GSPlaceholderTimeZoneClass, 0, z);
 	      NSMapInsert(placeholderMap, (void*)z, (void*)obj);
 	    }
-	  if (zone_mutex != nil)
-	    {
-	      [zone_mutex unlock];
-	    }
+          GS_MUTEX_UNLOCK(zone_mutex);
 	  return obj;
 	}
     }
@@ -1388,29 +1288,16 @@ static NSMapTable	*absolutes = 0;
 {
   NSTimeZone	*zone;
 
-  if (zone_mutex != nil)
-    {
-      [zone_mutex lock];
-    }
+  GS_MUTEX_LOCK(zone_mutex);
   if (defaultTimeZone == nil)
     {
       zone = [self systemTimeZone];
     }
   else
     {
-      if (zone_mutex != nil)
-	{
-	  zone = AUTORELEASE(RETAIN(defaultTimeZone));
-	}
-      else
-	{
-	  zone = defaultTimeZone;
-	}
+      zone = AUTORELEASE(RETAIN(defaultTimeZone));
     }
-  if (zone_mutex != nil)
-    {
-      [zone_mutex unlock];
-    }
+  GS_MUTEX_UNLOCK(zone_mutex);
   return zone;
 }
 
@@ -1419,6 +1306,7 @@ static NSMapTable	*absolutes = 0;
   if (self == [NSTimeZone class])
     {
       NSTimeZoneClass = self;
+      GS_MUTEX_INIT_RECURSIVE(zone_mutex);
       GSPlaceholderTimeZoneClass = [GSPlaceholderTimeZone class];
       zoneDictionary = [[NSMutableDictionary alloc] init];
       [[NSObject leakAt: &zoneDictionary] release];
@@ -1436,9 +1324,6 @@ static NSMapTable	*absolutes = 0;
       localTimeZone = [[NSLocalTimeZone alloc] init];
       [[NSObject leakAt: (id*)&localTimeZone] release];
 
-      zone_mutex = [GSLazyRecursiveLock new];
-      [[NSObject leakAt: (id*)&zone_mutex] release];
-
       [[NSObject leakAt: (id*)&defaultTimeZone] release];
       [[NSObject leakAt: (id*)&systemTimeZone] release];
       [[NSObject leakAt: (id*)&abbreviationDictionary] release];
@@ -1450,15 +1335,6 @@ static NSMapTable	*absolutes = 0;
         name: NSUserDefaultsDidChangeNotification
         object: nil];
     }
-}
-
-+ (NSString *) icuLibraryVersion
-{
-#if GS_USE_ICU == 1
-	return [NSString stringWithFormat:@"ICU version %d.%d", U_ICU_VERSION_MAJOR_NUM, U_ICU_VERSION_MINOR_NUM];
-#else
-	return @"ICU not used";
-#endif
 }
 
 /**
@@ -1475,15 +1351,9 @@ static NSMapTable	*absolutes = 0;
  */
 + (void) resetSystemTimeZone
 {
-  if (zone_mutex != nil)
-    {
-      [zone_mutex lock];
-    }
+  GS_MUTEX_LOCK(zone_mutex);
   DESTROY(systemTimeZone);
-  if (zone_mutex != nil)
-    {
-      [zone_mutex unlock];
-    }
+  GS_MUTEX_UNLOCK(zone_mutex);
   [[NSNotificationCenter defaultCenter]
     postNotificationName: NSSystemTimeZoneDidChangeNotification
                   object: nil];
@@ -1504,15 +1374,9 @@ static NSMapTable	*absolutes = 0;
 	{
 	  aTimeZone = [self systemTimeZone];
 	}
-      if (zone_mutex != nil)
-	{
-	  [zone_mutex lock];
-	}
+      GS_MUTEX_LOCK(zone_mutex);
       ASSIGN(defaultTimeZone, aTimeZone);
-      if (zone_mutex != nil)
-	{
-	  [zone_mutex unlock];
-	}
+      GS_MUTEX_UNLOCK(zone_mutex);
     }
 }
 
@@ -1523,10 +1387,7 @@ static NSMapTable	*absolutes = 0;
 {
   NSTimeZone	*zone = nil;
 
-  if (zone_mutex != nil)
-    {
-      [zone_mutex lock];
-    }
+  GS_MUTEX_LOCK(zone_mutex);
   if (systemTimeZone == nil)
     {
       NSFileManager *dflt = [NSFileManager defaultManager];
@@ -1575,22 +1436,61 @@ static NSMapTable	*absolutes = 0;
       /*
        * Try to get timezone from windows system call.
        */
-      if (localZoneString == nil)
       {
-      	TIME_ZONE_INFORMATION tz;
-      	DWORD DST = GetTimeZoneInformation(&tz);
+        TIME_ZONE_INFORMATION tz;
+        DWORD dst;
+        wchar_t *tzName;
+
+#if defined(_MSC_VER) && defined(UCAL_H)
+        // Get time zone name for US locale as expected by ICU method below
+        LANGID origLangID = GetThreadUILanguage();
+        SetThreadUILanguage(MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US));
+        dst = GetTimeZoneInformation(&tz);
+        SetThreadUILanguage(origLangID);
+
+        // Only tz.StandardName time zone conversions are supported, as
+        // the Zone-Tzid table lacks all daylight time conversions:
+        // e.g. 'W. Europe Daylight Time' <-> 'Europe/Berlin' is not listed.
+        //
+        // See: https://unicode-org.github.io/cldr-staging/charts/latest/supplemental/zone_tzid.html
+        tzName = tz.StandardName;
+#else
+        dst = GetTimeZoneInformation(&tz);
+
+        if (dst == TIME_ZONE_ID_DAYLIGHT)
+          tzName = tz.DaylightName;
+        else
+          tzName = tz.StandardName;
+#endif
 
         localZoneSource = @"function: 'GetTimeZoneInformation()'";
-      	if (DST == TIME_ZONE_ID_DAYLIGHT)
-	  {
-	    localZoneString = [NSString stringWithCharacters: tz.DaylightName
-	      length: wcslen(tz.DaylightName)];
-	  }
-      	else
-	  {
-	    localZoneString = [NSString stringWithCharacters: tz.StandardName
-	      length: wcslen(tz.StandardName)];
-	  }
+
+#if defined(_MSC_VER) && defined(UCAL_H)
+        // Convert Windows timezone name to IANA identifier
+        if (tzName)
+          {
+            UErrorCode status = U_ZERO_ERROR;
+            UChar ianaTzName[128];
+            int32_t ianaTzNameLen = ucal_getTimeZoneIDForWindowsID(tzName,
+              -1, NULL, ianaTzName, 128, &status);
+            if (U_SUCCESS(status) && ianaTzNameLen > 0) {
+              localZoneString = [NSString stringWithCharacters: ianaTzName
+                length: ianaTzNameLen];
+            } else if (U_SUCCESS(status)) {
+              // this happens when ICU has no mapping for the time zone
+              NSLog(@"Unable to map timezone '%ls' to IANA format", tzName);
+            } else {
+              NSLog(@"Error converting timezone '%ls' to IANA format: %s",
+                tzName, u_errorName(status));
+            }
+          }
+#endif
+
+        if (localZoneString == nil)
+          {
+            localZoneString = [NSString stringWithCharacters: tzName
+              length: wcslen(tzName)];
+          }
       }
 #endif
 
@@ -1721,7 +1621,7 @@ static NSMapTable	*absolutes = 0;
 	    environment] objectForKey: @"TZ"];
 	}
 
-      /*
+
 #if HAVE_TZSET && !defined(__FreeBSD__) && !defined(__OpenBSD__)
       /*
        * Try to get timezone from tzset and tzname/daylight.
@@ -1731,7 +1631,7 @@ static NSMapTable	*absolutes = 0;
        *
        * FreeBSD doesn't implement TZSet fully, so we can't use it there.
        * Apparently, OpenBSD neither.
-       *//*
+       */
       if (localZoneString == nil)
 	{
           localZoneSource = @"function: 'tzset()/tzname'";
@@ -1740,7 +1640,7 @@ static NSMapTable	*absolutes = 0;
 	    localZoneString = [NSString stringWithUTF8String: tzname[0]];
 	}
 #endif
-      */
+
       if (localZoneString != nil)
 	{
 	  NSDebugLLog (@"NSTimeZone", @"Using zone %@", localZoneString);
@@ -1824,7 +1724,7 @@ zoneName, LOCALDBKEY, LOCALDBKEY, zoneName);
 @"\nYou can override the timezone name by setting the '%@'\n"
 @"NSUserDefault via the 'defaults' command line utility, a Preferences\n"
 @"application, or some other utility.\n"
-@"eg \"defaults write NSGlobalDomain \"%@\" \"Africa/Nairobi\"\"\n"
+@"eg \"defaults write NSGlobalDomain '%@' 'Africa/Nairobi'\"\n"
 @"See '%@'\n"
 @"for the standard timezones such as 'GB-Eire' or 'America/Chicago'.\n",
 LOCALDBKEY, LOCALDBKEY, _time_zone_path (ZONES_DIR, nil));
@@ -1866,15 +1766,8 @@ localZoneString, [zone name], sign, s/3600, (s/60)%60);
         }
       ASSIGN(systemTimeZone, zone);
     }
-  if (zone_mutex != nil)
-    {
-      zone = AUTORELEASE(RETAIN(systemTimeZone));
-      [zone_mutex unlock];
-    }
-  else
-    {
-      zone = systemTimeZone;
-    }
+  zone = AUTORELEASE(RETAIN(systemTimeZone));
+  GS_MUTEX_UNLOCK(zone_mutex);
   return zone;
 }
 
@@ -1893,10 +1786,7 @@ localZoneString, [zone name], sign, s/3600, (s/60)%60);
     {
       return regionsArray;
     }
-  if (zone_mutex != nil)
-    {
-      [zone_mutex lock];
-    }
+  GS_MUTEX_LOCK(zone_mutex);
   if (regionsArray == nil)
     {
       NSAutoreleasePool	*pool = [NSAutoreleasePool new];
@@ -1928,16 +1818,17 @@ localZoneString, [zone name], sign, s/3600, (s/60)%60);
 #endif
 	  if (fp == NULL)
 	    {
-	      if (zone_mutex != nil)
-		{
-		  [zone_mutex unlock];
-		}
+              GS_MUTEX_UNLOCK(zone_mutex);
 	      [NSException
 		raise: NSInternalInconsistencyException
 		format: @"Failed to open time zone regions array file."];
 	    }
-	  while (fscanf(fp, "%d %s", &index, name) == 2)
+	  while (fscanf(fp, "%d %79s", &index, name) == 2)
 	    {
+              if (index < 0)
+                index = 0;
+              else
+                index %= 24;
 	      [temp_array[index]
 		addObject: [NSString stringWithUTF8String: name]];
 	    }
@@ -1962,8 +1853,8 @@ localZoneString, [zone name], sign, s/3600, (s/60)%60);
 		
 		  path = [zonedir stringByAppendingPathComponent: name];
 		  if ([mgr fileExistsAtPath: path isDirectory: &isDir]
-		      && isDir == NO
-		      && [[path pathExtension] isEqual: @"tab"] == NO)
+                    && isDir == NO
+                    && [[path pathExtension] isEqual: @"tab"] == NO)
 		    {
 		      zone = [zoneDictionary objectForKey: name];
 		      if (zone == nil)
@@ -1976,7 +1867,7 @@ localZoneString, [zone name], sign, s/3600, (s/60)%60);
 			     to be in this directory, but initWithName:data:
 			     will do this anyway and log a message if not. */
 			  zone = [[self alloc] initWithName: name data: data];
-			  IF_NO_GC([zone autorelease];)
+			  IF_NO_ARC([zone autorelease];)
 			}
 		      if (zone != nil)
 			{
@@ -2006,8 +1897,11 @@ localZoneString, [zone name], sign, s/3600, (s/60)%60);
 			    {
 			      offset = -offset;
 			      offset %= (60 * 60 * 24);
-			      offset = -offset;
-			      offset += (60 * 60 * 24);
+                              if (offset > 0)
+                                {
+                                  offset = -offset;
+                                  offset += (60 * 60 * 24);
+                                }
 			    }
 			  else
 			    {
@@ -2024,10 +1918,7 @@ localZoneString, [zone name], sign, s/3600, (s/60)%60);
       regionsArray = [[NSArray alloc] initWithObjects: temp_array count: 24];
       [pool drain];
     }
-  if (zone_mutex != nil)
-    {
-      [zone_mutex unlock];
-    }
+  GS_MUTEX_UNLOCK(zone_mutex);
   return regionsArray;
 }
 
@@ -2070,15 +1961,9 @@ localZoneString, [zone name], sign, s/3600, (s/60)%60);
     }
   else
     {
-      if (zone_mutex != nil)
-        {
-          [zone_mutex lock];
-        }
+      GS_MUTEX_LOCK(zone_mutex);
       zone = (NSTimeZone*)NSMapGet(absolutes, (void*)(uintptr_t)seconds);
-      if (zone_mutex != nil)
-        {
-          [zone_mutex unlock];
-        }
+      GS_MUTEX_UNLOCK(zone_mutex);
     }
   if (nil == zone)
     {
@@ -2287,61 +2172,6 @@ localZoneString, [zone name], sign, s/3600, (s/60)%60);
   return [self subclassResponsibility: _cmd];
 }
 
-/**
- * Returns the IANA/Olson identifier given a possible "Windows" identifier,
- * or nil if no translation found.
- */
-- (NSString *) standardNameForName:(NSString *)identifier
-{
-  // see if it is already a standard name
-  NSArray *standardNames = [NSTimeZone standardTimeZoneNames];
-  if ([standardNames indexOfObject:[self name]] != NSNotFound)
-    {
-	  return [self name];
-	}
-
-  // not a standard name, try to convert it to one
-  NSString *standardName = nil;
-#if HAVE_WINDOWS_TO_IANA_CONVERSION == 1
-  int32_t resultLen = 0;
-  UChar *winID;
-  int32_t winIDLength;
-  UChar *zoneID;
-  UErrorCode status = 0; 
-  winIDLength = [identifier length];
-  winID = malloc(sizeof(UChar) * winIDLength);
-  [identifier getCharacters: winID];
-  zoneID = malloc(sizeof(UChar) * 200);
-  
-  // convert possible Windows identifier to IANA/Olson identifier
-  resultLen = ucal_getTimeZoneIDForWindowsID(winID, winIDLength, NULL, zoneID, 200, &status);
-  if (resultLen > 0)
-    {
-      standardName = AUTORELEASE([[NSString allocWithZone: NSDefaultMallocZone()]
-        initWithBytesNoCopy: zoneID
-        length: resultLen * sizeof(UChar)
-        encoding: NSUnicodeStringEncoding
-        freeWhenDone: YES]);
-	  NSDebugLLog(@"NSTimeZone",@"Translated zone '%@' to '%@'", identifier, standardName);
-	}
-  else
-    {
-	  free(zoneID);
-	}
-  free(winID);
-#endif
-  return standardName;
-}
-
-/**
- * Returns the IANA/Olson identifier of the timezone if different from the name, or else returns
- * the name. This is needed by NSDateFormatter when the name is a "Windows" identifier.
- */
-- (NSString *) standardName	// Note: See the GSWindowsTimeZone override of this method
-{
-  return [self name];	
-}
-
 - (id) replacementObjectForPortCoder: (NSPortCoder*)aCoder
 {
   if ([aCoder isByref] == NO)
@@ -2506,8 +2336,8 @@ localZoneString, [zone name], sign, s/3600, (s/60)%60);
   return [self nextDaylightSavingTimeTransitionAfterDate: [NSDate date]];
 }
 
-- (NSString *)localizedName: (NSTimeZoneNameStyle)style
-                     locale: (NSLocale *)locale
+- (NSString *) localizedName: (NSTimeZoneNameStyle)style
+                      locale: (NSLocale *)locale
 {
 #if GS_USE_ICU == 1
   UChar *result;
@@ -2613,10 +2443,7 @@ static NSString *zoneDirs[] = {
 
   if (beenHere == NO && tzdir == nil)
     {
-      if (zone_mutex != nil)
-	{
-	  [zone_mutex lock];
-	}
+      GS_MUTEX_LOCK(zone_mutex);
       if (beenHere == NO && tzdir == nil)
 	{
 	  NSFileManager	*mgr = [NSFileManager defaultManager];
@@ -2637,10 +2464,7 @@ static NSString *zoneDirs[] = {
 	    }
 	  beenHere = YES;
 	}
-      if (zone_mutex != nil)
-	{
-	  [zone_mutex unlock];
-	}
+      GS_MUTEX_UNLOCK(zone_mutex);
     }
   /* Use the system zone info if possible, otherwise, use our installed
      info.  */
@@ -2730,8 +2554,7 @@ GSBreakTime(NSTimeInterval when,
   RELEASE(daylightZoneName);
   RELEASE(timeZoneNameAbbr);
   RELEASE(daylightZoneNameAbbr);
-  RELEASE(standardZoneIdentifier);
-  [super dealloc];
+  DEALLOC
 }
 
 - (id) initWithName: (NSString*)name data: (NSData*)data
@@ -3065,62 +2888,6 @@ GSBreakTime(NSTimeInterval when,
     }
 }
 
-/**
- * Returns the IANA/Olson identifier of the timezone if different from the name, or else returns
- * the name. This is needed by NSDateFormatter when the name is a "Windows" identifier.
- */
-- (NSString *) standardName
-{
-#if HAVE_WINDOWS_TO_IANA_CONVERSION == 1
-  if (!standardZoneIdentifier)
-    {
-      NSString *identifier = [self name];
-      NSString *standardName = [self standardNameForName:identifier];
-
-      if (!standardName)
-        {
-		  NSMutableString *modifiedIdent = [[identifier mutableCopy] autorelease];
-		  NSRange substringRange = [modifiedIdent rangeOfString:@"Daylight "];
-		  if (substringRange.location != NSNotFound)
-		    {
-			  [modifiedIdent replaceCharactersInRange:substringRange withString:@"Standard "];
-			  NSDebugLLog(@"NSTimeZone",@"Trying zone name %@", modifiedIdent);
-			  standardName = [self standardNameForName:modifiedIdent];
-			}
-		  substringRange = [modifiedIdent rangeOfString:@"Standard "];
-		  if (!standardName && substringRange.location != NSNotFound)
-		    {
-			  [modifiedIdent deleteCharactersInRange:substringRange];
-			  NSDebugLLog(@"NSTimeZone",@"Trying zone name %@", modifiedIdent);
-			  standardName = [self standardNameForName:modifiedIdent];
-			}
-	    }
-	  
-	  if (!standardName)
-	    {
-		  // Fall back to "Etc/GMT+X" based on the offset if the name couldn't be resolved
-		  NSInteger theOffset = [self secondsFromGMT];
-		  BOOL isNegative = theOffset < 0;
-		  if (isNegative)
-		    theOffset = -theOffset;
-		  int hours = theOffset / 3600;
-		  standardName = [NSString stringWithFormat:@"Etc/GMT%@%d", (isNegative ? @"+" : @"-"), hours]; // note: sign is reversed in these identifiers
-		}
-	  if (standardName)
-	    {
-		  standardZoneIdentifier = [standardName copy];
-          NSDebugLLog(@"NSTimeZone",@"Found translation '%@' for zone '%@'", standardName, [self name]);
-		}
-	  else
-	    {		  
-		  standardZoneIdentifier = [identifier copy];
-          NSDebugLLog(@"NSTimeZone",@"No translation for zone '%@'", [self name]);
-		}
-	}
-#endif
-  return standardZoneIdentifier;		
-}
-
 - (NSInteger) secondsFromGMTForDate: (NSDate*)aDate
 {
   if ([self isDaylightSavingTimeForDate: aDate])
@@ -3176,87 +2943,56 @@ GSBreakTime(NSTimeInterval when,
 
 @implementation	GSTimeZone
 
-/**
- * Perform a binary search of a transitions table to locate the index
- * of the transition to use for a particular time interval since 1970.<br />
- * We locate the index of the highest transition before the date, or zero
- * if there is no transition before it.
- */
-static TypeInfo*
-chop(NSTimeInterval since, GSTimeZone *zone)
-{
-  int32_t		when = (int32_t)since;
-  int32_t		*trans = zone->trans;
-  unsigned		hi = zone->n_trans;
-  unsigned		lo = 0;
-  unsigned int		i;
-
-  if (hi == 0 || trans[0] > when)
-    {
-      unsigned	n_types = zone->n_types;
-
-      /*
-       * If the first transition is greater than our date,
-       * we locate the first non-DST transition and use that offset,
-       * or just use the first transition.
-       */
-      for (i = 0; i < n_types; i++)
-	{
-	  if (zone->types[i].isdst == 0)
-	    {
-	      return &zone->types[i];
-	    }
-	}
-      return &zone->types[0];
-    }
-  else
-    {
-      for (i = hi/2; hi != lo; i = (hi + lo)/2)
-	{
-	  if (when < trans[i])
-	    {
-	      hi = i;
-	    }
-	  else if (when > trans[i])
-	    {
-	      lo = ++i;
-	    }
-	  else
-	    {
-	      break;
-	    }
-	}
-      /*
-       * If we went off the top of the table or the closest transition
-       * was later than our date, we step back to find the last
-       * transition before our date.
-       */
-      if (i > 0 && (i == zone->n_trans || trans[i] > when))
-	{
-	  i--;
-	}
-      return &zone->types[zone->idxs[i]];
-    }
-}
-
 static NSTimeZoneDetail*
 newDetailInZoneForType(GSTimeZone *zone, TypeInfo *type)
-{
-  GSTimeZoneDetail	*detail;
+{ 
+  GSTimeZoneDetail      *detail;
+  NSString		*abbr;
 
-  detail = [GSTimeZoneDetail alloc];
-  detail = [detail initWithTimeZone: zone
-			 withAbbrev: type->abbreviation
-			 withOffset: type->offset
-			    withDST: type->isdst];
+  abbr = [[NSString alloc] initWithUTF8String: type->abbreviation];
+  
+  detail = [[GSTimeZoneDetail alloc] initWithTimeZone: zone
+					   withAbbrev: abbr
+					   withOffset: type->offset
+					      withDST: type->isdst];
+  RELEASE(abbr);
   return detail;
 }
 
+/**
+ * Obtain TypeInfo from transisions or TZstring
+ */
+static TypeInfo
+getTypeInfo(NSTimeInterval since, GSTimeZone *zone)
+{
+  int64_t       when = (int64_t)since;
+  gstm		tm;
+  TypeInfo      type;
+
+  if (localsub(zone->sp, &when, 0, &tm) == NULL)
+    {
+      memset(&type, '\0', sizeof(type));
+    }
+  else
+    {
+      type.offset = tm.tm_gmtoff;
+      type.isdst = tm.tm_isdst;
+      type.abbr_idx = 0;
+      type.abbreviation = tm.tm_zone;
+    }
+  return type;
+}
+
+
 - (NSString*) abbreviationForDate: (NSDate*)aDate
 {
-  TypeInfo	*type = chop([aDate timeIntervalSince1970], self);
+  TypeInfo	type = getTypeInfo([aDate timeIntervalSince1970], self);
 
-  return type->abbreviation;
+  if (NULL == type.abbreviation)
+    {
+      return nil;
+    }
+  return [NSString stringWithUTF8String: type.abbreviation];
 }
 
 - (NSData*) data
@@ -3268,184 +3004,84 @@ newDetailInZoneForType(GSTimeZone *zone, TypeInfo *type)
 {
   RELEASE(timeZoneName);
   RELEASE(timeZoneData);
-  RELEASE(abbreviations);
-  if (types != 0)
+  if (sp != 0)
     {
-      NSZoneFree(NSDefaultMallocZone(), types);
+      free(sp);
     }
-  [super dealloc];
+  DEALLOC
 }
 
 - (id) initWithName: (NSString*)name data: (NSData*)data
 {
   static NSString	*fileException = @"GSTimeZoneFileException";
+  union local_storage	*lsp;
+  const char      	*zoneName;
+
+  /* The placeholder class should have dealt with loading the data
+   */
+  NSAssert([data isKindOfClass: [NSData class]], NSInvalidArgumentException);
+  NSAssert([name isKindOfClass: [NSString class]], NSInvalidArgumentException);
 
   timeZoneName = [name copy];
   timeZoneData = [data copy];
+
+  zoneName = [timeZoneName UTF8String];
+  sp = malloc(sizeof(*sp));
+  memset((char *)sp, '\0', sizeof(*sp));
+
   NS_DURING
     {
-      const void	*bytes = [timeZoneData bytes];
-      unsigned		length = [timeZoneData length];
-      void		*buf;
-      unsigned		pos = 0;
-      unsigned		i, charcnt;
-      unsigned char	*abbr;
-      struct tzhead	*header;
+      size_t		nread;
+      union input_buffer  	*up;
 
-      if (length < sizeof(struct tzhead))
+      lsp = malloc(sizeof(*lsp));
+      up = &lsp->u.u;
+      nread = [data length];
+      if (nread > sizeof(up->buf))
 	{
 	  [NSException raise: fileException
-		      format: @"File is too small"];
+		      format: @"data too large"];
 	}
-      header = (struct tzhead *)(bytes + pos);
-      pos += sizeof(struct tzhead);
-#ifdef TZ_MAGIC
-      if (memcmp(header->tzh_magic, TZ_MAGIC, strlen(TZ_MAGIC)) != 0)
+      [data getBytes: up->buf]; 
+
+      if (tzloadbody1(zoneName, sp, true, lsp, nread) != 0)
 	{
 	  [NSException raise: fileException
-		      format: @"TZ_MAGIC is incorrect"];
+		      format: @"cannot load data"];
 	}
-#endif
-      n_trans = GSSwapBigI32ToHost(*(int32_t*)(void*)header->tzh_timecnt);
-      n_types = GSSwapBigI32ToHost(*(int32_t*)(void*)header->tzh_typecnt);
-      charcnt = GSSwapBigI32ToHost(*(int32_t*)(void*)header->tzh_charcnt);
+      free(lsp);
+      lsp = NULL;
 
-      i = pos;
-      i += sizeof(int32_t)*n_trans;
-      if (i > length)
-	{
-	  [NSException raise: fileException
-		      format: @"Transitions list is truncated"];
-	}
-      i += n_trans;
-      if (i > length)
-	{
-	  [NSException raise: fileException
-		      format: @"Transition indexes are truncated"];
-	}
-      i += sizeof(struct ttinfo)*n_types;
-      if (i > length)
-	{
-	  [NSException raise: fileException
-		      format: @"Types list is truncated"];
-	}
-      if (i + charcnt > length)
-	{
-	  [NSException raise: fileException
-		      format: @"Abbreviations list is truncated"];
-	}
-
-      /*
-       * Now calculate size we need to store the information
-       * for efficient access ... not the same saze as the data
-       * we received.
-       */
-      i = n_trans * (sizeof(int32_t)+1) + n_types * sizeof(TypeInfo);
-      buf = NSZoneMalloc(NSDefaultMallocZone(), i);
-      types = (TypeInfo*)buf;
-      buf += (n_types * sizeof(TypeInfo));
-      trans = (int32_t*)buf;
-      buf += (n_trans * sizeof(int32_t));
-      idxs = (unsigned char*)buf;
-
-      /* Read in transitions. */
-      for (i = 0; i < n_trans; i++)
-	{
-	  trans[i] = GSSwapBigI32ToHost(*(int32_t*)(bytes + pos));
-	  pos += sizeof(int32_t);
-	}
-      for (i = 0; i < n_trans; i++)
-	{
-	  idxs[i] = *(unsigned char*)(bytes + pos);
-	  pos++;
-	}
-      for (i = 0; i < n_types; i++)
-	{
-	  struct ttinfo	*ptr = (struct ttinfo*)(bytes + pos);
-          uint32_t      off;
-
-	  types[i].isdst = (ptr->isdst != 0 ? YES : NO);
-	  types[i].abbr_idx = ptr->abbr_idx;
-          memcpy(&off, ptr->offset, 4);
-	  types[i].offset = GSSwapBigI32ToHost(off);
-	  pos += sizeof(struct ttinfo);
-	}
-      abbr = (unsigned char*)(bytes + pos);
-      {
-	id		abbrevs[charcnt];
-	unsigned	count = 0;
-	unsigned	used = 0;
-
-	memset(abbrevs, '\0', sizeof(id)*charcnt);
-	for (i = 0; i < n_types; i++)
-	  {
-	    int	loc = types[i].abbr_idx;
-
-	    if (abbrevs[loc] == nil)
-	      {
-		abbrevs[loc]
-		  = [[NSString alloc] initWithUTF8String: (char*)abbr + loc];
-		count++;
-	      }
-	    types[i].abbreviation = abbrevs[loc];
-	  }
-	/*
-	 * Now we have created all the abbreviations, we put them in an
-	 * array for easy access later and easy deallocation if/when
-	 * the receiver is deallocated.
-	 */
-	i = charcnt;
-	while (i-- > count)
-	  {
-	    if (abbrevs[i] != nil)
-	      {
-		while (abbrevs[used] != nil)
-		  {
-		    used++;
-		  }
-		abbrevs[used] = abbrevs[i];
-		abbrevs[i] = nil;
-		if (++used >= count)
-		  {
-		    break;
-		  }
-	      }
-	  }
-	abbreviations = [[NSArray alloc] initWithObjects: abbrevs count: count];
-	while (count-- > 0)
-	  {
-	    RELEASE(abbrevs[count]);
-	  }
-      }
-
-      if (zone_mutex != nil)
-	{
-	  [zone_mutex lock];
-	}
-      [zoneDictionary setObject: self forKey: timeZoneName];
-      if (zone_mutex != nil)
-	{
-	  [zone_mutex unlock];
-	}
+      scrub_abbrs(sp);
     }
   NS_HANDLER
     {
+      if (lsp)
+	{
+	  free(lsp);
+	}
       DESTROY(self);
-      NSLog(@"Unable to obtain time zone `%@'... %@", name, localException);
+      NSLog(@"Unable to obtain time zone `%@'... %@",
+	name, localException);
       if ([localException name] != fileException)
 	{
 	  [localException raise];
 	}
+      return nil;
     }
   NS_ENDHANDLER
+
+  GS_MUTEX_LOCK(zone_mutex);
+  [zoneDictionary setObject: self forKey: timeZoneName];
+  GS_MUTEX_UNLOCK(zone_mutex);
   return self;
 }
 
 - (BOOL) isDaylightSavingTimeForDate: (NSDate*)aDate
 {
-  TypeInfo	*type = chop([aDate timeIntervalSince1970], self);
+  TypeInfo	type = getTypeInfo([aDate timeIntervalSince1970], self);
 
-  return type->isdst;
+  return type.isdst;
 }
 
 - (NSString*) name
@@ -3455,23 +3091,31 @@ newDetailInZoneForType(GSTimeZone *zone, TypeInfo *type)
 
 - (NSInteger) secondsFromGMTForDate: (NSDate*)aDate
 {
-  TypeInfo	*type = chop([aDate timeIntervalSince1970], self);
+  TypeInfo	type = getTypeInfo([aDate timeIntervalSince1970], self);
 
-  return type->offset;
+  return type.offset;
 }
 
 - (NSArray*) timeZoneDetailArray
 {
-  NSTimeZoneDetail	*details[n_types];
+  NSTimeZoneDetail	*details[sp->typecnt];
   unsigned		i;
   NSArray		*array;
 
-  for (i = 0; i < n_types; i++)
+  for (i = 0; i < sp->typecnt; i++)
     {
-      details[i] = newDetailInZoneForType(self, &types[i]);
+      const struct _ttinfo *const ttisp = &sp->ttis[i];
+      const char *abbr = &sp->chars[ttisp->tt_desigidx];
+      TypeInfo	type;
+
+      type.offset = ttisp->tt_utoff;
+      type.isdst = ttisp->tt_isdst;
+      type.abbr_idx = ttisp->tt_desigidx;
+      type.abbreviation = abbr;
+      details[i] = newDetailInZoneForType(self, &type);
     }
-  array = [NSArray arrayWithObjects: details count: n_types];
-  for (i = 0; i < n_types; i++)
+  array = [NSArray arrayWithObjects: details count: sp->typecnt];
+  for (i = 0; i < sp->typecnt; i++)
     {
       RELEASE(details[i]);
     }
@@ -3480,11 +3124,11 @@ newDetailInZoneForType(GSTimeZone *zone, TypeInfo *type)
 
 - (NSTimeZoneDetail*) timeZoneDetailForDate: (NSDate*)aDate
 {
-  TypeInfo		*type;
+  TypeInfo		type;
   NSTimeZoneDetail	*detail;
 
-  type = chop([aDate timeIntervalSince1970], self);
-  detail = newDetailInZoneForType(self, type);
+  type = getTypeInfo([aDate timeIntervalSince1970], self);
+  detail = newDetailInZoneForType(self, &type);
   return AUTORELEASE(detail);
 }
 

@@ -18,12 +18,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSNotificationCenter class reference</title>
    $Date$ $Revision$
@@ -38,12 +38,6 @@
 #import "Foundation/NSOperation.h"
 #import "Foundation/NSThread.h"
 #import "GNUstepBase/GSLock.h"
-
-
-#if defined(_WIN32)
-#include <objc/blocks_runtime.h>
-#endif
-
 
 static NSZone	*_zone = 0;
 
@@ -124,18 +118,6 @@ static Class concrete = 0;
 
 @end
 
-
-/*
- * Garbage collection considerations -
- * The notification center is not supposed to retain any notification
- * observers or notification objects.  To achieve this when using garbage
- * collection, we must hide all references to observers and objects.
- * Within an Observation structure, this is not a problem, we simply
- * allocate the structure using 'atomic' allocation to tell the gc
- * system to ignore pointers inside it.
- * Elsewhere, we store the pointers with a bit added, to hide them from
- * the garbage collector.
- */
 
 struct	NCTbl;		/* Notification Center Table structure	*/
 
@@ -244,11 +226,6 @@ static void obsFree(Observation *o);
  * lists of Observations.  This lets us avoid the overhead of creating
  * and destroying map tables when we are frequently adding and removing
  * notification observations.
- *
- * Performance is however, not the primary reason for using this
- * structure - it provides a neat way to ensure that observers pointed
- * to by the Observation structures are not seen as being in use by
- * the garbage collection mechanism.
  */
 #define	CHUNKSIZE	128
 #define	CACHESIZE	16
@@ -279,8 +256,7 @@ obsNew(NCTable *t, SEL s, id o)
 
   /* Generally, observations are cached and we create a 'new' observation
    * by retrieving from the cache or by allocating a block of observations
-   * in one go.  This works nicely to both hide observations from the
-   * garbage collector (when using gcc for GC) and to provide high
+   * in one go.  This works nicely to provide high
    * performance for situations where apps add/remove lots of observers
    * very frequently (poor design, but something which happens in the
    * real world unfortunately).
@@ -564,7 +540,7 @@ purgeMapNode(GSIMapTable map, GSIMapNode node, id observer)
 #define	purgeCollected(X)	(X)
 #define purgeCollectedFromMapNode(X, Y) ((Observation*)Y->value.ext)
 
-
+
 @interface GSNotificationBlockOperation : NSOperation
 {
 	NSNotification *_notification;
@@ -764,8 +740,6 @@ static NSNotificationCenter *default_center = nil;
  * <p>The notification center does not retain observer or object. Therefore,
  * you should always send removeObserver: or removeObserver:name:object: to
  * the notification center before releasing these objects.<br />
- * As a convenience, when built with garbage collection, you do not need to
- * remove any garbage collected observer as the system will do it implicitly.
  * </p>
  *
  * <p>NB. For MacOS-X compatibility, adding an observer multiple times will
@@ -1103,9 +1077,8 @@ static NSNotificationCenter *default_center = nil;
    * Lock the table of observations while we traverse it.
    *
    * The table of observations contains weak pointers which are zeroed when
-   * the observers get garbage collected.  So to avoid consistency problems
-   * we disable gc while we copy all the observations we are interested in.
-   * We use scanned memory in the array in the case where there are more
+   * the observers get destroyed.  So to avoid consistency problems
+   * we use scanned memory in the array in the case where there are more
    * than the 64 observers we allowed room for on the stack.
    */
   GSIArrayInitWithZoneAndStaticCapacity(a, _zone, 64, i);
@@ -1172,7 +1145,7 @@ static NSNotificationCenter *default_center = nil;
 	      /*
 	       * Now observers with a nil object.
 	       */
-	      GSIMapNodeForSimpleKey(m, (GSIMapKey)(id)nil);
+	      n = GSIMapNodeForSimpleKey(m, (GSIMapKey)(id)nil);
 	      if (n != 0)
 		{
 	          o = purgeCollectedFromMapNode(m, n);
@@ -1206,7 +1179,22 @@ static NSNotificationCenter *default_center = nil;
             }
           NS_HANDLER
             {
-              NSLog(@"Problem posting notification: %@", localException);
+	      BOOL	logged;
+
+	      /* Try to report the notification along with the exception,
+	       * but if there's a problem with the notification itself,
+	       * we just log the exception.
+	       */
+	      NS_DURING
+		NSLog(@"Problem posting %@: %@", notification, localException);
+		logged = YES;
+	      NS_HANDLER
+		logged = NO;
+	      NS_ENDHANDLER
+  	      if (NO == logged)
+		{ 
+		  NSLog(@"Problem posting notification: %@", localException);
+		}  
             }
           NS_ENDHANDLER
 	}

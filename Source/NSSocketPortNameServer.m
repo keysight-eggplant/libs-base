@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    $Date$ $Revision$
    */
@@ -460,7 +460,7 @@ typedef enum {
   if (state == GSPC_FAIL)
     return;
 
-  IF_NO_GC(RETAIN(handle));
+  IF_NO_ARC(RETAIN(handle);)
   nc = [NSNotificationCenter defaultCenter];
   [nc addObserver: self
 	 selector: @selector(didConnect:)
@@ -494,7 +494,7 @@ typedef enum {
   msg.port = 0;
   TEST_RELEASE(data);
   data = [NSMutableData dataWithBytes: (void*)&msg length: sizeof(msg)];
-  IF_NO_GC(RETAIN(data));
+  IF_NO_ARC(RETAIN(data);)
   [self open: nil];
 }
 
@@ -507,7 +507,7 @@ typedef enum {
   [name getCString: (char*)msg.name];
   TEST_RELEASE(data);
   data = [NSMutableData dataWithBytes: (void*)&msg length: sizeof(msg)];
-  IF_NO_GC(RETAIN(data));
+  IF_NO_ARC(RETAIN(data);)
   [self open: host];
 }
 
@@ -520,7 +520,7 @@ typedef enum {
   msg.port = GSSwapHostI32ToBig(portNumber);
   TEST_RELEASE(data);
   data = [NSMutableData dataWithBytes: (void*)&msg length: sizeof(msg)];
-  IF_NO_GC(RETAIN(data));
+  IF_NO_ARC(RETAIN(data);)
   [self open: nil];
 }
 
@@ -540,7 +540,7 @@ typedef enum {
   msg.port = GSSwapHostI32ToBig(portNumber);
   TEST_RELEASE(data);
   data = [NSMutableData dataWithBytes: (void*)&msg length: sizeof(msg)];
-  IF_NO_GC(RETAIN(data));
+  IF_NO_ARC(RETAIN(data);)
   [self open: nil];
 }
 
@@ -859,9 +859,9 @@ typedef enum {
 
 	  host = [NSHost hostWithAddress: addr];
 	  return (NSPort*)[NSSocketPort portWithNumber: portNum
-					     onHost: host
-				       forceAddress: addr
-					   listener: NO];
+						onHost: host
+					  forceAddress: addr
+					      listener: NO];
 	}
       else
 	{
@@ -1210,7 +1210,7 @@ typedef enum {
       NSMutableSet	*known = (NSMutableSet*)NSMapGet(_portMap, port);
       NSString		*name;
 
-      IF_NO_GC(RETAIN(known);)
+      IF_NO_ARC(RETAIN(known);)
       while ((name = [known anyObject]) != nil)
 	{
 	  if ([self removePortForName: name] == NO)

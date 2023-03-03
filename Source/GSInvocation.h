@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 #ifndef __GSInvocation_h_GNUSTEP_BASE_INCLUDE
@@ -73,15 +73,17 @@ GSFFCallInvokeWithTargetAndImp(NSInvocation *inv, id anObject, IMP imp);
 extern void
 GSFFIInvokeWithTargetAndImp(NSInvocation *inv, id anObject, IMP imp);
 
-#define CLEAR_RETURN_VALUE_IF_OBJECT  do { if (_validReturn && *_inf[0].type == _C_ID) \
-                                            { \
-                                            RELEASE (*(id*) _retval); \
-                                            *(id*) _retval = nil; \
-                                            _validReturn = NO; \
-                                            }\
-                                        } while (0)
+#define CLEAR_RETURN_VALUE_IF_OBJECT \
+do {\
+  if (_validReturn && *_inf[0].type == _C_ID) \
+    { \
+      RELEASE (*(id*) _retval); \
+      *(id*) _retval = nil; \
+      _validReturn = NO; \
+    }\
+  } while (0)
 
-#define RETAIN_RETURN_VALUE IF_NO_GC(do { if (*_inf[0].type == _C_ID) RETAIN (*(id*) _retval);} while (0))                                         
+#define RETAIN_RETURN_VALUE IF_NO_ARC(do { if (*_inf[0].type == _C_ID) RETAIN (*(id*) _retval);} while (0))                                         
 
 #define	_inf	((NSArgumentInfo*)_info)
 

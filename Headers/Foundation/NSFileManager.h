@@ -166,10 +166,6 @@
 </chapter>
 */
 
-// Define these to nothing for now...
-#define GS_EXPORT_CLASS
-// #define GS_EXPORT
-
 #ifndef __NSFileManager_h_GNUSTEP_BASE_INCLUDE
 #define __NSFileManager_h_GNUSTEP_BASE_INCLUDE
 #import	<GNUstepBase/GSVersionMacros.h>
@@ -317,6 +313,8 @@ GS_EXPORT_CLASS
 - (BOOL) createSymbolicLinkAtPath: (NSString*)path
               withDestinationPath: (NSString*)destPath
                             error: (NSError**)error;
+
+- (BOOL) setAttributes:(NSDictionary *)attributes ofItemAtPath:(NSString *)path error:(NSError **)error;
 #endif
 
 /**

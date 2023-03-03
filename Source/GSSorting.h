@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */
 
 #import "Foundation/NSSortDescriptor.h"
@@ -130,7 +130,7 @@ GSRightInsertionPointForKeyInSortedRange(id key, id *buffer,
  * This function is provided using the implementation of the timsort algorithm.
  */
 NSUInteger
-GSLeftInsertionPointForKeyInSortedRange(id key, id* buffer,
+GSLeftInsertionPointForKeyInSortedRange(id key, id *buffer,
   NSRange range, NSComparator comparator);
 
 /**
@@ -139,7 +139,7 @@ GSLeftInsertionPointForKeyInSortedRange(id key, id* buffer,
  */
 static inline NSComparisonResult
 GSCompareUsingDescriptorOrComparator(id first, id second, id descOrComp,
-  GSComparisonType cmprType, void* context)
+  GSComparisonType cmprType, void *context)
 {
 
   switch (cmprType)
@@ -148,7 +148,7 @@ GSCompareUsingDescriptorOrComparator(id first, id second, id descOrComp,
         return [(NSSortDescriptor*)descOrComp compareObject: first
                                                    toObject: second];
       case GSComparisonTypeComparatorBlock:
-        return CALL_BLOCK(((NSComparator)descOrComp), first, second);
+        return CALL_NON_NULL_BLOCK(((NSComparator)descOrComp), first, second);
 
       case GSComparisonTypeFunction:
         return ((NSInteger (*)(id, id, void *))descOrComp)(first,

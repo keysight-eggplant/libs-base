@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */
 
 #import "common.h"
@@ -186,7 +186,7 @@
   _costLimit = lim;
 }
 
-- (NSUInteger)totalCostLimit
+- (NSUInteger) totalCostLimit
 {
   return _costLimit;
 }
@@ -213,7 +213,7 @@
     {
       NSMutableArray *evictedKeys = nil;
       // Round up slightly.
-      NSUInteger averageAccesses = (_totalAccesses / count * 0.2) + 1;
+      NSUInteger averageAccesses = ((_totalAccesses / (double)count) * 0.2) + 1;
       NSEnumerator *e = [_accesses objectEnumerator];
       _GSCachedObject *obj;
 
@@ -275,7 +275,7 @@
 @end
 
 @implementation _GSCachedObject
-- (void)dealloc
+- (void) dealloc
 {
   [object release];
   [key release];

@@ -48,12 +48,12 @@ typedef retTy(^name)()
 /**
  * Calls a block.  Works irrespective of whether the compiler supports blocks.
  */
-#define CALL_BLOCK(block, args, ...) block(args, ## __VA_ARGS__)
+#define CALL_NON_NULL_BLOCK(block, args, ...) block(args, ## __VA_ARGS__)
 
 /**
  * Calls a block without arguments.
  */
-#define CALL_BLOCK_NO_ARGS(block) block()
+#define CALL_NON_NULL_BLOCK_NO_ARGS(block) block()
 #else
 
 /* Fall-back versions for when the compiler doesn't have native blocks support.
@@ -76,9 +76,9 @@ typedef retTy(^name)()
     retTy (*invoke)(void*);\
   } *name
 
-#define CALL_BLOCK(block, args, ...) block->invoke(block, args, ## __VA_ARGS__)
+#define CALL_NON_NULL_BLOCK(block, args, ...) block->invoke(block, args, ## __VA_ARGS__)
 
-#define CALL_BLOCK_NO_ARGS(block) block->invoke(block)
+#define CALL_NON_NULL_BLOCK_NO_ARGS(block) block->invoke(block)
 #define BLOCK_SCOPE
 
 #else /* GCC_VERSION >= 3000 */
@@ -100,12 +100,15 @@ typedef retTy(^name)()
   } *name
 
 
-#define CALL_BLOCK(block, args...) block->invoke(block, args)
-#define CALL_BLOCK_NO_ARGS(block) block->invoke(block)
+#define CALL_NON_NULL_BLOCK(block, args...) block->invoke(block, args)
+#define CALL_NON_NULL_BLOCK_NO_ARGS(block) block->invoke(block)
 #define BLOCK_SCOPE
 #endif /* GCC_VERSION >= 3000 */
 
 #endif /* __has_feature(blocks) */
+
+#define CALL_BLOCK(block, args...) ((NULL != block) ? CALL_NON_NULL_BLOCK(block, args) : nil)
+#define CALL_BLOCK_NO_ARGS(block) ((NULL != block) ? CALL_NON_NULL_BLOCK_NO_ARGS(block) : nil)
 
 #if __has_include(<objc/blocks_runtime.h>)
 #  include <objc/blocks_runtime.h>
@@ -133,24 +136,14 @@ void _Block_release(const void *) __attribute__((weak));
 }
 #endif
 
-// Testplant -- this workaround is temporary until we move to a newer libobjc on linux.
-#ifndef __MINGW32__
 #ifndef Block_copy
-#  define Block_copy(x) ((__typeof(x))_Block_copy((void *)(x)))
-#endif
-#ifndef Block_release
-#  define Block_release(x) _Block_release((void *)(x))
-#endif
-#else
-// Testplant -- keep this part when moving to newer libobjc on linux.
-#ifndef Block_copy
-#  define Block_copy(x) ((__typeof(x))_Block_copy((const void *)(x)))
+#  define Block_copy(x) ((__typeof__(x))_Block_copy((const void *)(x)))
 #endif
 #ifndef Block_release
 #  define Block_release(x) _Block_release((const void *)(x))
 #endif
-#endif // __MINGW32__
 
 #endif /* __has_include(<objc/blocks_runtime.h>) */
 
 #endif /* __GSBlocks_h_GNUSTEP_BASE_INCLUDE */
+

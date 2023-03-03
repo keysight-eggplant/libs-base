@@ -290,7 +290,7 @@ GSAvahiServiceBrowserEvent(
     {
       err = NSNetServicesActivityInProgress;
     }
-  
+
   if (!err)
     {
       /* Check whether the avahi-client is in a working state (the caller

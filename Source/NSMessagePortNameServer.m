@@ -12,12 +12,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSMessagePortNameServer class reference</title>
    $Date$ $Revision$
@@ -54,9 +54,7 @@
 #  include	<fcntl.h>
 #endif
 
-#if defined(HAVE_SYS_UN_H)
 #include <sys/un.h>
-#endif
 
 /* Older systems (Solaris) compatibility */
 #ifndef AF_LOCAL
@@ -121,7 +119,7 @@ static NSMapTable *portToNamesMap;
   DESTROY(portToNamesMap);
   DESTROY(serverLock);
   [arp drain];
-    }
+}
 
 + (void) initialize
 {
@@ -141,7 +139,7 @@ static NSMapTable *portToNamesMap;
        * method could fail).
        */
       portToNamesMap = NSCreateMapTable(NSNonOwnedPointerMapKeyCallBacks,
-			 NSObjectMapValueCallBacks, 0);
+        NSObjectMapValueCallBacks, 0);
       [self registerAtExit];
 
       /* It's possible that an old process, with the same process ID as
@@ -153,43 +151,46 @@ static NSMapTable *portToNamesMap;
       path = NSTemporaryDirectory();
       path = [path stringByAppendingPathComponent: @"NSMessagePort"];
       path = [path stringByAppendingPathComponent: @"names"];
-      pid = [NSString stringWithFormat: @"%i", [[NSProcessInfo processInfo] processIdentifier]];
+      pid = [NSString stringWithFormat: @"%i",
+	[[NSProcessInfo processInfo] processIdentifier]];
       mgr = [NSFileManager defaultManager];
       files = [[mgr directoryContentsAtPath: path] objectEnumerator];
       while ((file = [files nextObject]) != nil)
-        {
-          NSString	*old         = [path stringByAppendingPathComponent: file];
-          BOOL       isDirectory = NO;
+	{
+          NSString	*old = [path stringByAppendingPathComponent: file];
+          NSArray       *lines;
+          NSString      *line;
+          int           opid;
+          BOOL          isDir = NO;
 
-          // Skip potential directories from a previous run/reboot...
-          if ([mgr fileExistsAtPath: old isDirectory: &isDirectory] && (isDirectory == NO))
+          if ([mgr fileExistsAtPath: old isDirectory: &isDir] == NO
+            || YES == isDir)
             {
-              NSArray       *lines;
-              NSString      *line;
-              int           opid;
-
-              lines = [[NSString stringWithContentsOfFile: old] componentsSeparatedByString: @"\n"];
-              if ([lines count] > 1 && (opid = [(line = [lines objectAtIndex: 1]) intValue]) > 0)
+              continue; // Ignore removed file or lock directory
+            }
+	  lines = [[NSString stringWithContentsOfFile: old]
+            componentsSeparatedByString: @"\n"];
+          if ([lines count] > 1
+            && (opid = [(line = [lines objectAtIndex: 1]) intValue]) > 0)
+            {
+              if (YES == [line isEqual: pid])
                 {
-                  if (YES == [line isEqual: pid])
-                    {
-                      NSDebugMLLog(@"NSMessagePort", @"Removing old name %@", old);
-                      [mgr removeFileAtPath: old handler: nil];
-                    }
-                  else if (NO == [NSProcessInfo _exists: opid])
-                    {
-                      NSDebugMLLog(@"NSMessagePort",
-                        @"Removing old name %@ for process %d", old, opid);
-                      [mgr removeFileAtPath: old handler: nil];
-                    }
+                  NSDebugMLLog(@"NSMessagePort", @"Removing old name %@", old);
+                  [mgr removeFileAtPath: old handler: nil];
                 }
-              else
+              else if (NO == [NSProcessInfo _exists: opid])
                 {
-                  NSDebugMLLog(@"NSMessagePort", @"Removing bad name %@", old);
+                  NSDebugMLLog(@"NSMessagePort",
+                    @"Removing old name %@ for process %d", old, opid);
                   [mgr removeFileAtPath: old handler: nil];
                 }
             }
-        }
+          else
+            {
+              NSDebugMLLog(@"NSMessagePort", @"Removing bad name %@", old);
+              [mgr removeFileAtPath: old handler: nil];
+            }
+	}
       [pool release];
     }
 }
@@ -277,7 +278,7 @@ static NSMapTable *portToNamesMap;
       data = [GSMimeDocument encodeBase64: data];
       name = [[NSString alloc] initWithData: data
 				   encoding: NSASCIIStringEncoding];
-      IF_NO_GC([name autorelease];)
+      IF_NO_ARC([name autorelease];)
     }
   [serverLock lock];
   if (!base_path)
@@ -322,6 +323,7 @@ static NSMapTable *portToNamesMap;
 {
   FILE	*f;
   char	socket_path[512];
+  int	len;
   int	pid;
   struct stat sb;
 
@@ -330,14 +332,45 @@ static NSMapTable *portToNamesMap;
   f = fopen([path fileSystemRepresentation], "rt");
   if (!f)
     {
-      NSDebugLLog(@"NSMessagePort", @"not live, couldn't open file (%m)");
+      NSDebugLLog(@"NSMessagePort", @"not live, couldn't open %@ (%m)", path);
+      return NO;
+    }
+
+  if (fstat(fileno(f), &sb) < 0)
+    {
+      NSDebugLLog(@"NSMessagePort", @"not live, couldn't stat %@ (%m)", path);
+      fclose(f);
+      return NO;
+    }
+  if (sb.st_uid != getuid() && sb.st_uid != geteuid())
+    {
+      NSDebugLLog(@"NSMessagePort", @"not live, %@ not owned by us", path);
+      fclose(f);
+      return NO;
+    }
+  if ((sb.st_mode & 0777) != 0600)
+    {
+      NSDebugLLog(@"NSMessagePort", @"not live, %@ not correct access", path);
+      fclose(f);
       return NO;
     }
 
   fgets(socket_path, sizeof(socket_path), f);
-  if (strlen(socket_path) > 0) socket_path[strlen(socket_path) - 1] = 0;
+  len = strlen(socket_path);
+  if (len == 0 || socket_path[len - 1] != '\n')
+    {
+      fclose(f);
+      NSDebugLLog(@"NSMessagePort", @"not live, couldn't get file in %@", path);
+      return NO;
+    }
+  socket_path[len - 1] = '\0';
 
-  fscanf(f, "%i", &pid);
+  if (fscanf(f, "%i", &pid) != 1)
+    {
+      fclose(f);
+      NSDebugLLog(@"NSMessagePort", @"not live, couldn't read PID in %@", path);
+      return NO;
+    }
 
   fclose(f);
 
@@ -357,13 +390,12 @@ static NSMapTable *portToNamesMap;
     }
   else
     {
-      /*      
       struct sockaddr_un sockAddr;
       int desc;
 
       memset(&sockAddr, '\0', sizeof(sockAddr));
       sockAddr.sun_family = AF_LOCAL;
-      strncpy(sockAddr.sun_path, socket_path, sizeof(sockAddr.sun_path));
+      strncpy(sockAddr.sun_path, socket_path, sizeof(sockAddr.sun_path) - 1);
 
       if ((desc = socket(PF_LOCAL, SOCK_STREAM, PF_UNSPEC)) < 0)
 	{
@@ -375,6 +407,7 @@ static NSMapTable *portToNamesMap;
 	}
       if (connect(desc, (struct sockaddr*)&sockAddr, SUN_LEN(&sockAddr)) < 0)
 	{
+          close(desc);
 	  unlink([path fileSystemRepresentation]);
 	  unlink(socket_path);
 	  NSDebugLLog(@"NSMessagePort", @"not live, can't connect (%m)");
@@ -383,8 +416,6 @@ static NSMapTable *portToNamesMap;
       close(desc);
       NSDebugLLog(@"NSMessagePort", @"port is live");
       return YES;
-      */
-      return NO;
     }
 }
 

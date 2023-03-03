@@ -15,12 +15,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSInvocation class reference</title>
    $Date$ $Revision$
@@ -490,7 +490,7 @@ _arg_addr(NSInvocation *inv, int index)
 
 	      _get_arg(self, index, &old);
 	      _set_arg(self, index, buffer);
-	      IF_NO_GC(RETAIN(*(id*)buffer));
+	      IF_NO_ARC(RETAIN(*(id*)buffer);)
 	      if (old != nil)
 		{
 		  RELEASE(old);
@@ -634,7 +634,7 @@ _arg_addr(NSInvocation *inv, int index)
 	      _get_arg(self, i-1, &old);
 	      if (old != nil)
 		{
-		  IF_NO_GC(RETAIN(old));
+		  IF_NO_ARC(RETAIN(old);)
 		}
             }
 	  else if (*_inf[i].type == _C_CHARPTR)
@@ -661,7 +661,7 @@ _arg_addr(NSInvocation *inv, int index)
     {
       _targetRetained = YES;
 
-      IF_NO_GC(RETAIN(_target));
+      IF_NO_ARC(RETAIN(_target);)
     }
 }
 

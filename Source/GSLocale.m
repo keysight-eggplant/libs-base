@@ -15,12 +15,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 */
 #import "common.h"
 #import "GNUstepBase/GSLocale.h"
@@ -64,6 +64,10 @@ static NSString *
 privateSetLocale(int category, NSString *locale)
 {
   const char *clocale = NULL;
+  /* Need to get the encoding first as the function call invalidates 
+   * the return value of setlocale()
+   */
+  NSStringEncoding enc = GSPrivateNativeCStringEncoding();
   if (locale != nil)
     {
       clocale = [locale cString];
@@ -72,7 +76,7 @@ privateSetLocale(int category, NSString *locale)
 
   if (clocale != NULL)
     {
-      return ToString(clocale);
+      return [NSString stringWithCString: clocale encoding: enc];
     }
   return nil;
 }

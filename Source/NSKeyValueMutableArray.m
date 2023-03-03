@@ -13,12 +13,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    $Date: 2007-06-08 04: 04: 14 -0400 (Fri, 08 Jun 2007) $ $Revision: 25230 $
    */
@@ -465,17 +465,17 @@
   if (notifiesObservers)
     {
       indexes = [NSIndexSet indexSetWithIndex: [array count]];
-  [object willChange: NSKeyValueChangeInsertion
-     valuesAtIndexes: indexes
-              forKey: key];
+      [object willChange: NSKeyValueChangeInsertion
+         valuesAtIndexes: indexes
+                  forKey: key];
     }
   [array addObject: anObject];
   if (notifiesObservers)
     {
-  [object didChange: NSKeyValueChangeInsertion
-    valuesAtIndexes: indexes
-             forKey: key];
-}
+      [object didChange: NSKeyValueChangeInsertion
+        valuesAtIndexes: indexes
+                 forKey: key];
+    }
 }
 
 - (void) removeObjectAtIndex: (NSUInteger)index
@@ -485,17 +485,17 @@
   if (notifiesObservers)
     {
       indexes = [NSIndexSet indexSetWithIndex: index];
-  [object willChange: NSKeyValueChangeRemoval
-     valuesAtIndexes: indexes
-              forKey: key];
+      [object willChange: NSKeyValueChangeRemoval
+         valuesAtIndexes: indexes
+                  forKey: key];
     }
   [array removeObjectAtIndex: index];
   if (notifiesObservers)
     {
-  [object didChange: NSKeyValueChangeRemoval
-    valuesAtIndexes: indexes
-             forKey: key];
-}
+      [object didChange: NSKeyValueChangeRemoval
+        valuesAtIndexes: indexes
+                 forKey: key];
+    }
 }
 
 - (void) insertObject: (id)anObject atIndex: (NSUInteger)index
@@ -505,17 +505,17 @@
   if (notifiesObservers)
     {
       indexes = [NSIndexSet indexSetWithIndex: index];
-  [object willChange: NSKeyValueChangeInsertion
-     valuesAtIndexes: indexes
-              forKey: key];
+      [object willChange: NSKeyValueChangeInsertion
+         valuesAtIndexes: indexes
+                  forKey: key];
     }
   [array insertObject: anObject atIndex: index];
   if (notifiesObservers)
     {
-  [object didChange: NSKeyValueChangeInsertion
-    valuesAtIndexes: indexes
-             forKey: key];
-}
+      [object didChange: NSKeyValueChangeInsertion
+        valuesAtIndexes: indexes
+                 forKey: key];
+    }
 }
 
 - (void) removeLastObject
@@ -525,17 +525,17 @@
   if (notifiesObservers)
     {
       indexes = [NSIndexSet indexSetWithIndex: [array count] - 1];
-  [object willChange: NSKeyValueChangeRemoval
-     valuesAtIndexes: indexes
-              forKey: key];
+      [object willChange: NSKeyValueChangeRemoval
+         valuesAtIndexes: indexes
+                  forKey: key];
     }
   [array removeObjectAtIndex: [indexes firstIndex]];
   if (notifiesObservers)
     {
-  [object didChange: NSKeyValueChangeRemoval
-    valuesAtIndexes: indexes
-             forKey: key];
-}
+      [object didChange: NSKeyValueChangeRemoval
+        valuesAtIndexes: indexes
+                 forKey: key];
+    }
 }
 
 - (void) replaceObjectAtIndex: (NSUInteger)index withObject: (id)anObject
@@ -545,17 +545,17 @@
   if (notifiesObservers)
     {
       indexes = [NSIndexSet indexSetWithIndex: index];
-  [object willChange: NSKeyValueChangeReplacement
-     valuesAtIndexes: indexes
-              forKey: key];
+      [object willChange: NSKeyValueChangeReplacement
+         valuesAtIndexes: indexes
+                  forKey: key];
     }
   [array replaceObjectAtIndex: index withObject: anObject];
   if (notifiesObservers)
     {
-  [object didChange: NSKeyValueChangeReplacement
-    valuesAtIndexes: indexes
-             forKey: key];
-}
+      [object didChange: NSKeyValueChangeReplacement
+        valuesAtIndexes: indexes
+                 forKey: key];
+    }
 }
 
 

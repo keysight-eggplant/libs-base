@@ -16,12 +16,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSHost class reference</title>
    $Date$ $Revision$
@@ -39,17 +39,22 @@
 #import "Foundation/NSCoder.h"
 
 #if defined(_WIN32)
-#include <winsock2.h>
+#ifdef HAVE_WS2TCPIP_H
 #include <ws2tcpip.h>
-// extern const char *inet_ntop(int, const void *, char *, size_t);
-// extern int inet_pton(int , const char *, void *);
-#else
+#endif // HAVE_WS2TCPIP_H
+#if !defined(HAVE_INET_NTOP)
+extern const char* WSAAPI inet_ntop(int, const void *, char *, size_t);
+#endif
+#if !defined(HAVE_INET_NTOP)
+extern int WSAAPI inet_pton(int , const char *, void *);
+#endif
+#else /* !_WIN32 */
 #include <netdb.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#endif /* !_WIN32*/
+#endif /* !_WIN32 */
 
 #ifndef	INADDR_NONE
 #define	INADDR_NONE	-1
@@ -163,8 +168,7 @@ static id			null = nil;
 
           memset(&hints, '\0', sizeof(hints));
           hints.ai_flags = AI_CANONNAME;
-	  getaddrinfo([a UTF8String], 0, &hints, &entry);
-	  if (0 == entry)
+	  if (getaddrinfo([a UTF8String], 0, &hints, &entry) != 0)
 	    {
 	      /*
 	       * Can't find a database entry for this IP address, but since
@@ -442,7 +446,7 @@ myHostName()
 	   * with ALL the IP addresses of any interfaces on the local machine
 	   */
 	  host = [[self alloc] _initWithHostEntry: 0 key: localHostName];
-	  IF_NO_GC([host autorelease];)
+	  IF_NO_ARC([host autorelease];)
 	}
       else
 	{
@@ -453,12 +457,6 @@ myHostName()
 	    {
 	      if ([name isEqualToString: myHostName()] == YES)
 		{
-          // Testplant-MAL-2015-07-07: using testplant code...
-		  NSLog(@"No network address appears to be available "
-		    @"for this machine (%@) - using loopback address "
-		    @"(127.0.0.1)", name);
-		  NSLog(@"You probably need a line like '"
-		    @"127.0.0.1 %@ localhost' in your /etc/hosts file", name);
 		  host = [self hostWithAddress: @"127.0.0.1"];
 		  [host _addName: name];
 		}
@@ -476,7 +474,7 @@ myHostName()
 	  else
 	    {
 	      host = [[self alloc] _initWithHostEntry: h key: name];
-	      IF_NO_GC([host autorelease];)
+	      IF_NO_ARC([host autorelease];)
 	    }
 	}
     }
@@ -486,7 +484,7 @@ myHostName()
     }
   else
     {
-      IF_NO_GC([[host retain] autorelease];)
+      IF_NO_ARC([[host retain] autorelease];)
     }
   [_hostCacheLock unlock];
   return host;
@@ -519,7 +517,7 @@ myHostName()
 
       if (inet_pton(AF_INET, a, (void*)&hostaddr) <= 0)
 	{
-	  NSLog(@"Invalid host address sent to [NSHost +hostWithAddress:]: %@ (%s)", address, a);
+	  NSLog(@"Invalid host address sent to [NSHost +hostWithAddress:]");
 	  return nil;
 	}
       inet_ntop(AF_INET, (void*)&hostaddr, buf, sizeof(buf));
@@ -533,7 +531,7 @@ myHostName()
 
       if (inet_pton(AF_INET6, a, (void*)&hostaddr6) <= 0)
 	{
-          NSLog(@"Invalid host address sent to [NSHost +hostWithAddress:]: %@ (%s)", address, a);
+	  NSLog(@"Invalid host address sent to [NSHost +hostWithAddress:]");
 	  return nil;
 	}
       inet_ntop(AF_INET6, (void*)&hostaddr6, buf, sizeof(buf));
@@ -561,17 +559,17 @@ myHostName()
       if (0 == h)
 	{
 	  host = [[self alloc] _initWithAddress: address];
-	  IF_NO_GC([host autorelease];)
+	  IF_NO_ARC([host autorelease];)
 	}
       else
 	{
 	  host = [[self alloc] _initWithHostEntry: h key: address];
-	  IF_NO_GC([host autorelease];)
+	  IF_NO_ARC([host autorelease];)
 	}
     }
   else
     {
-      IF_NO_GC([[host retain] autorelease];)
+      IF_NO_ARC([[host retain] autorelease];)
     }
   [_hostCacheLock unlock];
   return host;
@@ -636,7 +634,7 @@ myHostName()
     {
       host = [NSHost currentHost];
     }
-  IF_NO_GC([host retain];)
+  IF_NO_ARC([host retain];)
   DESTROY(self);
   return host;
 }

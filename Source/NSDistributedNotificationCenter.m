@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSDistributedNotificationCenter class reference</title>
    $Date$ $Revision$
@@ -582,7 +582,7 @@ static NSDistributedNotificationCenter	*netCenter = nil;
  */
 - (void) _connect
 {
-  if ((_remote == nil) && ([[NSUserDefaults standardUserDefaults] boolForKey: @"GSDisableDistributedNotifications"] == NO))
+  if (_remote == nil)
     {
       NSString		*host = nil;
       NSString		*service = nil;
@@ -734,43 +734,18 @@ static NSDistributedNotificationCenter	*netCenter = nil;
 		@"--auto",
 		nil];
 	    }
-#if defined(__MINGW32__)
-    // Testplant-MAL-09212016: Changes to support logging redirect...
-    NSTask *task = AUTORELEASE([NSTask new]);
-    [task setStandardError:[NSFileHandle fileHandleForWritingAtPath:@"NUL"]];
-    [task setStandardOutput:[NSFileHandle fileHandleForWritingAtPath:@"NUL"]];
-    [task setLaunchPath:cmd];
-    [task setArguments:args];
-    [task launch];
-#else
-    [NSTask launchedTaskWithLaunchPath: cmd arguments: args];
-#endif
+	  [NSTask launchedTaskWithLaunchPath: cmd arguments: args];
 
-
-	  limit = [NSDate dateWithTimeIntervalSinceNow: 5.0];
+	  limit = [NSDate dateWithTimeIntervalSinceNow: 10.0];
 	  while (_remote == nil && [limit timeIntervalSinceNow] > 0)
 	    {
               NSAutoreleasePool	*pool = [NSAutoreleasePool new];
 
               [NSThread sleepForTimeInterval: 0.05];
-              
-              NS_DURING
-              {
-                _remote = [NSConnection
-                           rootProxyForConnectionWithRegisteredName: service
-                           host: host usingNameServer: ns];
-                [_remote retain];
-              }
-              NS_HANDLER
-              {
-                NSLog(@"%s:exception: %@", __PRETTY_FUNCTION__, localException);
-                _remote = nil;
-                // Re-raise??? Another exeption will be raised below...
-                //[pool drain]; // Avoid autorelease pool leak...
-                //[localException raise];
-              }
-              NS_ENDHANDLER
-
+	      _remote = [NSConnection
+		rootProxyForConnectionWithRegisteredName: service
+		host: host usingNameServer: ns];
+              [_remote retain];
               [pool drain];
 	    }
 	  if (_remote == nil)

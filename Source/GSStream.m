@@ -13,12 +13,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    */
 
@@ -76,12 +76,6 @@ NSString * const NSStreamSOCKSProxyVersion5
 NSString * const NSStreamSOCKSProxyVersionKey
   = @"NSStreamSOCKSProxyVersionKey";
 
-// FIXME: move to Core Foundation - CFHTTPNetwork.h...
-NSString * const kCFStreamPropertyHTTPProxy       = @"kCFStreamPropertyHTTPProxy";
-NSString * const kCFStreamPropertyHTTPProxyHost   = @"kCFStreamPropertyHTTPProxyHost";
-NSString * const kCFStreamPropertyHTTPProxyPort   = @"kCFStreamPropertyHTTPProxyPort";
-NSString * const kCFStreamPropertyHTTPSProxyHost  = @"kCFStreamPropertyHTTPSProxyHost";
-NSString * const kCFStreamPropertyHTTPSProxyPort  = @"kCFStreamPropertyHTTPSProxyPort";
 
 /*
  * Determine the type of event to use when adding a stream to the run loop.
@@ -102,34 +96,45 @@ static RunLoopEventType typeForStream(NSStream *aStream)
       return ET_TRIGGER;
     }
 #if	defined(_WIN32)
-      return ET_HANDLE;
+  return ET_HANDLE;
 #else
   if ([aStream isKindOfClass: [NSOutputStream class]] == NO
     && status != NSStreamStatusOpening)
     {
       return ET_RDESC;
     }
-      return ET_WDESC;	
+  return ET_WDESC;	
 #endif
 }
 
 @implementation	NSRunLoop (NSStream)
 - (void) addStream: (NSStream*)aStream mode: (NSString*)mode
 {
-  [self addEvent: [aStream _loopID]
-	    type: typeForStream(aStream)
+  RunLoopEventType 	type = typeForStream(aStream);
+  void			*event = [aStream _loopID];
+
+  NSDebugMLLog(@"NSStream", @"%@ (type %d) to %@ mode %@",
+    aStream, type, self, mode);
+  [self addEvent: event
+	    type: type
 	 watcher: (id<RunLoopEvents>)aStream
 	 forMode: mode];
 }
 
 - (void) removeStream: (NSStream*)aStream mode: (NSString*)mode
 {
+  RunLoopEventType 	type = typeForStream(aStream);
+  void			*event = [aStream _loopID];
+
+  NSDebugMLLog(@"NSStream",
+    @"-removeStream:mode: %@ (desc %d,%d) from %@ mode %@",
+    aStream, (int)(intptr_t)event, type, self, mode);
   /* We may have added the stream more than once (eg if the stream -open
    * method was called more than once, so we need to remove all event
    * registrations.
    */
-  [self removeEvent: [aStream _loopID]
-	       type: typeForStream(aStream)
+  [self removeEvent: event
+	       type: type
 	    forMode: mode
 		all: YES];
 }
@@ -205,6 +210,7 @@ static RunLoopEventType typeForStream(NSStream *aStream)
     && _currentStatus != NSStreamStatusOpening)
     {
       NSDebugMLLog(@"NSStream", @"Attempt to re-open stream %@", self);
+      return;
     }
   [self _setStatus: NSStreamStatusOpen];
   [self _schedule];
@@ -221,6 +227,7 @@ static RunLoopEventType typeForStream(NSStream *aStream)
 		 extra: (void*)extra
 	       forMode: (NSString*)mode
 {
+//  NSDebugMLLog(@"NSStream", @"receivedEvent for %@ - %d", self, type);
   [self _dispatch];
 }
 
@@ -233,12 +240,16 @@ static RunLoopEventType typeForStream(NSStream *aStream)
       modes = (NSMutableArray*)NSMapGet(_loops, (void*)aRunLoop);
       if ([modes containsObject: mode])
 	{
-	  [aRunLoop removeStream: self mode: mode];
+	  [self _removeFromRunLoop: aRunLoop forMode: mode];
 	  [modes removeObject: mode];
 	  if ([modes count] == 0)
 	    {
 	      NSMapRemove(_loops, (void*)aRunLoop);
 	    }
+	}
+      if (NSCountMapTable(_loops) == 0)
+	{
+	  _scheduled = NO;
 	}
     }
 }
@@ -267,7 +278,7 @@ static RunLoopEventType typeForStream(NSStream *aStream)
 	   */
 	  if ([self _isOpened])
 	    {
-	      [aRunLoop addStream: self mode: mode];
+	      [self _scheduleInRunLoop: aRunLoop forMode: mode];
 	    }
 	}
     }
@@ -327,6 +338,23 @@ static RunLoopEventType typeForStream(NSStream *aStream)
   return _currentStatus;
 }
 
+- (NSString*) _stringFromEvents
+{
+  NSMutableString	*s = [NSMutableString stringWithCapacity: 100];
+
+  if (_events & NSStreamEventOpenCompleted)
+    [s appendString: @"|NSStreamEventOpenCompleted"];
+  if (_events & NSStreamEventHasBytesAvailable)
+    [s appendString: @"|NSStreamEventHasBytesAvailable"];
+  if (_events & NSStreamEventHasSpaceAvailable)
+    [s appendString: @"|NSStreamEventHasSpaceAvailable"];
+  if (_events & NSStreamEventErrorOccurred)
+    [s appendString: @"|NSStreamEventErrorOccurred"];
+  if (_events & NSStreamEventEndEncountered)
+    [s appendString: @"|NSStreamEventEndEncountered"];
+  return s;
+}
+
 @end
 
 
@@ -355,6 +383,11 @@ static RunLoopEventType typeForStream(NSStream *aStream)
   return;
 }
 
+- (void) _removeFromRunLoop: (NSRunLoop *)aRunLoop forMode: (NSString *)mode
+{
+  [aRunLoop removeStream: self mode: mode];
+}
+
 - (void) _resetEvents: (NSUInteger)mask
 {
   return;
@@ -364,7 +397,21 @@ static RunLoopEventType typeForStream(NSStream *aStream)
 {
 }
 
+- (BOOL) _scheduled
+{
+  return NO;
+}
+
+- (void) _scheduleInRunLoop: (NSRunLoop*)loop forMode: (NSString*)mode
+{
+  [loop addStream: self mode: mode];
+}
+
 - (void) _sendEvent: (NSStreamEvent)event
+{
+}
+
+- (void) _sendEvent: (NSStreamEvent)event delegate: (id)delegate
 {
 }
 
@@ -383,6 +430,46 @@ static RunLoopEventType typeForStream(NSStream *aStream)
 
 - (void) _unschedule
 {
+}
+
+- (NSString*) stringFromEvent: (NSStreamEvent)e
+{
+  switch (e)
+    {
+      case NSStreamEventNone:
+	return @"NSStreamEventNone";
+      case NSStreamEventOpenCompleted:
+	return @"NSStreamEventOpenCompleted";
+      case NSStreamEventHasBytesAvailable:
+	return @"NSStreamEventHasBytesAvailable";
+      case NSStreamEventHasSpaceAvailable:
+	return @"NSStreamEventHasSpaceAvailable";
+      case NSStreamEventErrorOccurred:
+	return @"NSStreamEventErrorOccurred";
+      case NSStreamEventEndEncountered:
+	return @"NSStreamEventEndEncountered";
+      default:
+	return [NSString stringWithFormat:
+	  @"NSStreamEventValue%ld", (long)e];
+    }
+}
+
+- (NSString*) stringFromStatus: (NSStreamStatus)s
+{
+  switch (s)
+    {
+      case NSStreamStatusNotOpen: return @"NSStreamStatusNotOpen";
+      case NSStreamStatusOpening: return @"NSStreamStatusOpening";
+      case NSStreamStatusOpen: return @"NSStreamStatusOpen";
+      case NSStreamStatusReading: return @"NSStreamStatusReading";
+      case NSStreamStatusWriting: return @"NSStreamStatusWriting";
+      case NSStreamStatusAtEnd: return @"NSStreamStatusAtEnd";
+      case NSStreamStatusClosed: return @"NSStreamStatusClosed";
+      case NSStreamStatusError: return @"NSStreamStatusError";
+      default:
+	return [NSString stringWithFormat:
+	  @"NSStreamStatusValue%ld", (long)s];
+    }
 }
 
 @end
@@ -411,7 +498,7 @@ static RunLoopEventType typeForStream(NSStream *aStream)
 
 - (void) _recordError: (NSError*)anError
 {
-  NSDebugMLLog(@"NSStream", @"record error: %@ - %@", self, anError);
+  NSDebugMLLog(@"NSStream", @"%@ - %@", self, anError);
   ASSIGN(_lastError, anError);
   [self _setStatus: NSStreamStatusError];
 }
@@ -434,22 +521,32 @@ static RunLoopEventType typeForStream(NSStream *aStream)
 
       while (i-- > 0)
 	{
-	  [k addStream: self mode: [v objectAtIndex: i]];
+          [self _scheduleInRunLoop: k forMode: [v objectAtIndex: i]];
 	}
     }
   NSEndMapTableEnumeration(&enumerator);
 }
 
-- (BOOL) _delegateValid
+- (BOOL) _scheduled
 {
-  return _delegateValid;
+  return _scheduled;
+}
+
+- (void) _scheduleInRunLoop: (NSRunLoop*)loop forMode: (NSString*)mode
+{
+  [loop addStream: self mode: mode];
+  _scheduled = YES;
 }
 
 - (void) _sendEvent: (NSStreamEvent)event
 {
-  id delegate = [self delegate];
-  BOOL delegateValid = [self _delegateValid];
-  
+  [self _sendEvent: event delegate: _delegateValid == YES ? _delegate : nil];
+}
+
+- (void) _sendEvent: (NSStreamEvent)event delegate: (id)delegate
+{
+  NSDebugMLLog(@"NSStream",
+    @"%@ sendEvent %@", self, [self stringFromEvent:event]);
   if (event == NSStreamEventNone)
     {
       return;
@@ -459,10 +556,10 @@ static RunLoopEventType typeForStream(NSStream *aStream)
       if ((_events & event) == 0)
 	{
 	  _events |= NSStreamEventOpenCompleted;
-	  if (delegateValid == YES)
+	  if (delegate != nil)
 	    {
 	      [delegate stream: self
-		    handleEvent: NSStreamEventOpenCompleted];
+                   handleEvent: NSStreamEventOpenCompleted];
 	    }
 	}
     }
@@ -471,19 +568,19 @@ static RunLoopEventType typeForStream(NSStream *aStream)
       if ((_events & NSStreamEventOpenCompleted) == 0)
 	{
 	  _events |= NSStreamEventOpenCompleted;
-	  if (delegateValid == YES)
+	  if (delegate != nil)
 	    {
 	      [delegate stream: self
-		    handleEvent: NSStreamEventOpenCompleted];
+                   handleEvent: NSStreamEventOpenCompleted];
 	    }
 	}
       if ((_events & NSStreamEventHasBytesAvailable) == 0)
 	{
 	  _events |= NSStreamEventHasBytesAvailable;
-	  if (delegateValid == YES)
+	  if (delegate != nil)
 	    {
 	      [delegate stream: self
-		    handleEvent: NSStreamEventHasBytesAvailable];
+                   handleEvent: NSStreamEventHasBytesAvailable];
 	    }
 	}
     }
@@ -492,19 +589,23 @@ static RunLoopEventType typeForStream(NSStream *aStream)
       if ((_events & NSStreamEventOpenCompleted) == 0)
 	{
 	  _events |= NSStreamEventOpenCompleted;
-	  if (delegateValid == YES)
+	  if (delegate != nil)
 	    {
 	      [delegate stream: self
-		    handleEvent: NSStreamEventOpenCompleted];
+                   handleEvent: NSStreamEventOpenCompleted];
 	    }
 	}
       if ((_events & NSStreamEventHasSpaceAvailable) == 0)
 	{
 	  _events |= NSStreamEventHasSpaceAvailable;
-	  if (delegateValid == YES)
+	  if (_currentStatus == NSStreamStatusWriting)
+	    {
+	      [self _setStatus: NSStreamStatusOpen];
+	    }
+	  if (delegate != nil)
 	    {
 	      [delegate stream: self
-		    handleEvent: NSStreamEventHasSpaceAvailable];
+                   handleEvent: NSStreamEventHasSpaceAvailable];
 	    }
 	}
     }
@@ -513,10 +614,10 @@ static RunLoopEventType typeForStream(NSStream *aStream)
       if ((_events & NSStreamEventErrorOccurred) == 0)
 	{
 	  _events |= NSStreamEventErrorOccurred;
-	  if (delegateValid == YES)
+	  if (delegate != nil)
 	    {
 	      [delegate stream: self
-		    handleEvent: NSStreamEventErrorOccurred];
+                   handleEvent: NSStreamEventErrorOccurred];
 	    }
 	}
     }
@@ -525,10 +626,10 @@ static RunLoopEventType typeForStream(NSStream *aStream)
       if ((_events & NSStreamEventEndEncountered) == 0)
 	{
 	  _events |= NSStreamEventEndEncountered;
-	  if (delegateValid == YES)
+	  if (delegate != nil)
 	    {
 	      [delegate stream: self
-		    handleEvent: NSStreamEventEndEncountered];
+                   handleEvent: NSStreamEventEndEncountered];
 	    }
 	}
     }
@@ -555,9 +656,9 @@ static RunLoopEventType typeForStream(NSStream *aStream)
            * errors, not for I/O, sop we must re-schedule in the right mode.
            */
           [self _unschedule];
-  _currentStatus = newStatus;
+          _currentStatus = newStatus;
           [self _schedule];
-}
+        }
       else
         {
           _currentStatus = newStatus;
@@ -592,6 +693,7 @@ static RunLoopEventType typeForStream(NSStream *aStream)
 	}
     }
   NSEndMapTableEnumeration(&enumerator);
+  _scheduled = NO;
 }
 
 - (BOOL) runLoopShouldBlock: (BOOL*)trigger
@@ -737,7 +839,7 @@ static RunLoopEventType typeForStream(NSStream *aStream)
   if (_currentStatus != NSStreamStatusNotOpen
     && _currentStatus != NSStreamStatusClosed)
     {
-    [self close];
+      [self close];
     }
   RELEASE(_data);
   [super dealloc];

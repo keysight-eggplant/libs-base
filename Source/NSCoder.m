@@ -15,12 +15,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSCoder class reference</title>
    $Date$ $Revision$
@@ -35,6 +35,7 @@
 #define	EXPOSE_NSCoder_IVARS	1
 #import "Foundation/NSData.h"
 #import "Foundation/NSCoder.h"
+#import "Foundation/NSSet.h"
 #import "Foundation/NSSerialization.h"
 #import "Foundation/NSUserDefaults.h"
 
@@ -72,11 +73,6 @@ static unsigned	systemVersion = MAX_SUPPORTED_SYSTEM_VERSION;
 	  systemVersion = sv;
 	} 
     }
-}
-
-+ (NSInteger) coderVersion
-{
-  return 0;
 }
 
 - (void) encodeValueOfObjCType: (const char*)type
@@ -336,6 +332,17 @@ static unsigned	systemVersion = MAX_SUPPORTED_SYSTEM_VERSION;
 
 // Keyed archiving extensions
 
+- (BOOL) requiresSecureCoding
+{
+  [self subclassResponsibility: _cmd];
+  return NO;
+}
+
+- (void) setRequiresSecureCoding: (BOOL)secure
+{
+  [self subclassResponsibility: _cmd];
+}
+
 - (BOOL) allowsKeyedCoding
 {
   return NO;
@@ -397,6 +404,18 @@ static unsigned	systemVersion = MAX_SUPPORTED_SYSTEM_VERSION;
 }
 
 - (id) decodeObjectForKey: (NSString*)aKey
+{
+  [self subclassResponsibility: _cmd];
+  return nil;
+}
+
+- (id) decodeObjectOfClass: (Class)cls forKey: (NSString *)aKey
+{
+  return [self decodeObjectOfClasses: [NSSet setWithObject:(id)cls]
+			      forKey: aKey];
+}
+
+- (id) decodeObjectOfClasses: (NSSet *)classes forKey: (NSString *)aKey
 {
   [self subclassResponsibility: _cmd];
   return nil;

@@ -39,17 +39,11 @@
 #import "GSPrivate.h"
 #import "GSSorting.h"
 
-#define USE_IMMUTABLE_FAST_ENUMERATION_CODE
-
 static SEL	eqSel;
 static SEL	oaiSel;
 
 static Class	GSInlineArrayClass;
 /* This class stores objects inline in data beyond the end of the instance.
- * However, when GC is enabled the object data is typed, and all data after
- * the end of the class is ignored by the garbage collector (which would
- * mean that objects in the array could be collected).
- * We therefore do not provide the class when GC is being used.
  */
 @interface GSInlineArray : GSArray
 {
@@ -579,27 +573,6 @@ static Class	GSInlineArrayClass;
   return self;
 }
 
-// TESTPLANT-MAL-10162017: Set comment/code in +initialize
-// ANY method added will REPLACE the swizzling copy from GSArray
-// so THIS MUST be a FULL implementation of the dealloc method...
-- (void) dealloc
-{
-  _version = 0xDEADDEAD;
-
-  if (_contents_array)
-  {
-    NSUInteger	i;
-    
-    for (i = 0; i < _count; i++)
-    {
-      [_contents_array[i] release];
-    }
-    NSZoneFree([self zone], _contents_array);
-    _contents_array = 0;
-  }
-  [super dealloc];
-}
-
 - (void) insertObject: (id)anObject atIndex: (NSUInteger)index
 {
   _version++;
@@ -980,22 +953,6 @@ static Class	GSInlineArrayClass;
   return count;
 }
 
-- (NSUInteger) sizeInBytesExcluding: (NSHashTable*)exclude
-{
-  NSUInteger	size = GSPrivateMemorySize(self, exclude);
-
-  if (size > 0)
-    {
-      NSUInteger	count = _count;
-
-      size += _capacity*sizeof(void*);
-      while (count-- > 0)
-	{
-	  size += [_contents_array[count] sizeInBytesExcluding: exclude];
-	}
-    }
-  return size;
-}
 @end
 
 
@@ -1007,7 +964,7 @@ static Class	GSInlineArrayClass;
   if ((self = [super init]) != nil)
     {
       array = anArray;
-      IF_NO_GC(RETAIN(array));
+      IF_NO_ARC(RETAIN(array);)
       pos = 0;
     }
   return self;
@@ -1032,8 +989,10 @@ static Class	GSInlineArrayClass;
 
 - (id) initWithArray: (GSArray*)anArray
 {
-  [super initWithArray: anArray];
-  pos = array->_count;
+  if (nil != (self = [super initWithArray: anArray]))
+    {
+      pos = array->_count;
+    }
   return self;
 }
 
