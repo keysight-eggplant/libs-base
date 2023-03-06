@@ -43,13 +43,13 @@ endif
 PACKAGE_NAME = gnustep-base
 GNUSTEP_LOCAL_ADDITIONAL_MAKEFILES=../base.make
 
-# Force it for now...
-GNUSTEP_TARGET_OS=windows
-
 include $(GNUSTEP_MAKEFILES)/common.make
 
 include ../Version
 include ../config.mak
+
+# Force it for now...
+GNUSTEP_TARGET_OS=windows
 
 # Interface version changes with each minor release
 libgnustep-base_INTERFACE_VERSION=$(MAJOR_VERSION).$(MINOR_VERSION)
