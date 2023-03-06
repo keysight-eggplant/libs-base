@@ -42,8 +42,8 @@
 
 #include "GNUstepBase/GSMime.h"
 
-#include "../GSPrivate.h"
-#include "../GSPortPrivate.h"
+#include "GSPrivate.h"
+#include "GSPortPrivate.h"
 
 #define	UNISTR(X) \
 ((const unichar*)[(X) cStringUsingEncoding: NSUnicodeStringEncoding])
