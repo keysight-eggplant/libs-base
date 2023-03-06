@@ -83,15 +83,8 @@ endif
 libgnustep-base_SUBPROJECTS += Additions
 libgnustep-baseadd_SUBPROJECTS += Additions
 
-ifeq ($(GNUSTEP_TARGET_OS), mingw32)
-  libgnustep-base_SUBPROJECTS += win32
-else ifeq ($(GNUSTEP_TARGET_OS), mingw64)
-  libgnustep-base_SUBPROJECTS += win32
-else ifeq ($(GNUSTEP_TARGET_OS), windows)
-  libgnustep-base_SUBPROJECTS += win32
-else
-  libgnustep-base_SUBPROJECTS += unix
-endif
+# Force win32/windows
+# libgnustep-base_SUBPROJECTS += win32
 
 DEFS+= -DGNUSTEP_TARGET_DIR=\"$(GNUSTEP_TARGET_DIR)\" \
 	-DGNUSTEP_TARGET_CPU=\"$(GNUSTEP_TARGET_CPU)\" \
@@ -193,6 +186,7 @@ GSSocksParser/GSSocksParser.m \
 GSSocksParser/GSSocksParserPrivate.m \
 GSSocksParser/GSSocks4Parser.m \
 GSSocksParser/GSSocks5Parser.m \
+GSRunLoopCtxt.m \
 NSAffineTransform.m \
 NSArchiver.m \
 NSArray.m \
@@ -287,6 +281,7 @@ NSSocketPort.m \
 NSSocketPortNameServer.m \
 NSSortDescriptor.m \
 NSSpellServer.m \
+NSStream.m \
 NSString.m \
 NSTask.m \
 NSThread.m \
@@ -322,14 +317,10 @@ NSZone.m \
 externs.m \
 objc-load.m 
 
-ifneq ($(GNUSTEP_TARGET_OS), mingw32)
-  ifneq ($(GNUSTEP_TARGET_OS), mingw64)
 BASE_MFILES += \
 GSFileHandle.m \
 NSMessagePort.m \
 NSMessagePortNameServer.m
-  endif
-endif
 
 ifeq ($(GNUSTEP_BASE_HAVE_MDNS), 1)
   BASE_MFILES += NSNetServices.m \
