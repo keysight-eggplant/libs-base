@@ -37,9 +37,9 @@
 #import "Foundation/NSURL.h"
 #import "GNUstepBase/NSObject+GNUstepBase.h"
 
-#import "../GSPrivate.h"
-#import "../GSStream.h"
-#import "../GSSocketStream.h"
+#import "GSPrivate.h"
+#import "GSStream.h"
+#import "GSSocketStream.h"
 
 #define	BUFFERSIZE	(BUFSIZ*64)
 

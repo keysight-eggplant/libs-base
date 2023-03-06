@@ -30,7 +30,7 @@
 #import "Foundation/NSArray.h"
 #import "Foundation/NSString.h"
 #import "Foundation/NSFileHandle.h"
-#import "../GSFileHandle.h"
+#import "GSFileHandle.h"
 #import "Foundation/NSException.h"
 #import "Foundation/NSRunLoop.h"
 #import "Foundation/NSNotification.h"
@@ -41,8 +41,8 @@
 #import "Foundation/NSDebug.h"
 
 #import "../Tools/gdomap.h"
-#import "../GSPrivate.h"
-#import "../GSNetwork.h"
+#import "GSPrivate.h"
+#import "GSNetwork.h"
 
 #if	defined(HAVE_SYS_FCNTL_H)
 #  include <sys/fcntl.h>
