@@ -43,6 +43,9 @@ endif
 PACKAGE_NAME = gnustep-base
 GNUSTEP_LOCAL_ADDITIONAL_MAKEFILES=../base.make
 
+# Force it for now...
+GNUSTEP_TARGET_OS=windows
+
 include $(GNUSTEP_MAKEFILES)/common.make
 
 include ../Version
