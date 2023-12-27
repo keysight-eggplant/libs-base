@@ -312,7 +312,7 @@ DEFINE_BLOCK_TYPE(GSDataDeallocatorBlock, void, void*, NSUInteger);
 @end
 #endif
 
-@interface NSMutableData :  NSData
+GS_EXPORT_CLASS @interface NSMutableData :  NSData
 
 + (id) dataWithCapacity: (NSUInteger)numBytes;
 + (id) dataWithLength: (NSUInteger)length;

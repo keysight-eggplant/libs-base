@@ -2475,7 +2475,7 @@ static BOOL	classInitialized = NO;
   return dest;
 }
 
-void
+GS_DECLARE void
 GSPropertyListMake(id obj, NSDictionary *loc, BOOL xml,
   BOOL forDescription, unsigned step, id *str)
 {

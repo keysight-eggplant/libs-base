@@ -39,7 +39,7 @@ extern "C" {
 @class NSData;
 @class NSString;
 
-@interface NSFileHandle : NSObject
+GS_EXPORT_CLASS @interface NSFileHandle : NSObject
 
 // Allocating and Initializing a FileHandle Object
 
@@ -155,7 +155,7 @@ GS_EXPORT NSString * const NSFileHandleNotificationMonitorModes;
  */
 GS_EXPORT NSString * const NSFileHandleOperationException;
 
-@interface NSPipe : NSObject
+GS_EXPORT_CLASS @interface NSPipe : NSObject
 {
 #if	GS_EXPOSE(NSPipe)
 @private

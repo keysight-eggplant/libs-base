@@ -442,7 +442,7 @@ GS_EXPORT NSString * const NSNetServicesErrorDomain;
  * </p>
  */
 
-@interface NSNetServiceBrowser : NSObject
+GS_EXPORT_CLASS @interface NSNetServiceBrowser : NSObject
 {
 #if	GS_EXPOSE(NSNetServiceBrowser)
   id		_delegate;

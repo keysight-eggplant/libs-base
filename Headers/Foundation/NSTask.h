@@ -44,7 +44,7 @@ enum {
 typedef NSInteger NSTaskTerminationReason;
 #endif
 
-@interface NSTask : NSObject
+GS_EXPORT_CLASS @interface NSTask : NSObject
 {
 #if	GS_EXPOSE(NSTask)
 @protected

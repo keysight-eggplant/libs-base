@@ -43,7 +43,7 @@ GS_EXPORT NSString * const NSMetadataItemFSSizeKey;
 GS_EXPORT NSString * const NSMetadataItemFSCreationDateKey;
 GS_EXPORT NSString * const NSMetadataItemFSContentChangeDateKey;
 
-@interface NSMetadataItem : NSObject
+GS_EXPORT_CLASS @interface NSMetadataItem : NSObject
 {
 #if	GS_EXPOSE(NSMetadataItem)
 @private
@@ -69,7 +69,7 @@ GS_EXPORT NSString * const NSMetadataQueryDidUpdateNotification;
 GS_EXPORT NSString * const NSMetadataQueryGatheringProgressNotification;
 
 /* Abstract interface for metadata query... */
-@interface NSMetadataQuery : NSObject
+GS_EXPORT_CLASS @interface NSMetadataQuery : NSObject
 {
 #if	GS_EXPOSE(NSMetadataQuery)
 @private
@@ -143,7 +143,7 @@ GS_EXPORT NSString * const NSMetadataQueryGatheringProgressNotification;
   value: (id)attributeValue;
 @end
 
-@interface NSMetadataQueryAttributeValueTuple : NSObject
+GS_EXPORT_CLASS @interface NSMetadataQueryAttributeValueTuple : NSObject
 {
 #if	GS_EXPOSE(NSMetadataQueryAttributeValueTuple)
 @private
@@ -158,7 +158,7 @@ GS_EXPORT NSString * const NSMetadataQueryGatheringProgressNotification;
 
 @end
 
-@interface NSMetadataQueryResultGroup : NSObject
+GS_EXPORT_CLASS @interface NSMetadataQueryResultGroup : NSObject
 {
 #if	GS_EXPOSE(NSMetadataQueryResultGroup)
 @private

@@ -33,7 +33,7 @@
 extern "C" {
 #endif
 
-@interface NSInvocation : NSObject
+GS_EXPORT_CLASS @interface NSInvocation : NSObject
 {
 #if	GS_EXPOSE(NSInvocation)
 @public

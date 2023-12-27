@@ -53,7 +53,7 @@ GS_EXPORT NSString *const NSGrammarRange;
 GS_EXPORT NSString *const NSGrammarUserDescription;
 #endif
 
-@interface NSSpellServer : NSObject
+GS_EXPORT_CLASS @interface NSSpellServer : NSObject
 {
 #if	GS_EXPOSE(NSSpellServer)
 @private

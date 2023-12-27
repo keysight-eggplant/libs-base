@@ -51,7 +51,7 @@ enum {
 
 typedef NSInteger NSOperationQueuePriority;
 
-@interface NSOperation : NSObject
+GS_EXPORT_CLASS @interface NSOperation : NSObject
 {
 #if	GS_NONFRAGILE
 #  if	defined(GS_NSOperation_IVARS)
@@ -209,7 +209,7 @@ enum {
    NSOperationQueueDefaultMaxConcurrentOperationCount = -1
 };
 
-@interface NSOperationQueue : NSObject
+GS_EXPORT_CLASS @interface NSOperationQueue : NSObject
 {
 #if	GS_NONFRAGILE
 #  if	defined(GS_NSOperationQueue_IVARS)
