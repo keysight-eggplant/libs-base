@@ -1,3 +1,36 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: williameveretteggplant
+# Commit ID: 5c1f344a22af6d75f6a9704308353400ed731d84
+# Date: 2021-12-20 16:18:41 -0700
+--------------------
+# Committed by: williameveretteggplant
+# Commit ID: 442ef096b0406206f791a1621c62d828b045724d
+# Date: 2021-12-20 16:15:45 -0700
+--------------------
+# Committed by: Adam Fox
+# Commit ID: 026e4170dea1e947b0996b17e020a3e01d9c745e
+# Date: 2019-12-05 15:19:16 -0700
+--------------------
+# Committed by: Adam Fox
+# Commit ID: e9bf3960e55c1cf74ac67f946068236944842f5d
+# Date: 2019-12-01 21:44:38 -0700
+--------------------
+# Committed by: Paul Landers
+# Commit ID: 9bb55a5961846c2338d6ccdc5f60b54ace198ec8
+# Date: 2019-07-09 13:11:25 -0600
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 01b13228d3ecfd3d555d73daf1c448ad809970a9
+# Date: 2016-09-13 20:15:05 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+########## End of Keysight Technologies Notice ##########
 /** Time zone management. -*- Mode: ObjC -*-
    Copyright (C) 1997-20 11Free Software Foundation, Inc.
 

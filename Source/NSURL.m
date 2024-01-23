@@ -1,3 +1,52 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Royal Stewart
+# Commit ID: 2665dc737ff3ba0ea5bdede44c6e478c4ac5ab58
+# Date: 2023-07-06 20:52:00 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 2bcc37dcb25c766d506a63f2b56dd3ee4cea0d48
+# Date: 2023-06-20 22:00:00 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 4b605636cff61bfb72e09b3a6781b0c40542f45f
+# Date: 2017-11-27 15:55:36 +0000
+--------------------
+# Committed by: Paul Landers
+# Commit ID: 10deeeaea042f940ce63016ae01222b8276d813d
+# Date: 2017-09-05 16:30:54 +0000
+--------------------
+# Committed by: Paul Landers
+# Commit ID: dc593fbf3aca740a8bdcd4028883f8e64f0faadf
+# Date: 2017-09-05 16:26:10 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: c4b66e07cae00ca89d8d12465cedf97b37085d5c
+# Date: 2017-09-02 18:22:41 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 2878d17d46bc0654ba512aec0bc0eb2d674f0959
+# Date: 2017-08-03 18:25:51 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 896ebcf42836efa120a8faaaafdb791b28e1223d
+# Date: 2016-09-23 20:37:19 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: b3f07821a081642c549fe349804ab13e8a3305b0
+# Date: 2016-01-15 17:34:11 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: b4d1533194b631530798260697f1198f6193e6a3
+# Date: 2012-08-24 18:32:20 +0000
+########## End of Keysight Technologies Notice ##########
 /** NSURL.m - Class NSURL
    Copyright (C) 1999 Free Software Foundation, Inc.
 

@@ -1,3 +1,8 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+########## End of Keysight Technologies Notice ##########
 Message-Id: <804672.21391188475214.JavaMail.brains99@dragontest2.brainstorm.co.uk>
 Subject: =?UTF-8?Q?"Ne_manquez_pas_votre_vol_=C3=A0_destination_de_{depar?=
  =?UTF-8?Q?tureArrivalCity}_({departureArrivalAirportIATA})"_?=

@@ -1,3 +1,16 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: 1d97f3e4b8a0ebcf88185eac6dcafc9678d4d261
+# Date: 2017-09-09 17:28:25 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 28e3291df1d6981b07367eb896b8a2a23035a72a
+# Date: 2016-09-23 16:59:14 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+########## End of Keysight Technologies Notice ##########
 /** Implementation for NSError for GNUStep
    Copyright (C) 2004 Free Software Foundation, Inc.
 

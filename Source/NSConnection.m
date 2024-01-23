@@ -1,3 +1,36 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: 9767fe51d240eac76d92d209db166b05be1c1079
+# Date: 2017-11-16 21:58:28 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 145fba1795523f178b6a1d93ff1faf20ca6d230b
+# Date: 2017-11-16 18:43:34 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 9fb2e7fd776ca085f462250301942ad476266625
+# Date: 2017-11-14 21:36:53 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 01b13228d3ecfd3d555d73daf1c448ad809970a9
+# Date: 2016-09-13 20:15:05 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 27962e1c52846a3f11d8eee0884c996ddecd5132
+# Date: 2016-02-05 21:43:32 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: db3ab30043bdfd13770b93394563c014bd2f00da
+# Date: 2015-12-28 23:18:44 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+########## End of Keysight Technologies Notice ##########
 /** Implementation of connection object for remote object messaging
    Copyright (C) 1994-2013 Free Software Foundation, Inc.
 

@@ -1,3 +1,24 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: 01b13228d3ecfd3d555d73daf1c448ad809970a9
+# Date: 2016-09-13 20:15:05 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: a1e6ed573bb13cf3b8f8c1f983527c1021cd5ea1
+# Date: 2016-05-29 21:33:12 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 95104726caedcfaa66aa2f5fcfefa39786a76cf4
+# Date: 2016-02-05 22:56:51 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+########## End of Keysight Technologies Notice ##########
 /** Implementation of network port object based on unix domain sockets
    Copyright (C) 2000 Free Software Foundation, Inc.
 

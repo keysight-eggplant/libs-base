@@ -1,3 +1,60 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Paul Landers
+# Commit ID: 81b3364f9ee08c68ff0255e0e2d8e2311d2c977c
+# Date: 2019-04-02 10:52:59 -0600
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 36f527303dd69064d2bf95c6606ab69374ab1cf7
+# Date: 2016-09-17 00:21:01 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 3b2afa2fae5475a65ce5d11a7c3fca52bb88e8a0
+# Date: 2016-05-19 19:49:48 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 498e444ee3bc16108dad2c9011fa9996603329bd
+# Date: 2016-04-12 16:21:41 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: c8abff65165deb7b5b60a53056274c2788b13f06
+# Date: 2016-04-12 16:14:37 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 3295d704dcf45eb8264b9bc80a6f95de7e3e4e8f
+# Date: 2016-03-18 21:11:10 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 1f2691dd8b7e4067aea80849f60a36caea4431c6
+# Date: 2015-06-17 00:17:09 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 5b0e10d6f50bcdcbccbd3ac6e17e04e53f5b6a30
+# Date: 2015-03-24 22:51:14 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: ab7893f931975f002a7c79d09dfaa81e4ec18c14
+# Date: 2015-02-04 21:04:46 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 2133b8135d27b26649261eb0d7f540514fd887b9
+# Date: 2015-01-30 02:00:16 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 26388aed00a662ecc52b85feec4d5e17ddad2ca5
+# Date: 2015-01-29 18:43:39 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 4eac23d6d3ac87e2022263c7d7d9d49df6ee44fd
+# Date: 2015-01-28 19:03:43 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 5e4f899bd8f7b0f0e10296c7cd2c249c4fe4f12f
+# Date: 2015-01-27 15:28:09 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+########## End of Keysight Technologies Notice ##########
 /* Implementation for NSNetServices for GNUstep
  Copyright (C) 2006 Free Software Foundation, Inc.
 

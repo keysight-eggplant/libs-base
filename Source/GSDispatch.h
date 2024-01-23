@@ -1,3 +1,16 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: 5aa5d9b54b883ebe9a3f65ec71a838c456741ce2
+# Date: 2020-06-09 17:35:46 -0400
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: e2042a66f1e6d840d39fbbc5ac1e4820778314a0
+# Date: 2020-06-09 15:50:07 -0400
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+########## End of Keysight Technologies Notice ##########
 /* Support header for conditionally enabling use of libdispatch.
    Copyright (C) 2012 Free Software Foundation, Inc.
 

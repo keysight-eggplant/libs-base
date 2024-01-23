@@ -1,3 +1,40 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: c9ae7be7c387d5802ac9f75f9e18f590063deee5
+# Date: 2018-02-02 19:58:31 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 55493fbfa927b564008e9d6f4878c3186af2c806
+# Date: 2018-02-01 21:39:47 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 8eedc9ddaa9e420d6c9a936946712f62bfc26cc9
+# Date: 2016-09-27 20:33:01 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: c6dc65a5a78655796f55b7e0b8894d7aeef4a71b
+# Date: 2016-09-21 19:59:43 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 5975c4978044c99350f75aaff485b2d18716131e
+# Date: 2016-05-13 19:01:26 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: e2b549781854b045db982cae8f73bf73d26d84a8
+# Date: 2016-05-09 16:05:19 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 234beeee196ebf1490409ce4bbf593a7c23ab13c
+# Date: 2016-04-18 14:53:58 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 019525c5641f31f1b28e451f29656b2ac0bee1da
+# Date: 2016-01-15 17:27:24 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+########## End of Keysight Technologies Notice ##########
 /* Implementation for NSUserNotification for GNUstep
    Copyright (C) 2014 Free Software Foundation, Inc.
 

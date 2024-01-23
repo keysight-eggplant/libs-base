@@ -1,3 +1,16 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: 896ebcf42836efa120a8faaaafdb791b28e1223d
+# Date: 2016-09-23 20:37:19 +0000
+--------------------
+# Committed by: Paul Landers
+# Commit ID: acb05d8fd9eb572bfca9dfe0b4d87e683dbc3906
+# Date: 2015-08-17 17:35:12 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+########## End of Keysight Technologies Notice ##########
 /** Implementation for NSUndoManager for GNUStep
    Copyright (C) 1998 Free Software Foundation, Inc.
 

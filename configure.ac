@@ -1,3 +1,32 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: 01b13228d3ecfd3d555d73daf1c448ad809970a9
+# Date: 2016-09-13 20:15:05 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: fcff6c2a51d86f447168b8a8bfab39d447d22d3b
+# Date: 2016-01-15 17:17:17 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: dceca2ab71fce6d5cda563bf2153d66ecd0fd8b2
+# Date: 2015-05-13 20:23:30 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 4eac23d6d3ac87e2022263c7d7d9d49df6ee44fd
+# Date: 2015-01-28 19:03:43 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 5e4f899bd8f7b0f0e10296c7cd2c249c4fe4f12f
+# Date: 2015-01-27 15:28:09 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+########## End of Keysight Technologies Notice ##########
 # configure.ac for GNU Objective-C library
 # Process this file with autoconf to produce a configure script.
 #

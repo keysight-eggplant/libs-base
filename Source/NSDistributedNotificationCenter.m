@@ -1,3 +1,36 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: d132c357d2ca778320f84235032fd9d188e19365
+# Date: 2017-12-13 19:14:38 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 28e3291df1d6981b07367eb896b8a2a23035a72a
+# Date: 2016-09-23 16:59:14 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: ceefe73a1b5ce2a3fab72702193b95a6d0e12dd7
+# Date: 2016-08-08 21:34:16 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: f69f0319848c944dfd1558adde2ba66055480f3c
+# Date: 2016-08-08 16:15:35 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 7424d63956f86b683f8137f175a45c02f3b06405
+# Date: 2016-02-25 00:07:53 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+--------------------
+# Committed by: Jonathan Gillaspie
+# Commit ID: 684e002122a9275127e49d1c66cd002352c79238
+# Date: 2012-09-04 20:27:28 +0000
+########## End of Keysight Technologies Notice ##########
 /**
    Copyright (C) 1998-2009 Free Software Foundation, Inc.
 

@@ -1,3 +1,32 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: cc1ee6d6fb9ced9b8f2a53cf4403a8011cbd077e
+# Date: 2016-09-21 19:44:33 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 452f6cf9136b914d9fc2ed761188b40b618649fb
+# Date: 2013-10-12 21:38:06 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+--------------------
+# Committed by: Jonathan Gillaspie
+# Commit ID: e7a41e9d3ecc0ea952157ca1c1cb80d473f64b6a
+# Date: 2012-09-10 02:30:16 +0000
+--------------------
+# Committed by: Jonathan Gillaspie
+# Commit ID: 569f2cfc6d23a61a89a3c7b07d8fcae9a3e01abc
+# Date: 2012-09-10 01:55:34 +0000
+--------------------
+# Committed by: Jonathan Gillaspie
+# Commit ID: aa40b572c3ae6cd0b095dba4466440ba4cc613f0
+# Date: 2012-09-09 15:28:43 +0000
+########## End of Keysight Technologies Notice ##########
 /** Implementation for NSDate for GNUStep
    Copyright (C) 1995, 1996, 1997, 1998 Free Software Foundation, Inc.
 

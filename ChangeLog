@@ -1,3 +1,104 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Doug Simons
+# Commit ID: ececdfa382c740e3b9475eaec4d9f922b29e1e47
+# Date: 2020-12-23 13:46:45 -0700
+--------------------
+# Committed by: Adam Fox
+# Commit ID: c2f7bf70bd9dc8bf81c94725a38361ca520d8423
+# Date: 2020-10-11 18:19:06 -0600
+--------------------
+# Committed by: Adam Fox
+# Commit ID: 026e4170dea1e947b0996b17e020a3e01d9c745e
+# Date: 2019-12-05 15:19:16 -0700
+--------------------
+# Committed by: Adam Fox
+# Commit ID: e9bf3960e55c1cf74ac67f946068236944842f5d
+# Date: 2019-12-01 21:44:38 -0700
+--------------------
+# Committed by: Paul Landers
+# Commit ID: 9bb55a5961846c2338d6ccdc5f60b54ace198ec8
+# Date: 2019-07-09 13:11:25 -0600
+--------------------
+# Committed by: Paul Landers
+# Commit ID: 187004b787748aca5d4259c25ec4c357c209c68a
+# Date: 2019-04-16 14:19:37 -0600
+--------------------
+# Committed by: Doug Simons
+# Commit ID: 42c1abbffd443a79b132f252a7b51ed73b9bb3db
+# Date: 2019-02-12 19:52:18 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: 691d6ad74163295a416fb243063c62cd1fe91b9d
+# Date: 2018-04-25 21:54:21 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: a32c2a87d408ae7627317d05cffb9abdae8cb8ab
+# Date: 2017-03-28 20:49:59 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: 79efc063babe720fbd1e26dd8f456cc08b88f86e
+# Date: 2017-03-26 22:57:22 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: 186aa77053fccfa9b2b66833d4f04a887ab9687d
+# Date: 2017-03-26 17:39:16 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: 6f5fd9d7ad8951bb89ec91f3e5780dd1d2283e93
+# Date: 2017-02-22 16:41:29 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: 9c041f3a436251b967e2ab9728d1c9525a5b601c
+# Date: 2016-02-18 22:33:36 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: ca06987be261144a8dd07af2c0cedc4dc75c0176
+# Date: 2015-07-29 17:58:03 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: b4f9d7246a0dbd41cda5aae9de3311d7bac98543
+# Date: 2015-01-15 17:58:45 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: f28aebe532d90d2b86d81a21c72ed2fd61dd6a6a
+# Date: 2013-10-31 22:44:37 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: 281b75eb1ff1753cd6975041421c47741b0e4fda
+# Date: 2013-08-22 16:14:27 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+--------------------
+# Committed by: Jonathan Gillaspie
+# Commit ID: e24d630eee0fce53b8efc3a1e7cd34a7c82ce07d
+# Date: 2013-07-08 20:14:27 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 8f66bdf4a65b1d690a41a63396f162902139861c
+# Date: 2013-07-03 20:03:28 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: 53eae71bf01a1198888d8833b8ee1bb0548ac4a8
+# Date: 2013-06-28 20:36:57 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: f845c2fb9d7667ce6334752b627d65973e6cf00d
+# Date: 2013-01-11 21:34:07 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: 944eb715a084aee35d93e7931bfbb44cce329bb0
+# Date: 2012-10-08 21:41:15 +0000
+--------------------
+# Committed by: Jonathan Gillaspie
+# Commit ID: 04b12371a42ebd4bf6579bf3d8e9d562415bf311
+# Date: 2012-09-10 01:55:47 +0000
+--------------------
+# Committed by: Jonathan Gillaspie
+# Commit ID: aa40b572c3ae6cd0b095dba4466440ba4cc613f0
+# Date: 2012-09-09 15:28:43 +0000
+########## End of Keysight Technologies Notice ##########
 2020-12-23  Doug Simons <doug.simons@eggplant.io>
 
        * NSDateFormatter.m: 

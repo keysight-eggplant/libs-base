@@ -1,3 +1,48 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Royal Stewart
+# Commit ID: eda52e8c89838cc3a2e7eff6e0c58386d4d5e271
+# Date: 2023-07-07 15:18:16 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 12bffe289dc1f19c7376050adb74eab778cd824b
+# Date: 2023-06-29 17:31:36 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 8e217285d9599107c898c47714252bbd945b083e
+# Date: 2023-06-29 16:59:32 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 21cafb25e397f3928e62eb5de24075336701f82d
+# Date: 2023-06-29 16:23:59 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 2be4b3b4c8e6889aeb21119558593364f9d772ba
+# Date: 2023-06-29 16:23:39 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: e61f09225356946164ea5e3b031249ac08efae4e
+# Date: 2023-06-29 16:22:40 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 3ab20a0623bec6dc32373991a7f4819455166dd8
+# Date: 2023-06-28 21:39:34 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 4012f41e7b754d554b145e1ad4a050d35c109cc4
+# Date: 2023-06-28 15:18:35 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 0c614b579e32e888f598f381682908cbb5ce1236
+# Date: 2023-06-28 15:14:13 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: f1c772c2f5e0bcc744f459b4037e8607ec4c03f1
+# Date: 2020-06-09 17:14:59 -0400
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 36f527303dd69064d2bf95c6606ab69374ab1cf7
+# Date: 2016-09-17 00:21:01 +0000
+########## End of Keysight Technologies Notice ##########
 #ifndef	INCLUDED_GSSOCKETSTREAM_H
 #define	INCLUDED_GSSOCKETSTREAM_H
 

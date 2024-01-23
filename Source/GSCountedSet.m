@@ -1,3 +1,16 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: 5bc407fb05ae03c77c05bcbc3cd6bea974b958f6
+# Date: 2020-06-05 18:09:29 -0400
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 9cbc408ea263e72e387247f337eb382d5df95b1a
+# Date: 2016-09-14 14:20:19 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: a5a6f68d2446363d5ba988301cc110264ce3f2da
+# Date: 2016-03-08 23:27:42 +0000
+########## End of Keysight Technologies Notice ##########
 /** Concrete implementation of NSCountedSet based on GNU Set class
    Copyright (C) 1998,2000 Free Software Foundation, Inc.
 

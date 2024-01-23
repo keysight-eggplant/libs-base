@@ -1,3 +1,40 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Doug Simons
+# Commit ID: 060e020812856acebc160316201568438bf0f61b
+# Date: 2017-08-30 11:20:23 -0600
+--------------------
+# Committed by: Doug Simons
+# Commit ID: 6870b77a433779398a490016efb4a740770b0618
+# Date: 2017-08-30 10:54:05 -0600
+--------------------
+# Committed by: Doug Simons
+# Commit ID: a32c2a87d408ae7627317d05cffb9abdae8cb8ab
+# Date: 2017-03-28 20:49:59 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 3047907edbc861099fe405a1b33bbc190621a63f
+# Date: 2016-09-13 22:29:24 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: b3f07821a081642c549fe349804ab13e8a3305b0
+# Date: 2016-01-15 17:34:11 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 7b1f5fcac7c23dc25941ace9162cfdf1707541a5
+# Date: 2015-12-01 17:04:16 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 278ce54ddb4aecf5a3e9ffec0d904ae9b40d3715
+# Date: 2012-09-07 14:24:04 +0000
+########## End of Keysight Technologies Notice ##########
 /**
    NSFileManager.h
 

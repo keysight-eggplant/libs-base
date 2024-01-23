@@ -1,3 +1,16 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: 06a85919f2f48cd686dce48611ba6b5ed234d7f5
+# Date: 2016-12-17 20:36:04 +0000
+--------------------
+# Committed by: Paul Landers
+# Commit ID: f9dcef4e72b157e7016111a647d794d0a5ebb16c
+# Date: 2016-12-16 22:09:48 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 837351f5426f6ca0fd94c86a47d73ca8bb459535
+# Date: 2016-09-14 14:02:59 +0000
+########## End of Keysight Technologies Notice ##########
 /* Interface for <NSUserDefaults> for GNUStep
    Copyright (C) 1995, 1996 Free Software Foundation, Inc.
 

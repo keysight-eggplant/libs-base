@@ -1,3 +1,144 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: e8c66e701f66e2137698230d75377ac7408ef299
+# Date: 2020-12-09 13:36:10 -0500
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: be6b778ec8cd5981a06ca59ecddb30ef0ae72b5b
+# Date: 2020-12-03 10:37:13 -0500
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: fcd1bf2837b27de4dd91aff26069016e85729fef
+# Date: 2020-09-09 12:38:54 -0400
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 21ac81f26fa1ec2964cee6fceb07b05f24f2a9b1
+# Date: 2020-09-04 16:37:50 -0400
+--------------------
+# Committed by: chadt-eggplant
+# Commit ID: 6b5b3fb23ce6e1d00b016907bffe942fdf3293dd
+# Date: 2020-06-11 15:43:31 -0600
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 4118de02ed81256c077d2ba947683cc479db9b28
+# Date: 2020-06-10 20:39:42 -0400
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: f1c772c2f5e0bcc744f459b4037e8607ec4c03f1
+# Date: 2020-06-09 17:14:59 -0400
+--------------------
+# Committed by: Paul Landers
+# Commit ID: 187004b787748aca5d4259c25ec4c357c209c68a
+# Date: 2019-04-16 14:19:37 -0600
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: facbcbdf619ae729f141c836b9934e3453cd98ad
+# Date: 2019-01-31 16:38:50 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: cda48b5f5f54e6fded0fd4bcf803a738cfd09f7b
+# Date: 2017-12-12 18:57:50 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: f6416b843a83bc2e7e79c28cbd4b12a3a318dad4
+# Date: 2017-11-26 22:34:00 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 9f9814bdabba1ec4e2cfe6091a905c3790df8d63
+# Date: 2017-11-26 22:11:57 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 1a8049f1ad04f9eb84539fa67d8dad5dc35bf825
+# Date: 2017-09-19 21:18:02 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 73440c66e4671c8fa9742e58e8e38fb190f788db
+# Date: 2017-09-15 16:55:32 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 804c892845a809206fa7406853c5faa2a6b78a07
+# Date: 2017-09-11 18:14:17 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: af6814c3779fa347ef052928a18aaae999a1b40e
+# Date: 2017-09-11 18:11:37 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 4fa362c8cc6b2540356b53adede538792775b1ba
+# Date: 2017-09-11 18:10:00 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 2d21e1c26560b95e0914b57e53495f734907b710
+# Date: 2017-09-11 17:40:58 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 21047e484845f17c1e690a15881c8c33b8aaaa28
+# Date: 2017-09-10 00:59:16 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 9d4ccf6e907080380cb4f18627c67bae28a710cc
+# Date: 2017-09-09 18:50:23 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 6794ccd579590d7f35e23ba3b2563cd85cad9861
+# Date: 2017-09-05 21:54:32 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: a4227f4a68283d3ccb29353762d848f474a2225f
+# Date: 2017-09-01 21:23:59 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 072785a4ef07a65d6718ab1df8d7ee2056a993ed
+# Date: 2017-09-01 18:53:17 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: af0864893fa85f1895c548a6bd1badf5d83ee995
+# Date: 2017-09-01 18:50:35 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 87dc0b08ae4fbdbf235cd4a1a265386cd0246c26
+# Date: 2017-09-01 18:20:36 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 0324a277b81f7926ae3f70822caf5512fc11e230
+# Date: 2017-08-17 15:17:09 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: c034507f0dbd1e842d8cf8a488f7cdb562e0e093
+# Date: 2017-08-15 16:08:20 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: bad9fc87a1b40cfd0cc08f19eabf9c2319964899
+# Date: 2017-08-04 00:45:08 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 617da993d7b287e87acf40ad5546b1dae25c1578
+# Date: 2017-08-03 21:55:17 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 2ca9c1874f972e115922b20ae3da3142aa0cf44a
+# Date: 2017-07-18 19:43:16 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d4dc953b715d4dc9721d8d5de8cec0eec4e19c32
+# Date: 2017-07-11 19:06:16 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 42ceccc1e03e7bebb86253768bebf1805b5b357b
+# Date: 2016-09-27 20:02:16 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: 944eb715a084aee35d93e7931bfbb44cce329bb0
+# Date: 2012-10-08 21:41:15 +0000
+########## End of Keysight Technologies Notice ##########
 /* Implementation for NSURLProtocol for GNUstep
    Copyright (C) 2006 Software Foundation, Inc.
 

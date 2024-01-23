@@ -1,3 +1,20 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: 5bc407fb05ae03c77c05bcbc3cd6bea974b958f6
+# Date: 2020-06-05 18:09:29 -0400
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 9cbc408ea263e72e387247f337eb382d5df95b1a
+# Date: 2016-09-14 14:20:19 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 5aaa7f8103737b8f1be093b1d0ba3f7f71e7d631
+# Date: 2015-03-05 21:54:06 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 3eaa88ccd14f53cd7be23492a328d587c5634a13
+# Date: 2015-02-03 22:56:15 +0000
+########## End of Keysight Technologies Notice ##########
 /* Concrete NSNetServiceBrowser subclass using the avahi API.
    Copyright (C) 2010 Free Software Foundation, Inc.
 

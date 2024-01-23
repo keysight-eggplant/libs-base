@@ -1,3 +1,16 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: 613a95f29873e44f87c989412fc617b632fa76aa
+# Date: 2020-06-09 16:13:35 -0400
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: a3b161dc84283f794c0b13149b072531acb6eaf9
+# Date: 2016-09-14 14:40:34 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+########## End of Keysight Technologies Notice ##########
 /* Implementation for GSHTTPAuthentication for GNUstep
    Copyright (C) 2006 Software Foundation, Inc.
 
