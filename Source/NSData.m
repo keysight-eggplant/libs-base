@@ -1,3 +1,36 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Adam Fox
+# Commit ID: 6f77d858c67edfa4bd4437429478bbefdcdaf5c8
+# Date: 2020-10-11 18:11:59 -0600
+--------------------
+# Committed by: Adam Fox
+# Commit ID: bfd1ea5ff4bf9727b4939ae611ba4f6716261890
+# Date: 2020-10-09 14:05:14 -0600
+--------------------
+# Committed by: Adam Fox
+# Commit ID: 3726527266a790441a2101f3581110da31a488c4
+# Date: 2020-10-09 13:55:10 -0600
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: a274cfdde0db6a799061ce7d71d5749e99e2121f
+# Date: 2016-09-13 22:10:30 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: f28aebe532d90d2b86d81a21c72ed2fd61dd6a6a
+# Date: 2013-10-31 22:44:37 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: b9feb7010d463031cf292ad3c2e7bb83ec9e4a84
+# Date: 2013-10-28 21:13:09 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+########## End of Keysight Technologies Notice ##########
 /**
    Copyright (C) 1995-2015 Free Software Foundation, Inc.
 

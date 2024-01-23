@@ -1,3 +1,28 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: b974613f97e03047c09bf77c69f0abad1665262d
+# Date: 2020-05-14 13:11:00 -0400
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 36f527303dd69064d2bf95c6606ab69374ab1cf7
+# Date: 2016-09-17 00:21:01 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: f0c19b9e89191fada9b2d35bf06fe21c67469c98
+# Date: 2016-09-13 20:42:43 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 3c51e663c5b2ad780609cb8078a2d7e4b0f8f3c9
+# Date: 2016-03-08 21:33:13 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+########## End of Keysight Technologies Notice ##########
 /** Implementation for GSMIME
 
    Copyright (C) 2000,2001 Free Software Foundation, Inc.

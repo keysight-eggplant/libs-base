@@ -1,3 +1,36 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: 846b4648900c1dca90de60fc6aa8d52ec57f1a96
+# Date: 2020-06-05 15:40:56 -0400
+--------------------
+# Committed by: Adam Fox
+# Commit ID: 7346a194422ef39e275cf0a4bf2e69519d63c0c6
+# Date: 2020-01-02 20:57:30 -0700
+--------------------
+# Committed by: Adam Fox
+# Commit ID: b9587ee904e83bb52ede1b26de2143b9be7db178
+# Date: 2020-01-02 20:53:16 -0700
+--------------------
+# Committed by: Adam Fox
+# Commit ID: d0c80b003b55d818462c2d1e37388aaf2742d3e9
+# Date: 2020-01-02 18:53:42 -0700
+--------------------
+# Committed by: Paul Landers
+# Commit ID: c3ba1c91feaebf0299955f11f044b0a2a46f7b6b
+# Date: 2019-02-27 13:31:48 -0700
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: b3f07821a081642c549fe349804ab13e8a3305b0
+# Date: 2016-01-15 17:34:11 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+########## End of Keysight Technologies Notice ##########
 /** Definitions for block support for GNUStep
    Copyright (C) 2011 Free Software Foundation, Inc.
 

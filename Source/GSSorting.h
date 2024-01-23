@@ -1,3 +1,16 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: bd1dce4f73c066cca760c6e2b7da4227873d6bbf
+# Date: 2016-09-21 18:51:28 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+########## End of Keysight Technologies Notice ##########
 /* Header file for sorting functions in GNUstep
    Copyright (C) 2012 Free Software Foundation, Inc.
 

@@ -1,3 +1,12 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: e7dd33b4cf61c8118fed275007b5dea5dfe604e0
+# Date: 2017-01-25 15:36:30 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+########## End of Keysight Technologies Notice ##########
 /* Interface for NSCoder for GNUStep
    Copyright (C) 1995, 1996 Free Software Foundation, Inc.
 

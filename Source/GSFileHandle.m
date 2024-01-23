@@ -1,3 +1,36 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: 613a95f29873e44f87c989412fc617b632fa76aa
+# Date: 2020-06-09 16:13:35 -0400
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: a3b161dc84283f794c0b13149b072531acb6eaf9
+# Date: 2016-09-14 14:40:34 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: a5a6f68d2446363d5ba988301cc110264ce3f2da
+# Date: 2016-03-08 23:27:42 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 4ac2c835b07a2472d4ccbdaad590f420ed0131ff
+# Date: 2013-01-10 10:35:15 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 4fc1c5c4526685d11a7c3c025d8f1aacbb9c4e6d
+# Date: 2013-01-07 17:35:15 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 3c3c7cf60bf6549bc116ff39c7740d754e8b2db1
+# Date: 2013-01-07 17:25:17 +0000
+########## End of Keysight Technologies Notice ##########
 /** Implementation for GSFileHandle for GNUStep
    Copyright (C) 1997-2002 Free Software Foundation, Inc.
 

@@ -1,3 +1,12 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: 5bc407fb05ae03c77c05bcbc3cd6bea974b958f6
+# Date: 2020-06-05 18:09:29 -0400
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 9cbc408ea263e72e387247f337eb382d5df95b1a
+# Date: 2016-09-14 14:20:19 +0000
+########## End of Keysight Technologies Notice ##########
 # line 1 "GSConcreteValueTemplate.m"	/* So gdb knows which file we are in */
 /* GSConcreteValueTemplate - Object encapsulation for C types.
    Copyright (C) 1993,1994 Free Software Foundation, Inc.

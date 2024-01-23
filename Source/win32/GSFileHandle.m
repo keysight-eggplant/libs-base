@@ -1,3 +1,32 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Doug Simons
+# Commit ID: 186aa77053fccfa9b2b66833d4f04a887ab9687d
+# Date: 2017-03-26 17:39:16 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 8eedc9ddaa9e420d6c9a936946712f62bfc26cc9
+# Date: 2016-09-27 20:33:01 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 61e39b584c8bcbb531df4560875c052bc30ebd46
+# Date: 2015-06-16 19:12:49 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 4ac2c835b07a2472d4ccbdaad590f420ed0131ff
+# Date: 2013-01-10 10:35:15 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 3c3c7cf60bf6549bc116ff39c7740d754e8b2db1
+# Date: 2013-01-07 17:25:17 +0000
+########## End of Keysight Technologies Notice ##########
 /** Implementation for GSFileHandle for GNUStep
    Copyright (C) 1997-2002 Free Software Foundation, Inc.
 

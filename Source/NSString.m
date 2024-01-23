@@ -1,3 +1,52 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Royal Stewart
+# Commit ID: 655362367f01f7b5a96af9ff80a5787c3be45b0d
+# Date: 2023-06-23 19:32:47 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 4d6af59811a2617e7609c1e39b0e55efc5181a26
+# Date: 2023-06-23 17:34:46 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: f1c772c2f5e0bcc744f459b4037e8607ec4c03f1
+# Date: 2020-06-09 17:14:59 -0400
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 77c8282a155a47e97c7cd35c83fdd88d35205183
+# Date: 2020-06-01 12:07:11 -0400
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: dba962b1310647a291b6583d24a5cafa3a6c49c5
+# Date: 2020-05-18 12:06:59 -0400
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 01b13228d3ecfd3d555d73daf1c448ad809970a9
+# Date: 2016-09-13 20:15:05 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 7519c37254e7ab273820732f1063c93b4354efd0
+# Date: 2015-10-20 13:57:03 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: 281b75eb1ff1753cd6975041421c47741b0e4fda
+# Date: 2013-08-22 16:14:27 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: 53eae71bf01a1198888d8833b8ee1bb0548ac4a8
+# Date: 2013-06-28 20:36:57 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: f845c2fb9d7667ce6334752b627d65973e6cf00d
+# Date: 2013-01-11 21:34:07 +0000
+########## End of Keysight Technologies Notice ##########
 /** Implementation of GNUSTEP string class
    Copyright (C) 1995-2012 Free Software Foundation, Inc.
 

@@ -1,3 +1,36 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: 66c5e3c8125d2902cb65d5346a3cfac917151f25
+# Date: 2017-12-14 22:37:14 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 72bdc5ad82209ac9be95fb31b4535c5793b4898a
+# Date: 2017-03-10 14:56:58 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 06a85919f2f48cd686dce48611ba6b5ed234d7f5
+# Date: 2016-12-17 20:36:04 +0000
+--------------------
+# Committed by: Paul Landers
+# Commit ID: f9dcef4e72b157e7016111a647d794d0a5ebb16c
+# Date: 2016-12-16 22:09:48 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: c4fdd212416dde94004057366c4a10826d40f6f6
+# Date: 2016-10-04 20:25:28 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 42ceccc1e03e7bebb86253768bebf1805b5b357b
+# Date: 2016-09-27 20:02:16 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+########## End of Keysight Technologies Notice ##########
 /** Implementation for NSUserDefaults for GNUstep
    Copyright (C) 1995-2001 Free Software Foundation, Inc.
 

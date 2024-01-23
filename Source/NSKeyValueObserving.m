@@ -1,3 +1,40 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: 3691a04afc6b753dfa9571d181809f9ab76dc844
+# Date: 2017-07-18 13:41:30 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 8f701565a2e3cc6f7147514436a479bf0b5209c2
+# Date: 2017-07-18 13:28:44 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 8bcd666cfa27a58d510f90938d12ed14e86a77f5
+# Date: 2017-07-17 18:02:57 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: b999a753fb8870497e58a49a168455066bec51e3
+# Date: 2016-09-23 19:17:10 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: b3f07821a081642c549fe349804ab13e8a3305b0
+# Date: 2016-01-15 17:34:11 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 628acda13b0974f515491763739f058659d63ff7
+# Date: 2015-03-01 22:28:54 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 35c1962aa735d5202ebf21bf53ccbb0aa1c9c574
+# Date: 2015-02-28 17:45:06 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+########## End of Keysight Technologies Notice ##########
 /** Implementation of GNUSTEP key value observing
    Copyright (C) 2005 Free Software Foundation, Inc.
 

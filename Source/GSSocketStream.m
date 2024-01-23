@@ -1,3 +1,132 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Royal Stewart
+# Commit ID: c990b15c91168b18a4d9a4898cc164366960fa55
+# Date: 2023-07-13 20:48:20 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: a38680be1b68f320e8195a63de1d046c3535b931
+# Date: 2023-07-13 20:37:52 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 15174dc335ef11736cc3e373bfa5e216ec255669
+# Date: 2023-06-29 22:02:55 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 0bc2cb4ffd9e21b1c4866464eb81dff4f8a3aa8e
+# Date: 2023-06-29 21:46:18 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 8ae9b459f14d59c5e7b3bfd60d3ecdbdaec880c0
+# Date: 2023-06-29 21:16:26 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 46136575f8f9915c8897d75803845dfe769e446b
+# Date: 2023-06-29 21:04:11 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 204d5dae68dfcc4586850890ac76f50cf9dae1a1
+# Date: 2023-06-29 20:36:52 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 561c254e2f5ba6617743d57b665e40778aefe9c3
+# Date: 2023-06-29 17:58:05 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 12bffe289dc1f19c7376050adb74eab778cd824b
+# Date: 2023-06-29 17:31:36 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 8e217285d9599107c898c47714252bbd945b083e
+# Date: 2023-06-29 16:59:32 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 21cafb25e397f3928e62eb5de24075336701f82d
+# Date: 2023-06-29 16:23:59 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 2be4b3b4c8e6889aeb21119558593364f9d772ba
+# Date: 2023-06-29 16:23:39 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 9a9c01da3686aee781f7ab9ce597fb2b762fa804
+# Date: 2023-06-29 16:22:30 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 23d8830fb842cc1f742090edf170e240d46c7abb
+# Date: 2023-06-29 16:22:22 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 3ed3963f51fd1cd6776a352bb3748bf9cee4d098
+# Date: 2023-06-28 21:47:05 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 72e3e9fa8662bb6a12d2e408136262184b31cc33
+# Date: 2023-06-28 21:43:35 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 4012f41e7b754d554b145e1ad4a050d35c109cc4
+# Date: 2023-06-28 15:18:35 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 0c614b579e32e888f598f381682908cbb5ce1236
+# Date: 2023-06-28 15:14:13 +0000
+--------------------
+# Committed by: David Vernon
+# Commit ID: 8db3a7c7f5ba08c42f639cf069e447955490dbd2
+# Date: 2022-03-24 10:35:02 -0600
+--------------------
+# Committed by: David Vernon
+# Commit ID: 6bfe6ab603a13e614ffa4ed81dbb1685a63cbd6d
+# Date: 2022-03-21 12:46:02 -0600
+--------------------
+# Committed by: David Vernon
+# Commit ID: a1e27f8bc5269303296dc2e4f9582128b5a8f85d
+# Date: 2022-03-21 09:53:00 -0600
+--------------------
+# Committed by: David Vernon
+# Commit ID: bab7a5c20dae6eb211c5783993f70d42b7f0c001
+# Date: 2022-03-21 09:38:12 -0600
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: f1c772c2f5e0bcc744f459b4037e8607ec4c03f1
+# Date: 2020-06-09 17:14:59 -0400
+--------------------
+# Committed by: Paul Landers
+# Commit ID: 923dfbe96dd7df743a10b7f21ea355b8d054f2c8
+# Date: 2019-03-04 15:18:10 -0700
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 7cc85923cf59850f92be450e6c9fb8d1ab601866
+# Date: 2018-04-19 21:27:43 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 6b3f62b0aa2143cf4bc713a9f32a019f2cee5f15
+# Date: 2018-04-18 20:29:51 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: c4ce340817b1e60e17c965942fd454825afa5457
+# Date: 2018-04-14 19:31:34 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: dec601d5798e1f52294b472060c21f21aad89671
+# Date: 2018-03-13 19:14:12 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: a45ea5d887db6466bb26b518defdbb1347b8b20b
+# Date: 2018-03-06 22:57:05 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 36f527303dd69064d2bf95c6606ab69374ab1cf7
+# Date: 2016-09-17 00:21:01 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+########## End of Keysight Technologies Notice ##########
 /** Implementation for GSSocketStream for GNUStep
    Copyright (C) 2006-2008 Free Software Foundation, Inc.
 

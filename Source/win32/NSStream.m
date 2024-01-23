@@ -1,3 +1,112 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Royal Stewart
+# Commit ID: 497f26711af69f0740f10ed91f6f44ce334b9c81
+# Date: 2023-06-28 21:06:08 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 2c297169bc55c951c6d73acb2fb99bfd20e83de2
+# Date: 2023-06-28 21:05:32 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 77d23e33fec95d13cfcb660a1bbad4c44016560f
+# Date: 2023-06-27 04:49:51 +0000
+--------------------
+# Committed by: David Vernon
+# Commit ID: 05a08d7930b02691ef33f7cd941f6b1c07cdca6b
+# Date: 2022-09-07 14:27:57 -0600
+--------------------
+# Committed by: David Vernon
+# Commit ID: 61ae0a05db39d67dd11433ac4d8c1a46bd2faa9a
+# Date: 2022-06-03 10:10:19 -0600
+--------------------
+# Committed by: David Vernon
+# Commit ID: 2195f1978199dcd7123cd9543237c5424df46c52
+# Date: 2022-06-03 10:02:28 -0600
+--------------------
+# Committed by: David Vernon
+# Commit ID: 6ff0eeb400d8935c4c6162effe2a6a8e0663fb3d
+# Date: 2022-06-02 16:09:59 -0600
+--------------------
+# Committed by: David Vernon
+# Commit ID: 195b614217abdb8839618e5cb399cfb7ad1bd4b1
+# Date: 2022-03-28 10:52:46 -0600
+--------------------
+# Committed by: David Vernon
+# Commit ID: 6574376390c14a771e80d5d9c6b2b9f300bed653
+# Date: 2022-03-25 15:50:58 -0600
+--------------------
+# Committed by: David Vernon
+# Commit ID: d7872e2e57854b80fe8c3dc63b4d77ca08a233a8
+# Date: 2022-03-25 14:07:14 -0600
+--------------------
+# Committed by: David Vernon
+# Commit ID: 31415c19c63da756a1ffa8f8a2a2961f44a9a8a3
+# Date: 2022-03-22 09:11:27 -0600
+--------------------
+# Committed by: David Vernon
+# Commit ID: 85e7dd45af557c228ad44e2a1eeaca3c4e43b2d4
+# Date: 2022-03-21 16:16:31 -0600
+--------------------
+# Committed by: David Vernon
+# Commit ID: 7adb711fd3f5cd044f0c9593053521738bb4cfce
+# Date: 2022-03-21 15:58:00 -0600
+--------------------
+# Committed by: David Vernon
+# Commit ID: 6bfe6ab603a13e614ffa4ed81dbb1685a63cbd6d
+# Date: 2022-03-21 12:46:02 -0600
+--------------------
+# Committed by: David Vernon
+# Commit ID: bb23431fed58f62655a070ac247942d47a5dcccc
+# Date: 2022-03-18 10:12:06 -0600
+--------------------
+# Committed by: David Vernon
+# Commit ID: 2c48614752bb3141585a4ff0441f407ffabc8b82
+# Date: 2022-02-24 16:01:38 -0700
+--------------------
+# Committed by: David Vernon
+# Commit ID: ee81f6ccd4d068f11a0787a6164d5a25c4abeace
+# Date: 2022-02-24 13:20:05 -0700
+--------------------
+# Committed by: David Vernon
+# Commit ID: 82424d761643315f0f93a9fec8fab7430b2385f6
+# Date: 2022-02-24 11:24:13 -0700
+--------------------
+# Committed by: David Vernon
+# Commit ID: 6c0e7be72269d634426a12e9152aaf4bae9a5c34
+# Date: 2022-02-24 08:39:03 -0700
+--------------------
+# Committed by: David Vernon
+# Commit ID: 55e21d4bcdae8a4f533cc562d85fb5114874764d
+# Date: 2022-02-15 17:08:43 -0700
+--------------------
+# Committed by: DavidHVernon
+# Commit ID: 4d0719318dd81b318d717c0e0470af64116d7a06
+# Date: 2021-12-16 16:33:46 -0700
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: c4ce340817b1e60e17c965942fd454825afa5457
+# Date: 2018-04-14 19:31:34 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: c52103a2e92da2721ceb29b5c3766df99b380607
+# Date: 2018-03-14 21:22:54 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: b6d71e4a1d2a75695d9b7dd789a1490d61ae2737
+# Date: 2018-03-13 20:37:13 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: dec601d5798e1f52294b472060c21f21aad89671
+# Date: 2018-03-13 19:14:12 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: 6f5fd9d7ad8951bb89ec91f3e5780dd1d2283e93
+# Date: 2017-02-22 16:41:29 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: dacd8dddde61814e97d9d6312492e415b37687f2
+# Date: 2015-07-08 20:41:14 +0000
+########## End of Keysight Technologies Notice ##########
 /** Implementation for NSStream for GNUStep
    Copyright (C) 2006 Free Software Foundation, Inc.
 

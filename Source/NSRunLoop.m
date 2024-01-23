@@ -1,3 +1,60 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: David Vernon
+# Commit ID: 626356d309e17099f71e6e86913cbefc60c074d3
+# Date: 2017-11-16 18:50:20 +0000
+--------------------
+# Committed by: David Vernon
+# Commit ID: 86043eb25bd8e2229320391b06d9d2a65fc8bbec
+# Date: 2017-11-16 18:48:32 +0000
+--------------------
+# Committed by: David Vernon
+# Commit ID: 3d0b69e25274bd7cceb43b7106f9ba452a256ef2
+# Date: 2017-10-27 19:03:05 +0000
+--------------------
+# Committed by: David Vernon
+# Commit ID: 00b7f2fb81ffb4ca5c6eb1525df2ebcab5615823
+# Date: 2017-10-27 19:02:04 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 28599c8d004bf1139df601f222ae3355a59f7931
+# Date: 2016-10-03 13:51:34 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 8eedc9ddaa9e420d6c9a936946712f62bfc26cc9
+# Date: 2016-09-27 20:33:01 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 54bace98c13b2047b590ad4144532138fafb3fdd
+# Date: 2016-09-23 19:56:29 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: f6cd7929fb896b017897c5d5d66679f7bb01a2b5
+# Date: 2016-09-20 18:15:04 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 36f527303dd69064d2bf95c6606ab69374ab1cf7
+# Date: 2016-09-17 00:21:01 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: b3f07821a081642c549fe349804ab13e8a3305b0
+# Date: 2016-01-15 17:34:11 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 46cfa96b3bbeecc1ef58c8da2b51c0610d800e2d
+# Date: 2014-11-19 19:41:38 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+--------------------
+# Committed by: Jonathan Gillaspie
+# Commit ID: e24d630eee0fce53b8efc3a1e7cd34a7c82ce07d
+# Date: 2013-07-08 20:14:27 +0000
+########## End of Keysight Technologies Notice ##########
 /** Implementation of object for waiting on several input sources
   NSRunLoop.m
 

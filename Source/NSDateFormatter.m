@@ -1,3 +1,36 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Doug Simons
+# Commit ID: ececdfa382c740e3b9475eaec4d9f922b29e1e47
+# Date: 2020-12-23 13:46:45 -0700
+--------------------
+# Committed by: Adam Fox
+# Commit ID: e9bf3960e55c1cf74ac67f946068236944842f5d
+# Date: 2019-12-01 21:44:38 -0700
+--------------------
+# Committed by: Paul Landers
+# Commit ID: 9bb55a5961846c2338d6ccdc5f60b54ace198ec8
+# Date: 2019-07-09 13:11:25 -0600
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 00d41690a1d1c7e530f82780d53204d5ea3a94d7
+# Date: 2018-05-17 19:24:45 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 859d64e93fdd2638eb278869c18b81c24097edd3
+# Date: 2016-09-21 19:55:43 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: cc1ee6d6fb9ced9b8f2a53cf4403a8011cbd077e
+# Date: 2016-09-21 19:44:33 +0000
+--------------------
+# Committed by: Doug Simons
+# Commit ID: 9c041f3a436251b967e2ab9728d1c9525a5b601c
+# Date: 2016-02-18 22:33:36 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+########## End of Keysight Technologies Notice ##########
 /** Implementation of NSDateFormatter class
    Copyright (C) 1998 Free Software Foundation, Inc.
 

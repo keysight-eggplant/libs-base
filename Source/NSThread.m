@@ -1,3 +1,40 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: 896ebcf42836efa120a8faaaafdb791b28e1223d
+# Date: 2016-09-23 20:37:19 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 3c51e663c5b2ad780609cb8078a2d7e4b0f8f3c9
+# Date: 2016-03-08 21:33:13 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 5c86e52a15d39cdf9c3286b83357e8152afa0fd2
+# Date: 2013-12-21 00:27:01 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+--------------------
+# Committed by: Jonathan Gillaspie
+# Commit ID: 0a9a862cd737d80b042d6f7a01ed29e3f5aeeb37
+# Date: 2012-09-09 22:17:02 +0000
+--------------------
+# Committed by: Jonathan Gillaspie
+# Commit ID: 320ea457ff10504ec3b81b479142c98f016b2757
+# Date: 2012-09-09 20:22:44 +0000
+--------------------
+# Committed by: Jonathan Gillaspie
+# Commit ID: da1a377c130bd7f4a7a8cea9f2be449260f40b4c
+# Date: 2012-09-09 20:07:02 +0000
+--------------------
+# Committed by: Jonathan Gillaspie
+# Commit ID: ab91189c2633cd39a853787da145b32e781aceab
+# Date: 2012-09-09 19:56:09 +0000
+########## End of Keysight Technologies Notice ##########
 /** Control of executable units within a shared virtual memory space
    Copyright (C) 1996-2000 Free Software Foundation, Inc.
 

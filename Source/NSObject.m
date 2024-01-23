@@ -1,3 +1,48 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: 03b1fb9076f0ad9133a8bfbc666461bbb7e74df8
+# Date: 2020-05-13 15:58:04 -0400
+--------------------
+# Committed by: Paul Landers
+# Commit ID: 392ed4d5c9151f0250e662eb863a15665b124f30
+# Date: 2016-11-11 18:19:32 +0000
+--------------------
+# Committed by: Paul Landers
+# Commit ID: 82d8e5ad43ba5383bdac64d94fad1cbe7289010c
+# Date: 2016-11-10 22:07:35 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 01b13228d3ecfd3d555d73daf1c448ad809970a9
+# Date: 2016-09-13 20:15:05 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: e2aa11c47ec6163e93f1b7e81617a4a92db7a055
+# Date: 2016-01-15 17:49:16 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: b3f07821a081642c549fe349804ab13e8a3305b0
+# Date: 2016-01-15 17:34:11 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 1552b7f3eee7d0a7890a365413ccacd01660e549
+# Date: 2016-01-11 19:15:05 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 6496bb993e7be5437d5144ea428b0b03b8c80b06
+# Date: 2015-06-16 21:50:57 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 61e39b584c8bcbb531df4560875c052bc30ebd46
+# Date: 2015-06-16 19:12:49 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+########## End of Keysight Technologies Notice ##########
 /** Implementation of NSObject for GNUStep
    Copyright (C) 1994-2017 Free Software Foundation, Inc.
 

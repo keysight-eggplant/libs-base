@@ -1,3 +1,48 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Royal Stewart
+# Commit ID: 2665dc737ff3ba0ea5bdede44c6e478c4ac5ab58
+# Date: 2023-07-06 20:52:00 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 8ba4af26a3756951f185ca77c921afa055170f3f
+# Date: 2023-06-27 02:19:44 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 75de9eb35570b9ed0084523116e3aad083b42786
+# Date: 2023-06-27 01:19:54 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 76ab05e42a1a66458beeb6b7d5e73876d3945ffc
+# Date: 2023-06-27 01:19:37 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 6bbf1e98105bbedaefeebd94d53acf5863b24b8c
+# Date: 2023-06-26 22:02:16 +0000
+--------------------
+# Committed by: Royal Stewart
+# Commit ID: 32e451664f1831bd3f24bff66ea33085a8aded7f
+# Date: 2023-06-26 21:57:18 +0000
+--------------------
+# Committed by: Paul Landers
+# Commit ID: 923dfbe96dd7df743a10b7f21ea355b8d054f2c8
+# Date: 2019-03-04 15:18:10 -0700
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: dec601d5798e1f52294b472060c21f21aad89671
+# Date: 2018-03-13 19:14:12 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 28e3291df1d6981b07367eb896b8a2a23035a72a
+# Date: 2016-09-23 16:59:14 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+########## End of Keysight Technologies Notice ##########
 /** Implementation of host class
    Copyright (C) 1996, 1997,1999 Free Software Foundation, Inc.
 

@@ -1,3 +1,40 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Paul Landers
+# Commit ID: de702928cc0568ecac45ff40dbbe264e2a3eff51
+# Date: 2016-10-18 20:19:08 +0000
+--------------------
+# Committed by: Paul Landers
+# Commit ID: ce9e505c7efafa5605e2d9f219528c491190d357
+# Date: 2016-10-17 20:46:47 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 8eedc9ddaa9e420d6c9a936946712f62bfc26cc9
+# Date: 2016-09-27 20:33:01 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: a1e6ed573bb13cf3b8f8c1f983527c1021cd5ea1
+# Date: 2016-05-29 21:33:12 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: c8ccbddcbb7d0c973b57914cdb5260312ab3c8f5
+# Date: 2016-02-23 19:00:18 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 4da340f78df8f75642e32f595a300822284048e3
+# Date: 2016-02-23 17:47:51 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 95104726caedcfaa66aa2f5fcfefa39786a76cf4
+# Date: 2016-02-05 22:56:51 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 61e39b584c8bcbb531df4560875c052bc30ebd46
+# Date: 2015-06-16 19:12:49 +0000
+########## End of Keysight Technologies Notice ##########
 /** Implementation of network port object based on windows mailboxes
    Copyright (C) 2005 Free Software Foundation, Inc.
 

@@ -1,3 +1,40 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: 21ac81f26fa1ec2964cee6fceb07b05f24f2a9b1
+# Date: 2020-09-04 16:37:50 -0400
+--------------------
+# Committed by: Bekki Freeman
+# Commit ID: 03d6f1148033c341b0cb73543b98305fc7c6bfd8
+# Date: 2018-01-10 17:48:35 +0000
+--------------------
+# Committed by: Bekki Freeman
+# Commit ID: 4b0fad75e0ee45cb72dc54e5f72ce8cbcf0e0e05
+# Date: 2018-01-09 03:09:17 +0000
+--------------------
+# Committed by: Bekki Freeman
+# Commit ID: 94e1d09506d5ee989c9699c15c99e96c1b0cf578
+# Date: 2018-01-05 19:16:41 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 21dbe2815d4bcd5ff9e411723b8a1e59ef6d2d0d
+# Date: 2017-11-29 15:36:15 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 4961c52309b99927ef6d0970f83684921105ef23
+# Date: 2017-11-28 20:55:18 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 896ebcf42836efa120a8faaaafdb791b28e1223d
+# Date: 2016-09-23 20:37:19 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+########## End of Keysight Technologies Notice ##########
 /* Implementation for NSURLConnection for GNUstep
    Copyright (C) 2006 Software Foundation, Inc.
 

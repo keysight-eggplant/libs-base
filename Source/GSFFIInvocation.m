@@ -1,3 +1,20 @@
+########## Keysight Technologies Added Changes To Satisfy LGPL 2.x Section 2(a) Requirements ##########
+# Committed by: Marcian Lytwyn
+# Commit ID: 613a95f29873e44f87c989412fc617b632fa76aa
+# Date: 2020-06-09 16:13:35 -0400
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: 9cbc408ea263e72e387247f337eb382d5df95b1a
+# Date: 2016-09-14 14:20:19 +0000
+--------------------
+# Committed by: Marcian Lytwyn
+# Commit ID: d52d9af274eb4b80e693cd0904b737ec7b6587d1
+# Date: 2015-07-07 22:31:41 +0000
+--------------------
+# Committed by: Frank Le Grand
+# Commit ID: 5d77e1e33ac61e7f44ee32860a83fefff83d62c8
+# Date: 2013-08-09 14:20:01 +0000
+########## End of Keysight Technologies Notice ##########
 /** Implementation of GSFFIInvocation for GNUStep
    Copyright (C) 2000 Free Software Foundation, Inc.
 
