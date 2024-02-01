@@ -102,8 +102,6 @@ NSSelectorFromString(NSString *aSelectorName)
   return (SEL)0;
 }
 
-#include <stdio.h>
-
 /**
  * Returns the class whose name is supplied in the
  * aClassName argument, or Nil if a nil string is supplied.
