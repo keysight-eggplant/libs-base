@@ -114,21 +114,22 @@ NSClassFromString(NSString *aClassName)
 {
   if (aClassName != nil)
     {
-      int	len = [aClassName length];
-      char	buf[len+1];
-
-      FILE *f = fopen("/Users/davivern/Desktop/gnustep_log.txt", "a");
-      if (f) {
-        fprintf(f, "NSClassFromString: `%@`.", aClassName);
-        fclose(f);
-        f = NULL;
-      }
+      NS_DURING
+        {
+          int len = [aClassName length];
+          char	buf[len+1];
 
           [aClassName getCString:buf
-                       maxLength:len + 1
+                        maxLength:len + 1
                         encoding:NSASCIIStringEncoding];
-      return objc_lookUpClass (buf);
-    }
+
+          return objc_lookUpClass (buf);
+        }
+      NS_HANDLER
+        {
+        }
+      NS_ENDHANDLER
+  }
   return (Class)0;
 }
 
