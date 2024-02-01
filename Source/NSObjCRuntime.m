@@ -126,8 +126,6 @@ NSClassFromString(NSString *aClassName)
           return objc_lookUpClass (buf);
         }
       NS_HANDLER
-        {
-        }
       NS_ENDHANDLER
   }
   return (Class)0;
