@@ -112,22 +112,14 @@ NSClassFromString(NSString *aClassName)
 {
   if (aClassName != nil)
     {
-      NS_DURING
-        {
-          int len = [aClassName length];
-          char	buf[len+1];
+      int len = [aClassName length];
+      char	buf[len+1];
 
-          [aClassName getCString:buf
-                        maxLength:len + 1
-                        encoding:NSASCIIStringEncoding];
+      [aClassName getCString:buf
+                    maxLength:len + 1
+                    encoding:NSASCIIStringEncoding];
 
-          return objc_lookUpClass (buf);
-        }
-        NS_HANDLER 
-          { 
-            return (Class)0; 
-          }
-        NS_ENDHANDLER
+      return objc_lookUpClass (buf);
     }
   return (Class)0;
 }
