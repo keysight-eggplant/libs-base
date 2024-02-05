@@ -110,14 +110,15 @@ NSSelectorFromString(NSString *aSelectorName)
 Class
 NSClassFromString(NSString *aClassName)
 {
-  if (aClassName != nil)
-    {
+  NSLog(@"In NSClassFromString - top");
+  if (aClassName != nil) {
       int len = [aClassName length];
       char	buf[len+1];
 
       NS_DURING
+        NSLog(@"In NSClassFromString - calling getCString");
         [aClassName getCString:buf
-                     maxLength:len + 1
+                    maxLength:len + 1
                       encoding:NSASCIIStringEncoding];
       NS_HANDLER
         *buf = 0;
@@ -126,7 +127,7 @@ NSClassFromString(NSString *aClassName)
       if (*buf) {
         return objc_lookUpClass (buf);
       }
-    }
+  }
   return (Class)0;
 }
 
