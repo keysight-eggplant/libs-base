@@ -115,11 +115,17 @@ NSClassFromString(NSString *aClassName)
       int len = [aClassName length];
       char	buf[len+1];
 
-      [aClassName getCString:buf
-                    maxLength:len + 1
-                    encoding:NSASCIIStringEncoding];
+      NS_DURING
+        [aClassName getCString:buf
+                     maxLength:len + 1
+                      encoding:NSASCIIStringEncoding];
+      NS_HANDLER
+        *buf = 0;
+      NS_ENDHANDLER
 
-      return objc_lookUpClass (buf);
+      if (*buf) {
+        return objc_lookUpClass (buf);
+      }
     }
   return (Class)0;
 }
