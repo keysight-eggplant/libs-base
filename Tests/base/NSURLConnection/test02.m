@@ -28,8 +28,8 @@ int main(int argc, char **argv, char **env)
       NSDictionary *refs;
       TestWebServer *server;
       NSURLConnectionTest *testCase;
-      BOOL debug = NO;
-
+      BOOL debug = GSDebugSet(@"dflt");
+  
       testClass = [bundle principalClass]; // NSURLConnectionTest
 
       // create a shared TestWebServer instance for performance
@@ -130,8 +130,7 @@ int main(int argc, char **argv, char **env)
 		  format: @"can't load bundle TestConnection"];
     }
 
-
   DESTROY(arp);
-
+  
   return 0;
 }

@@ -198,24 +198,20 @@
 /* Define to 1 if you have the <callback.h> header file. */
 #undef HAVE_CALLBACK_H
 
+/* Define to 1 if you have the `closefrom' function. */
+#undef HAVE_CLOSEFROM
+
 /* Define to 1 if you have the `ctime' function. */
 #undef HAVE_CTIME
 
 /* Define to 1 if you have the <curl/curl.h> header file. */
 #undef HAVE_CURL_CURL_H
 
-/* Define to 1 if you have the `curl_global_sslset' function. */
-#undef HAVE_CURL_GLOBAL_SSLSET
-
 /* Define if you have currency_symbol field in struct lconv */
 #undef HAVE_CURRENCY_SYMBOL_IN_LCONV
 
 /* Define to 1 if you have the <dbghelp.h> header file. */
 #undef HAVE_DBGHELP_H
-
-/* Define to 1 if you have the declaration of `CURLOPT_MAXAGE_CONN', and to 0
-   if you don't. */
-#undef HAVE_DECL_CURLOPT_MAXAGE_CONN
 
 /* Define to 1 if you have the declaration of `strerror_r', and to 0 if you
    don't. */
@@ -413,6 +409,9 @@
 /* Define to 1 if you have the <libxslt/xslt.h> header file. */
 #undef HAVE_LIBXSLT_XSLT_H
 
+/* Define to 1 if you have the `z' library (-lz). */
+#undef HAVE_LIBZ
+
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
 
@@ -604,6 +603,9 @@
 
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
+
+/* if struct sockaddr_storage is defined */
+#undef HAVE_STRUCT_SOCKADDR_STORAGE
 
 /* Define to 1 if `st_birthtimespec' is a member of `struct stat64'. */
 #undef HAVE_STRUCT_STAT64_ST_BIRTHTIMESPEC

@@ -28,7 +28,6 @@
 
 
    <title>NSBundle class reference</title>
-   $Date$ $Revision$
 */
 
 #define	EXPOSE_NSBundle_IVARS	1
@@ -388,7 +387,7 @@ GSPrivateExecutablePath()
 	      executablePath = [executablePath stringByResolvingSymlinksInPath];
 	      executablePath = [executablePath stringByStandardizingPath];
 	    }
-	  IF_NO_GC([executablePath retain];)
+	  IF_NO_ARC([executablePath retain];)
 	  beenHere = YES;
 	}
       [load_lock unlock];
@@ -986,6 +985,116 @@ _find_main_bundle_for_tool(NSString *toolName)
   return library_combo;
 }
 
++ (NSString*) _versionForLibrary: (NSString**)name
+{
+  NSString	*libraryName;
+  NSString	*ver = nil;
+  NSRange	r;
+
+  if (NULL == name || nil == (libraryName = *name))
+    {
+      return nil;
+    }
+
+  /*
+   * Eliminate any base path or extensions.
+   */
+  libraryName = [libraryName lastPathComponent];
+
+#if defined(_WIN32)
+  /* A dll is usually of the form 'xxx-maj_min.dll'
+   * so we can extract the version info and use it.
+   */
+  if ([[libraryName pathExtension] isEqual: @"dll"])
+    {
+      libraryName = [libraryName stringByDeletingPathExtension];
+      r = [libraryName rangeOfString: @"-" options: NSBackwardsSearch];
+      if (r.length > 0)
+	{
+	  ver = [[libraryName substringFromIndex: NSMaxRange(r)]
+	    stringByReplacingString: @"_" withString: @"."];
+	  libraryName = [libraryName substringToIndex: r.location];
+	}
+    }
+#elif defined(__APPLE__)
+  /* A .dylib is usually of the form 'libxxx.maj.min.sub.dylib',
+   * but GNUstep-make installs them with 'libxxx.dylib.maj.min.sub'.
+   * For maximum compatibility with support both forms here.
+   */
+  if ([[libraryName pathExtension] isEqual: @"dylib"])
+    {
+      NSString	*s = [libraryName stringByDeletingPathExtension];
+      NSArray	*a = [s componentsSeparatedByString: @"."];
+
+      if ([a count] > 1)
+	{
+	  libraryName = [a objectAtIndex: 0];
+	  if ([a count] >= 3)
+	    {
+	      ver = [NSString stringWithFormat: @"%@.%@",
+		[a objectAtIndex: 1], [a objectAtIndex: 2]];
+	    }
+	}
+    }
+  else
+    {
+      r = [libraryName rangeOfString: @".dylib."];
+      if (r.length > 0)
+	{
+	  NSString *s = [libraryName substringFromIndex: NSMaxRange(r)];
+	  NSArray  *a = [s componentsSeparatedByString: @"."];
+
+	  libraryName = [libraryName substringToIndex: r.location];
+	  if ([a count] >= 2)
+	    {
+	      ver = [NSString stringWithFormat: @"%@.%@",
+		[a objectAtIndex: 0], [a objectAtIndex: 1]];
+	    }
+	}
+    }
+#else
+  /* A .so is usually of the form 'libxxx.so.maj.min.sub'
+   * so we can extract the version info and use it.
+   */
+  r = [libraryName rangeOfString: @".so."];
+  if (r.length > 0)
+    {
+      NSString	*s = [libraryName substringFromIndex: NSMaxRange(r)];
+      NSArray	*a = [s componentsSeparatedByString: @"."];
+
+      libraryName = [libraryName substringToIndex: r.location];
+      if ([a count] >= 2)
+	{
+	  ver = [NSString stringWithFormat: @"%@.%@",
+	    [a objectAtIndex: 0], [a objectAtIndex: 1]];
+	}
+    }
+#endif
+
+  while ([[libraryName pathExtension] length] > 0)
+    {
+      libraryName = [libraryName stringByDeletingPathExtension];
+    }
+
+  /*
+   * Discard leading 'lib'
+   */
+  if ([libraryName hasPrefix: @"lib"] == YES)
+    {
+      libraryName = [libraryName substringFromIndex: 3];
+    }
+
+  if (0 == [libraryName length])
+    {
+      libraryName = nil;
+    }
+
+  if (name)
+    {
+      *name = libraryName;
+    }
+  return ver;
+}
 @end
 
 /*
@@ -1556,27 +1665,50 @@ _bundle_load_callback(Class theClass, struct objc_category *theCategory)
       /* Is it in the main bundle or a library? */
       if (!class_isMetaClass(aClass))
         {
-	  NSString	*lib;
+	  NSString	*path;
+	  NSString	*exep;
 
-	  /*
-	   * Take the path to the binary containing the class and
-	   * convert it to the format for a library name as used for
-	   * obtaining a library resource bundle.
+	  exep = GSPrivateExecutablePath();
+	  path = GSPrivateSymbolPath(aClass);
+
+	  /* Some systems do not provide the full path to the file
+	   * containing the symbol.  In that case we assume that if
+	   * the partial path matches the executable path then it
+	   * the executable path is the full path to the file.
 	   */
-	  lib = GSPrivateSymbolPath(aClass);
-	  if ([lib isEqual: GSPrivateExecutablePath()] == YES)
+	  if ([path isAbsolutePath] == NO
+	    && [path isEqualToString: [exep lastPathComponent]])
 	    {
-	      lib = nil;	// In program, not library.
+	      path = exep;
 	    }
 
-	  /*
-	   * Get the library bundle ... if there wasn't one then we
-	   * will check to see if it's in a newly loaded framework
-           * and if not, assume the class was in the program executable
-	   * and return the mainBundle instead.
+	  /* If the class is defined in a file other than the executable
+	   * it must be in a library or framework/bundle.
 	   */
-	  bundle = [NSBundle bundleForLibrary: lib];
-          if (nil == bundle && [[self _addFrameworks] count] > 0)
+	  if ([path isEqual: exep] == NO)
+	    {
+              NSString	*libraryName = path;
+	      NSString	*ver = [self _versionForLibrary: &libraryName];
+
+	      if (nil == ver)
+		{
+		  NSLog(@"Warning: [%@+%@] unable to determine version"
+		    @" of library '%@' containing '%@' for executable '%@'",
+		    NSStringFromClass(self), NSStringFromSelector(_cmd),
+		    path, NSStringFromClass(aClass), exep);
+		}
+	      /* Get the library bundle ... if there wasn't one then we
+	       * will check to see if it's in a newly loaded framework
+	       * and if not, assume the class was in the program executable
+	       * and return the mainBundle instead.
+	       */
+	      bundle = [NSBundle bundleForLibrary: libraryName
+					  version: ver];
+	    }
+	  NSDebugLLog(@"NSBundle",
+	    @"NSBundle bundleForClass: looking up %@ in bundle %@",
+	    NSStringFromClass(aClass), bundle);
+	  if (nil == bundle && [[self _addFrameworks] count] > 0)
             {
               bundle = (NSBundle *)NSMapGet(_byClass, aClass);
               if ((id)bundle == (id)[NSNull null])
@@ -1627,7 +1759,7 @@ _bundle_load_callback(Class theClass, struct objc_category *theCategory)
   if (_byIdentifier)
     {
       bundle = (NSBundle *)NSMapGet(_byIdentifier, identifier);
-IF_NO_GC(
+IF_NO_ARC(
 	[bundle retain]; /* retain - look as if we were alloc'ed */
 )
     }
@@ -1720,7 +1852,7 @@ IF_NO_GC(
   bundle = (NSBundle *)NSMapGet(_bundles, path);
   if (bundle != nil)
     {
-      IF_NO_GC([bundle retain];)
+      IF_NO_ARC([bundle retain];)
       [load_lock unlock];
       [self dealloc];
       return bundle;
@@ -1770,7 +1902,7 @@ IF_NO_GC(
         {
           if (bundle != nil)
             {
-              IF_NO_GC([bundle retain];)
+              IF_NO_ARC([bundle retain];)
               [load_lock unlock];
               [self dealloc];
               return bundle;
@@ -1800,7 +1932,7 @@ IF_NO_GC(
        * dynamically loaded code, so we want to prevent a bundle
        * being loaded twice.
        */
-      IF_NO_GC([self retain];)
+      IF_NO_ARC([self retain];)
       return;
     }
   if (_path != nil)
@@ -2023,7 +2155,7 @@ IF_NO_GC(
 	 We need it to answer calls like bundleForClass:; also, users
 	 normally want all loaded bundles to appear when they call
 	 +allBundles.  */
-      IF_NO_GC([self retain];)
+      IF_NO_ARC([self retain];)
 
       classNames = [NSMutableArray arrayWithCapacity: [_bundleClasses count]];
       classEnumerator = [_bundleClasses objectEnumerator];
@@ -2639,10 +2771,10 @@ IF_NO_GC(
           bytes = [tableData bytes];
           length = [tableData length];
           /*
-           * A localisation file can be ...
-           * UTF16 with a leading BOM,
-           * UTF8 with a leading BOM,
-           * or ASCII (the original standard) with \U escapes.
+           * A localisation file can be:
+           * - UTF-16 with a leading BOM,
+           * - UTF-8,
+           * - or ASCII with \U escapes.
            */
           if (length > 2
               && ((bytes[0] == 0xFF && bytes[1] == 0xFE)
@@ -2650,30 +2782,25 @@ IF_NO_GC(
             {
               encoding = NSUnicodeStringEncoding;
             }
-          else if (length > 2
-                   && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+          else
             {
               encoding = NSUTF8StringEncoding;
             }
-          else
-            {
-              encoding = NSASCIIStringEncoding;
-            }
           tableContent = [[NSString alloc] initWithData: tableData
                                            encoding: encoding];
-          if (tableContent == nil && encoding == NSASCIIStringEncoding)
+          if (tableContent == nil && encoding == NSUTF8StringEncoding)
             {
               encoding = [NSString defaultCStringEncoding];
               tableContent = [[NSString alloc] initWithData: tableData
                                                encoding: encoding];
               if (tableContent != nil)
                 {
-                  NSWarnMLog (@"Localisation file %@ not in portable encoding"
-		    @" so I'm using the default encoding for the current"
-		    @" system, which may not display messages correctly.\n"
-		    @"The file should be ASCII (using \\U escapes for unicode"
-		    @" characters) or Unicode (UTF16 or UTF8) with a leading "
-		    @"byte-order-marker.\n", tablePath);
+                  NSWarnMLog (@"Localisation file %@ not in portable encoding,"
+                    @" so I'm using the default encoding for the current"
+                    @" system, which may not display messages correctly.\n"
+                    @"The file should be UTF-8, UTF-16 with a leading"
+                    @" byte-order-marker, or ASCII (using \\U escapes for"
+                    @" unicode characters.\n", tablePath);
                 }
             }
           if (tableContent == nil)
@@ -2981,126 +3108,24 @@ IF_NO_GC(
 
 @implementation NSBundle (GNUstep)
 
-+ (NSBundle *) bundleForLibrary: (NSString *)libraryName
++ (NSBundle*) bundleForLibrary: (NSString*)libraryName
 {
-  return [self bundleForLibrary: libraryName  version: nil];
+  NSString	*ver = [self _versionForLibrary: &libraryName];
+
+  return [self bundleForLibrary: libraryName  version: ver];
 }
 
-+ (NSBundle *) bundleForLibrary: (NSString *)libraryName
-			version: (NSString *)interfaceVersion
++ (NSBundle*) bundleForLibrary: (NSString*)libraryName
+		       version: (NSString*)interfaceVersion
 {
   /* Important: if you change this code, make sure to also
    * change NSUserDefault's manual gnustep-base resource
    * lookup to match.
    */
-  NSArray *paths;
-  NSEnumerator *enumerator;
-  NSString *path;
+  NSArray	*paths;
+  NSEnumerator	*enumerator;
+  NSString	*path = libraryName;
   NSFileManager *fm = manager();
-  NSRange	r;
-
-  if ([libraryName length] == 0)
-    {
-      return nil;
-    }
-  /*
-   * Eliminate any base path or extensions.
-   */
-  libraryName = [libraryName lastPathComponent];
-
-#if defined(_WIN32)
-  /* A dll is usually of the form 'xxx-maj_min.dll'
-   * so we can extract the version info and use it.
-   */
-  if ([[libraryName pathExtension] isEqual: @"dll"])
-    {
-      libraryName = [libraryName stringByDeletingPathExtension];
-      r = [libraryName rangeOfString: @"-" options: NSBackwardsSearch];
-      if (r.length > 0)
-	{
-	  NSString	*ver;
-
-	  ver = [[libraryName substringFromIndex: NSMaxRange(r)]
-	    stringByReplacingString: @"_" withString: @"."];
-	  libraryName = [libraryName substringToIndex: r.location];
-	  if (interfaceVersion == nil)
-	    {
-	      interfaceVersion = ver;
-	    }
-	}
-    }
-#elif defined(__APPLE__)
-  /* A .dylib is usually of the form 'libxxx.maj.min.sub.dylib',
-   * but GNUstep-make installs them with 'libxxx.dylib.maj.min.sub'.
-   * For maximum compatibility with support both forms here.
-   */
-  if ([[libraryName pathExtension] isEqual: @"dylib"])
-    {
-      NSString	*s = [libraryName stringByDeletingPathExtension];
-      NSArray	*a = [s componentsSeparatedByString: @"."];
-
-      if ([a count] > 1)
-	{
-	  libraryName = [a objectAtIndex: 0];
-	  if (interfaceVersion == nil && [a count] >= 3)
-	    {
-	      interfaceVersion = [NSString stringWithFormat: @"%@.%@",
-		[a objectAtIndex: 1], [a objectAtIndex: 2]];
-	    }
-	}
-    }
-  else
-    {
-      r = [libraryName rangeOfString: @".dylib."];
-      if (r.length > 0)
-	{
-	  NSString *s = [libraryName substringFromIndex: NSMaxRange(r)];
-	  NSArray  *a = [s componentsSeparatedByString: @"."];
-
-	  libraryName = [libraryName substringToIndex: r.location];
-	  if (interfaceVersion == nil && [a count] >= 2)
-	    {
-	      interfaceVersion = [NSString stringWithFormat: @"%@.%@",
-		[a objectAtIndex: 0], [a objectAtIndex: 1]];
-	    }
-	}
-    }
-#else
-  /* A .so is usually of the form 'libxxx.so.maj.min.sub'
-   * so we can extract the version info and use it.
-   */
-  r = [libraryName rangeOfString: @".so."];
-  if (r.length > 0)
-    {
-      NSString	*s = [libraryName substringFromIndex: NSMaxRange(r)];
-      NSArray	*a = [s componentsSeparatedByString: @"."];
-
-      libraryName = [libraryName substringToIndex: r.location];
-      if (interfaceVersion == nil && [a count] >= 2)
-	{
-	  interfaceVersion = [NSString stringWithFormat: @"%@.%@",
-	    [a objectAtIndex: 0], [a objectAtIndex: 1]];
-	}
-    }
-#endif
-
-  while ([[libraryName pathExtension] length] > 0)
-    {
-      libraryName = [libraryName stringByDeletingPathExtension];
-    }
-
-  /*
-   * Discard leading 'lib'
-   */
-  if ([libraryName hasPrefix: @"lib"] == YES)
-    {
-      libraryName = [libraryName substringFromIndex: 3];
-    }
-
-  if ([libraryName length] == 0)
-    {
-      return nil;
-    }
 
   /*
    * We expect to find the library resources in the GNUSTEP_LIBRARY domain in:
@@ -3114,7 +3139,7 @@ IF_NO_GC(
    * Libraries/Resources/<libraryName>/
    *
    */
-  paths = NSSearchPathForDirectoriesInDomains (NSLibraryDirectory,
+  paths = NSSearchPathForDirectoriesInDomains(NSLibraryDirectory,
 					       NSAllDomainsMask, YES);
 
   enumerator = [paths objectEnumerator];

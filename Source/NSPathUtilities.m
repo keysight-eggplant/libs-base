@@ -26,7 +26,6 @@
    Boston, MA 02110 USA.
 
    <title>NSPathUtilities function reference</title>
-   $Date$ $Revision$
    */
 
 /**
@@ -1162,8 +1161,8 @@ static void InitialisePathUtilities(void)
 	  char	dummy[1024];
 	} s;
 	LPTSTR	str;
-	unichar buf[1024];
-	unichar dom[1024];
+	GSNativeChar buf[1024];
+	GSNativeChar dom[1024];
 	SID_NAME_USE use;
 	DWORD bsize = 1024;
 	DWORD ssize = 1024;
@@ -1627,7 +1626,7 @@ GSSetUserName(NSString *aName)
  * Under unix-like systems, the name associated with the current
  * effective user ID is used.<br/ >
  * Under ms-windows, the 'LOGNAME' environment is used, or if that fails, the
- * GetUserName() call is used to find the user name.<br />
+ * GetUserNameW function is used to find the user name.<br />
  * Raises an exception on failure.
  */
 /* NOTE FOR DEVELOPERS.
@@ -1649,8 +1648,8 @@ NSUserName(void)
 	}
       else
 	{
-	  /* The GetUserName function returns the current user name */
-	  unichar buf[1024];
+	  /* The GetUserNameW function returns the current user name */
+	  GSNativeChar buf[1024];
 	  DWORD n = 1024;
 
 	  if (GetUserNameW(buf, &n) != 0 && buf[0] != '\0')
@@ -1829,8 +1828,9 @@ NSFullUserName(void)
 #if defined(_WIN32)
       struct _USER_INFO_2	*userInfo;
 
-      if (NetUserGetInfo(NULL, (unichar*)[userName cStringUsingEncoding:
-	NSUnicodeStringEncoding], 2, (LPBYTE*)&userInfo) == 0)
+      if (NetUserGetInfo(NULL, (const GSNativeChar*)[userName
+        cStringUsingEncoding: NSUnicodeStringEncoding], 2,
+        (LPBYTE*)&userInfo) == 0)
 	{
 	  int	length = wcslen(userInfo->usri2_full_name);
 
@@ -1957,11 +1957,14 @@ NSTemporaryDirectory(void)
 #endif
 
 #if defined(_WIN32)
-  unichar buffer[1024];
+  GSNativeChar buffer[1024];
   if (GetTempPathW(1024, buffer))
     {
       baseTempDirName = [NSString stringWithCharacters: buffer
 						length: wcslen(buffer)];
+      // convert path to use forward slashes, which we use internally
+      baseTempDirName = [baseTempDirName stringByReplacingString: @"\\"
+        withString: @"/"];
     }
 #elif defined(__ANDROID__)
   /*

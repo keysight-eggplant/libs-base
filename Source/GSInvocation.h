@@ -25,7 +25,7 @@
 #ifndef __GSInvocation_h_GNUSTEP_BASE_INCLUDE
 #define __GSInvocation_h_GNUSTEP_BASE_INCLUDE
 
-#include <Foundation/NSInvocation.h>
+#import "Foundation/NSInvocation.h"
 
 @class	NSMutableData;
 
@@ -83,7 +83,7 @@ do {\
     }\
   } while (0)
 
-#define RETAIN_RETURN_VALUE IF_NO_GC(do { if (*_inf[0].type == _C_ID) RETAIN (*(id*) _retval);} while (0))                                         
+#define RETAIN_RETURN_VALUE IF_NO_ARC(do { if (*_inf[0].type == _C_ID) RETAIN (*(id*) _retval);} while (0))                                         
 
 #define	_inf	((NSArgumentInfo*)_info)
 

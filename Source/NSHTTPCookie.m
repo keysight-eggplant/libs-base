@@ -1,4 +1,4 @@
-/* Implementation for NSHTTPCookie for GNUstep
+/** Implementation for NSHTTPCookie for GNUstep
    Copyright (C) 2006 Software Foundation, Inc.
 
    Written by:  Richard Frith-Macdonald <rfm@gnu.org>
@@ -431,7 +431,8 @@ static BOOL skipSpace(pldata *pld)
   return NO;
 }
 
-static inline id parseQuotedString(pldata* pld)
+NS_RETURNS_RETAINED static inline NSString*
+parseQuotedString(pldata* pld)
 {
   unsigned	start = ++pld->pos;
   unsigned	escaped = 0;
@@ -625,12 +626,13 @@ static inline id parseQuotedString(pldata* pld)
 
 /* In cookies, keys are terminated by '=' and values are terminated by ';'
    or and EOL */
-static inline id parseUnquotedString(pldata *pld, char endChar)
+NS_RETURNS_RETAINED static inline NSString*
+parseUnquotedString(pldata *pld, char endChar)
 {
   unsigned	start = pld->pos;
   unsigned	i;
   unsigned	length;
-  id		obj;
+  NSString	*obj;
   unichar	*chars;
 
   while (pld->pos < pld->end)
@@ -647,12 +649,11 @@ static inline id parseUnquotedString(pldata *pld, char endChar)
       chars[i] = pld->ptr[start + i];
     }
 
-    {
-      obj = [NSString alloc];
-      obj = [obj initWithCharactersNoCopy: chars
-				   length: length
-			     freeWhenDone: YES];
-    }
+  obj = [NSString alloc];
+  obj = [obj initWithCharactersNoCopy: chars
+                               length: length
+                         freeWhenDone: YES];
+
   return obj;
 }
 
@@ -756,8 +757,13 @@ GSPropertyListFromCookieFormat(NSString *string, int version)
 	  if ([keyval length] < [key length])
 	    {
 	      pld->pos = keyvalpos;
+              DESTROY(key);
 	      key = keyval;
 	    }
+          else
+            {
+              DESTROY(keyval);
+            }
 	}
       if (key == nil)
 	{

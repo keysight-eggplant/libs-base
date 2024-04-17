@@ -1,4 +1,4 @@
-/* Definition of class NSProgress
+/**Definition of class NSProgress
    Copyright (C) 2019 Free Software Foundation, Inc.
    
    Written by: 	Gregory Casamento <greg.casamento@gmail.com>
@@ -27,13 +27,16 @@
 
 #import	<GNUstepBase/GSVersionMacros.h>
 #import	<Foundation/NSObject.h>
+#import <Foundation/NSString.h>
 #import <GNUstepBase/GSBlocks.h>
 
 #if	defined(__cplusplus)
 extern "C" {
 #endif
 
-@class NSString, NSDictionary, NSArray, NSNumber, NSURL, NSProgress;
+@class GS_GENERIC_CLASS(NSArray, ElementT);
+@class GS_GENERIC_CLASS(NSDictionary, KeyT:id<NSCopying>, ValT);
+@class NSNumber, NSURL, NSProgress;
 
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_9, GS_API_LATEST)
 
@@ -118,6 +121,7 @@ GS_NSProgress_IVARS;
 - (void) setKind: (NSProgressKind)k;
 - (void) setUserInfoObject: (id)obj
                     forKey: (NSProgressUserInfoKey)key;
+- (GS_GENERIC_CLASS(NSDictionary,NSProgressUserInfoKey,id) *)userInfo;
 
 // Instance property accessors...
 - (void) setFileOperationKind: (NSProgressFileOperationKind)k;

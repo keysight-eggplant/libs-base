@@ -139,11 +139,6 @@ static int socketError()
 }
 #endif /* !_WIN32 */
 
-/*
- * Largest chunk of data possible in DO
- */
-static uint32_t	maxDataLength = 32 * 1024 * 1024;
-
 /* Options for TLS encryption of connections
  */
 static NSDictionary     *tlsClientOptions;
@@ -692,7 +687,9 @@ static Class	runLoopClass;
   if (connect(desc, (struct sockaddr*)&sockAddr,
     GSPrivateSockaddrLength(&sockAddr)) == SOCKET_ERROR)
     {
-      if (!GSWOULDBLOCK)
+      long	eno = GSNETERROR;
+
+      if (!GSWOULDBLOCK(eno))
 	{
 	  NSLog(@"unable to make connection to %@ - %@",
 	    GSPrivateSockaddrName(&sockAddr), [NSError _last]);
@@ -862,6 +859,9 @@ static Class	runLoopClass;
 
 - (void) receivedEventRead
 {
+#if     defined(HAVE_GNUTLS)
+  do {
+#endif
   unsigned	want;
   void	*bytes;
   int	res;
@@ -880,15 +880,19 @@ static Class	runLoopClass;
   else
     {
       want = [rData length];
-      if (want < rWant)
+      if (want < MAX(rWant, NETBLOCK))
         {
-          want = rWant;
-          [rData setLength: want];
-        }
-      if (want < NETBLOCK)
-        {
-          want = NETBLOCK;
-          [rData setLength: want];
+          want = MAX(rWant, NETBLOCK);
+	  NS_DURING
+	    {
+	      [rData setLength: want];
+	    }
+	  NS_HANDLER
+	    {
+	      [self invalidate];
+	      [localException raise];
+	    }
+	  NS_ENDHANDLER
         }
     }
 
@@ -1010,13 +1014,6 @@ static Class	runLoopClass;
 		    }
 		  else
 		    {
-		      if (l > maxDataLength)
-		        {
-		          NSLog(@"%@ - unreasonable length (%u) for data",
-		        	self, l);
-		          [self invalidate];
-		          return;
-		        }
 		      /*
 		       * If not a port or zero length data,
 		       * we discard the data read so far and fill the
@@ -1032,13 +1029,6 @@ static Class	runLoopClass;
 		}
 	      else if (rType == GSP_HEAD)
 		{
-		  if (l > maxDataLength)
-		    {
-		      NSLog(@"%@ - unreasonable length (%u) for data",
-		        self, l);
-		      [self invalidate];
-		      return;
-		    }
 		  /*
 		   * If not a port or zero length data,
 		   * we discard the data read so far and fill the
@@ -1199,7 +1189,7 @@ static Class	runLoopClass;
           rId = 0;
           DESTROY(rItems);
           NSDebugMLLog(@"GSTcpHandle", @"got message %@ on %p", pm, self);
-          IF_NO_GC(RETAIN(rp);)
+          IF_NO_ARC(RETAIN(rp);)
           M_UNLOCK(myLock);
           NS_DURING
             {
@@ -1219,6 +1209,14 @@ static Class	runLoopClass;
           bytes = [rData mutableBytes];
         }
     }
+#if     defined(HAVE_GNUTLS)
+  /* As long as there are bytes available in the TLS buffers we must act as
+   * if the network connection is readable, otherwise we could have a hang
+   * waiting for the run loop to signal more data when the TLS layer has
+   * already read it.
+   */
+  } while ([session pending]);
+#endif
 }
 
 - (void) receivedEventWrite
@@ -1255,18 +1253,20 @@ static Class	runLoopClass;
 	      cLength = 0;
 
 #if	defined(HAVE_GNUTLS)
-	      NSDictionary	*opts = [p clientOptionsForTLS];
-	      DESTROY(session);
-	      if (opts)
-		{
-		  session = [[GSTLSSession alloc] initWithOptions: opts
-			  direction: YES	// as client
-			  transport: self
-			       push: GSTLSHandlePush
-			       pull: GSTLSHandlePull];
-		  NSDebugMLLog(@"GSTcpHandle",
-		    @"%@ is connecting using %@", self, session);
-		}
+              {
+                NSDictionary	*opts = [p clientOptionsForTLS];
+                DESTROY(session);
+                if (opts)
+                  {
+                    session = [[GSTLSSession alloc] initWithOptions: opts
+                                                          direction: YES	// as client
+                                                          transport: self
+                                                               push: GSTLSHandlePush
+                                                               pull: GSTLSHandlePull];
+                    NSDebugMLLog(@"GSTcpHandle",
+                                 @"%@ is connecting using %@", self, session);
+                  }
+              }
 #endif
             }
         }
@@ -1577,7 +1577,7 @@ static Class	runLoopClass;
 
   l = [runLoopClass currentRunLoop];
 
-  IF_NO_GC(RETAIN(self);)
+  IF_NO_ARC(RETAIN(self);)
 
   [self _add: l];
 
@@ -1703,7 +1703,7 @@ static Class		tcpPortClass;
   if (thePorts != 0)
     {
       port = (NSSocketPort*)NSMapGet(thePorts, (void*)aHost);
-      IF_NO_GC(AUTORELEASE(RETAIN(port)));
+      IF_NO_ARC(AUTORELEASE(RETAIN(port));)
     }
   M_UNLOCK(tcpPortLock);
   return port;
@@ -1853,6 +1853,23 @@ static Class		tcpPortClass;
 	    {
 #if	defined(_WIN32)
               int rc;
+
+#else
+              int e;
+              if ((e = fcntl(desc, F_GETFL, 0)) >= 0)
+                {
+                  e |= NBLK_OPT;
+                  if (fcntl(desc, F_SETFL, e) < 0)
+                    {
+                      NSLog(@"unable to set non-blocking mode on %d - %@",
+                        desc, [NSError _last]);
+                    }
+                }
+              else
+                {
+                  NSLog(@"unable to get/set non-blocking mode on %d - %@",
+                    desc, [NSError _last]);
+                }
 #endif
 	      /*
 	       * Set up the listening descriptor and the actual TCP port
@@ -1925,10 +1942,10 @@ static Class		tcpPortClass;
     }
   else
     {
-      IF_NO_GC(RETAIN(port);)
+      IF_NO_ARC(RETAIN(port);)
       NSDebugMLLog(@"NSPort", @"Using pre-existing port: %@", port);
     }
-  IF_NO_GC(AUTORELEASE(port));
+  IF_NO_ARC(AUTORELEASE(port);)
 
   M_UNLOCK(tcpPortLock);
   return port;
@@ -2006,7 +2023,7 @@ static Class		tcpPortClass;
     {
       if ((NSPort*) [handle recvPort] == recvPort)
 	{
-	  IF_NO_GC(RETAIN(handle);)
+	  IF_NO_ARC(RETAIN(handle);)
 	  NSEndMapTableEnumeration(&me);
 	  M_UNLOCK(myLock);
 	  return AUTORELEASE(handle);
@@ -2267,7 +2284,7 @@ static Class		tcpPortClass;
 {
   if ([self isValid] == YES)
     {
-      IF_NO_GC(RETAIN(self);)
+      IF_NO_ARC(RETAIN(self);)
       M_LOCK(myLock);
 
       if ([self isValid] == YES)
@@ -2397,18 +2414,20 @@ static Class		tcpPortClass;
 	  ASSIGN(handle->defaultAddress, GSPrivateSockaddrHost(&sockAddr));
 	  [handle setState: GS_H_ACCEPT];
 #if	defined(HAVE_GNUTLS)
-	  NSDictionary	*o;
-	  if ((o = [self serverOptionsForTLS]) != nil)
-	    {
-	      handle->session = [[GSTLSSession alloc]
-		initWithOptions: o
-		      direction: NO	// as server
-		      transport: handle
-			   push: GSTLSHandlePush
-			   pull: GSTLSHandlePull];
-              NSDebugMLLog(@"GSTcpHandle",
-                @"%@ is accepting using %@", handle, handle->session);
-	    }
+	  {
+	    NSDictionary	*o;
+	    if ((o = [self serverOptionsForTLS]) != nil)
+	      {
+	        handle->session = [[GSTLSSession alloc]
+		  initWithOptions: o
+		        direction: NO	// as server
+		        transport: handle
+			     push: GSTLSHandlePush
+			     pull: GSTLSHandlePull];
+                NSDebugMLLog(@"GSTcpHandle",
+                  @"%@ is accepting using %@", handle, handle->session);
+	      }
+	  }
 #endif
 	  [self addHandle: handle forSend: NO];
 	}
@@ -2420,7 +2439,7 @@ static Class		tcpPortClass;
       desc = (SOCKET)NSMapGet(events, (void*)(uintptr_t)event);
 #endif
       handle = (GSTcpHandle*)NSMapGet(handles, (void*)(uintptr_t)desc);
-      IF_NO_GC(AUTORELEASE(RETAIN(handle)));
+      IF_NO_ARC(AUTORELEASE(RETAIN(handle));)
       M_UNLOCK(myLock);
       if (handle == nil)
 	{
@@ -2473,7 +2492,7 @@ static Class		tcpPortClass;
  */
 - (void) removeHandle: (GSTcpHandle*)handle
 {
-  IF_NO_GC(RETAIN(self);)
+  IF_NO_ARC(RETAIN(self);)
   M_LOCK(myLock);
   if ([handle sendPort] == self)
     {
@@ -2486,7 +2505,7 @@ static Class		tcpPortClass;
 	   * been retained - we must therefore release this port since the
 	   * handle no longer uses it.
 	   */
-	  IF_NO_GC(RELEASE(self);)
+	  IF_NO_ARC(RELEASE(self);)
 	}
       handle->sendPort = nil;
     }

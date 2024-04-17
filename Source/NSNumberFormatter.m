@@ -512,22 +512,22 @@ static NSUInteger _defaultBehavior = NSNumberFormatterBehavior10_4;
 {
   NSNumberFormatter	*o = (NSNumberFormatter*) NSCopyObject(self, 0, zone);
 
-  IF_NO_GC(RETAIN(o->_negativeFormat);)
-  IF_NO_GC(RETAIN(o->_positiveFormat);)
-  IF_NO_GC(RETAIN(o->_attributesForPositiveValues);)
-  IF_NO_GC(RETAIN(o->_attributesForNegativeValues);)
-  IF_NO_GC(RETAIN(o->_maximum);)
-  IF_NO_GC(RETAIN(o->_minimum);)
-  IF_NO_GC(RETAIN(o->_roundingBehavior);)
-  IF_NO_GC(RETAIN(o->_attributedStringForNil);)
-  IF_NO_GC(RETAIN(o->_attributedStringForNotANumber);)
-  IF_NO_GC(RETAIN(o->_attributedStringForZero);)
+  IF_NO_ARC(RETAIN(o->_negativeFormat);)
+  IF_NO_ARC(RETAIN(o->_positiveFormat);)
+  IF_NO_ARC(RETAIN(o->_attributesForPositiveValues);)
+  IF_NO_ARC(RETAIN(o->_attributesForNegativeValues);)
+  IF_NO_ARC(RETAIN(o->_maximum);)
+  IF_NO_ARC(RETAIN(o->_minimum);)
+  IF_NO_ARC(RETAIN(o->_roundingBehavior);)
+  IF_NO_ARC(RETAIN(o->_attributedStringForNil);)
+  IF_NO_ARC(RETAIN(o->_attributedStringForNotANumber);)
+  IF_NO_ARC(RETAIN(o->_attributedStringForZero);)
   if (0 != internal)
     {
       int	idx;
 
       GS_COPY_INTERNAL(o, zone)
-      IF_NO_GC(
+      IF_NO_ARC(
 	[GSIVar(o,_locale) retain];
 	for (idx = 0; idx < MAX_SYMBOLS; ++idx)
 	  {
@@ -900,12 +900,12 @@ static NSUInteger _defaultBehavior = NSNumberFormatterBehavior10_4;
   return _localizesFormat;
 }
 
-- (NSDecimalNumber*) maximum
+- (NSNumber*) maximum
 {
   return _maximum;
 }
 
-- (NSDecimalNumber*) minimum
+- (NSNumber*) minimum
 {
   return _minimum;
 }
@@ -1002,13 +1002,13 @@ static NSUInteger _defaultBehavior = NSNumberFormatterBehavior10_4;
   _localizesFormat = flag;
 }
 
-- (void) setMaximum: (NSDecimalNumber*)aMaximum
+- (void) setMaximum: (NSNumber*)aMaximum
 {
   // FIXME: NSNumberFormatterBehavior10_4
   ASSIGN(_maximum, aMaximum);
 }
 
-- (void) setMinimum: (NSDecimalNumber*)aMinimum
+- (void) setMinimum: (NSNumber*)aMinimum
 {
   // FIXME: NSNumberFormatterBehavior10_4
   ASSIGN(_minimum, aMinimum);

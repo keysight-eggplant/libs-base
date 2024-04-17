@@ -225,8 +225,13 @@ static NSMutableDictionary      *fileMap = nil;
     {
       /* Let the GS_TLS_CA_FILE environment variable override the
        * default certificate authority location.
+       * Failing that, use the same environment variable as OpenSSL
        */
       str = [env objectForKey: @"GS_TLS_CA_FILE"];
+      if (nil == str)
+        {
+          str = [env objectForKey: @"SSL_CERT_FILE"];
+        }
       if (nil == str)
         {
           str = [bundle pathForResource: @"ca-certificates"
@@ -571,8 +576,12 @@ static NSMutableDictionary      *certificateListCache = nil;
 
 + (void) certInfo: (gnutls_x509_crt_t)cert to: (NSMutableString*)str
 {
+#if GNUTLS_VERSION_NUMBER >= 0x030507
+  gnutls_datum_t    dn;
+#else
   char            dn[1024];
   size_t          dn_size = sizeof(dn);
+#endif
   char            serial[40];
   size_t          serial_size = sizeof(serial);
   time_t          expiret;
@@ -584,6 +593,20 @@ static NSMutableDictionary      *certificateListCache = nil;
   [str appendFormat: _(@"- Certificate version: #%d\n"),
     gnutls_x509_crt_get_version(cert)];
 
+#if GNUTLS_VERSION_NUMBER >= 0x030507
+  if (GNUTLS_E_SUCCESS == gnutls_x509_crt_get_dn3(cert, &dn, 0))
+    {
+      [str appendFormat: @"- Certificate DN: %@\n",
+        [NSString stringWithUTF8String: (const char*)dn.data]];
+      gnutls_free(dn.data);
+    }
+  if (GNUTLS_E_SUCCESS == gnutls_x509_crt_get_issuer_dn3(cert, &dn, 0))
+    { 
+      [str appendFormat: _(@"- Certificate Issuer's DN: %@\n"),
+        [NSString stringWithUTF8String: (const char*)dn.data]];
+      gnutls_free(dn.data);
+    }
+#else
   dn_size = sizeof(dn) - 1;
   gnutls_x509_crt_get_dn(cert, dn, &dn_size);
   dn[dn_size] = '\0';
@@ -595,6 +618,7 @@ static NSMutableDictionary      *certificateListCache = nil;
   dn[dn_size] = '\0';
   [str appendFormat: _(@"- Certificate Issuer's DN: %@\n"),
     [NSString stringWithUTF8String: dn]];
+#endif
 
   activet = gnutls_x509_crt_get_activation_time(cert);
   [str appendFormat: _(@"- Certificate is valid since: %s"),
@@ -818,7 +842,7 @@ static NSMutableDictionary      *certificateListCache = nil;
   return [NSDate dateWithTimeIntervalSince1970: expiret];
 }
 
-- (NSDate*) expiresAt: (unsigned)index
+- (NSDate*) expiresAt: (unsigned int)index
 {
   time_t        expiret;
 
@@ -1592,26 +1616,36 @@ retrieve_callback(gnutls_session_t session,
 
   if (YES == active || YES == handshake)
     {
+      int	result;
+
       active = NO;
       handshake = NO;
       if (NO == reusable)
         {
-          gnutls_bye(session, GNUTLS_SHUT_WR);
+	  /* Since the connection is not reusable, we need only try once.
+	   */
+          result = gnutls_bye(session, GNUTLS_SHUT_WR);
         }
       else
         {
-          int   result;
+	  NSTimeInterval	start;
 
+	  /* Attempting to do a clean shutdown on a reusable connection,
+	   * so we keep retrying for a little while to let the other end
+	   * close down cleanly.
+	   */
+	  start = [NSDate timeIntervalSinceReferenceDate];
           do
             {
               result = gnutls_bye(session, GNUTLS_SHUT_RDWR);
             }
-          while (GNUTLS_E_AGAIN == result || GNUTLS_E_INTERRUPTED == result);
-          if (result < 0)
-            {
-              ok = NO;
-            }
+          while ((GNUTLS_E_AGAIN == result || GNUTLS_E_INTERRUPTED == result)
+	    && ([NSDate timeIntervalSinceReferenceDate] - start) < 10.0);
         }
+      if (result < 0)
+	{
+	  ok = NO;
+	}
     }
   if (YES == setup)
     {
@@ -1648,6 +1682,10 @@ retrieve_callback(gnutls_session_t session,
       NSString  	*str;
       BOOL      	trust;
       BOOL      	verify;
+
+      /* Set this early because it is needed in debug output during init.
+       */
+      handle = ioHandle;
 
       created = [NSDate timeIntervalSinceReferenceDate];
       opts = [options copy];
@@ -1905,7 +1943,6 @@ retrieve_callback(gnutls_session_t session,
 #endif
       gnutls_transport_set_pull_function(session, pullFunc);
       gnutls_transport_set_push_function(session, pushFunc);
-      handle = ioHandle;
       gnutls_transport_set_ptr(session, (gnutls_transport_ptr_t)ioHandle);
       gnutls_session_set_ptr(session, (void*)self);
     }
@@ -1945,8 +1982,25 @@ retrieve_callback(gnutls_session_t session,
 #endif
             || ret == GNUTLS_E_UNSUPPORTED_VERSION_PACKET)
             {
-              p = [p stringByAppendingString:
-                @"\nmost often due to the remote end not expecting TLS/SSL"];
+	      NSString	*extra = nil;
+
+	      switch (ret)
+		{
+		  case GNUTLS_E_FATAL_ALERT_RECEIVED:
+		    extra = @"The TLS protocol does not tell us why the remote"
+		      @" end sent an alert, but the most common problem during"
+		      @" handshake is a cipher mismatch";
+		      break;
+		  case GNUTLS_E_UNEXPECTED_PACKET_LENGTH:
+                  case GNUTLS_E_PREMATURE_TERMINATION:
+		    extra = @"Most often this is due to the remote end not"
+		      @" expecting/supporting TLS";
+		    break;
+		}
+	      if (extra)
+		{
+		  p = [p stringByAppendingFormat: @"\n%@", extra];
+		}
               ASSIGN(problem, p);
               if (YES == debug)
                 {
@@ -2026,6 +2080,11 @@ retrieve_callback(gnutls_session_t session,
 - (NSString*) owner
 {
   return owner;
+}
+
+- (size_t) pending
+{
+  return gnutls_record_check_pending(session);
 }
 
 - (NSString*) problem
@@ -2407,8 +2466,22 @@ retrieve_callback(gnutls_session_t session,
     }
   else
     {
-      char                      dn[1024];
-      size_t                    dn_size;
+#if GNUTLS_VERSION_NUMBER >= 0x030507
+      gnutls_datum_t    dn;
+
+      if (GNUTLS_E_SUCCESS == gnutls_x509_crt_get_dn3(cert, &dn, 0))
+        {
+          ASSIGN(owner, [NSString stringWithUTF8String: (const char*)dn.data]);
+          gnutls_free(dn.data);
+        }
+      if (GNUTLS_E_SUCCESS == gnutls_x509_crt_get_issuer_dn3(cert, &dn, 0))
+        {
+          ASSIGN(issuer, [NSString stringWithUTF8String: (const char*)dn.data]);
+          gnutls_free(dn.data);
+        }
+#else
+      char              dn[1024];
+      size_t            dn_size;
 
       /* Get certificate owner and issuer
        */
@@ -2421,6 +2494,7 @@ retrieve_callback(gnutls_session_t session,
       gnutls_x509_crt_get_issuer_dn(cert, dn, &dn_size);
       dn[dn_size] = '\0';
       ASSIGN(issuer, [NSString stringWithUTF8String: dn]);
+#endif
     }
 
   str = [opts objectForKey: GSTLSRemoteHosts];
@@ -2462,6 +2536,34 @@ retrieve_callback(gnutls_session_t session,
     }
 
   gnutls_x509_crt_deinit(cert);
+
+  names = [opts objectForKey: GSTLSIssuers];
+  if ([names isKindOfClass: [NSArray class]])
+    {
+      if (nil == issuer || NO == [names containsObject: issuer])
+        {
+          str = [NSString stringWithFormat:
+            @"TLS verification: certificate's issuer does not match '%@'",
+            names];
+          ASSIGN(problem, str);
+          if (YES == debug) NSLog(@"%p %@", handle, problem);
+          return GNUTLS_E_CERTIFICATE_ERROR;
+        }
+    }
+
+  names = [opts objectForKey: GSTLSOwners];
+  if ([names isKindOfClass: [NSArray class]])
+    {
+      if (nil == owner || NO == [names containsObject: owner])
+        {
+          str = [NSString stringWithFormat:
+            @"TLS verification: certificate's owner does not match '%@'",
+            names];
+          ASSIGN(problem, str);
+          if (YES == debug) NSLog(@"%p %@", handle, problem);
+          return GNUTLS_E_CERTIFICATE_ERROR;
+        }
+    }
 
   return 0;     // Verified
 }

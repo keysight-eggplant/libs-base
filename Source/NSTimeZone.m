@@ -153,6 +153,11 @@
 /* Many systems have this file */
 #define SYSTEM_TIME_FILE @"/etc/localtime"
 
+/* Include public domain code (modified for use here) to parse standard
+ * posix time zone files.
+ */
+#include "tzdb.h"
+
 /* If TZDIR told us where the zoneinfo files are, don't append anything else */
 #ifdef TZDIR
 #define POSIX_TZONES     @""
@@ -162,11 +167,6 @@
 
 #define BUFFER_SIZE 512
 #define WEEK_MILLISECONDS (7.0*24.0*60.0*60.0*1000.0)
-
-/* Include public domain code (modified for use here) to parse standard
- * posix time zone files.
- */
-#include "tzdb.h"
 
 #if GS_USE_ICU == 1
 static inline int
@@ -393,7 +393,7 @@ static NSString *_time_zone_path(NSString *subpath, NSString *type)
     {
       zone = nil;
     }
-  IF_NO_GC(RETAIN(zone));
+  IF_NO_ARC(RETAIN(zone);)
   GS_MUTEX_UNLOCK(zone_mutex);
 
   if (zone == nil)
@@ -709,7 +709,7 @@ static NSMapTable	*absolutes = 0;
       z = commonAbsolutes[anOffset/900 + 72];
       if (z != nil)
         {
-          IF_NO_GC(RETAIN(z));
+          IF_NO_ARC(RETAIN(z);)
           DESTROY(self);
           return z;
         }
@@ -719,7 +719,7 @@ static NSMapTable	*absolutes = 0;
   z = (GSAbsTimeZone*)NSMapGet(absolutes, (void*)(uintptr_t)anOffset);
   if (z != nil)
     {
-      IF_NO_GC(RETAIN(z));
+      IF_NO_ARC(RETAIN(z);)
       DESTROY(self);
     }
   else
@@ -806,6 +806,7 @@ static NSMapTable	*absolutes = 0;
 
 - (void) dealloc
 {
+  RELEASE(abbrev);
   RELEASE(timeZone);
   DEALLOC
 }
@@ -824,7 +825,7 @@ static NSMapTable	*absolutes = 0;
 		withDST: (BOOL)isDST
 {
   timeZone = RETAIN(aZone);
-  abbrev = anAbbrev;		// NB. Depend on this being retained in aZone
+  abbrev = RETAIN(anAbbrev);
   offset = anOffset;
   is_dst = isDST;
   return self;
@@ -1437,20 +1438,60 @@ static NSMapTable	*absolutes = 0;
        * Try to get timezone from windows system call.
        */
       {
-      	TIME_ZONE_INFORMATION tz;
-      	DWORD DST = GetTimeZoneInformation(&tz);
+        TIME_ZONE_INFORMATION tz;
+        DWORD dst;
+        wchar_t *tzName;
+
+#if defined(_MSC_VER) && defined(UCAL_H)
+        // Get time zone name for US locale as expected by ICU method below
+        LANGID origLangID = GetThreadUILanguage();
+        SetThreadUILanguage(MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US));
+        dst = GetTimeZoneInformation(&tz);
+        SetThreadUILanguage(origLangID);
+
+        // Only tz.StandardName time zone conversions are supported, as
+        // the Zone-Tzid table lacks all daylight time conversions:
+        // e.g. 'W. Europe Daylight Time' <-> 'Europe/Berlin' is not listed.
+        //
+        // See: https://unicode-org.github.io/cldr-staging/charts/latest/supplemental/zone_tzid.html
+        tzName = tz.StandardName;
+#else
+        dst = GetTimeZoneInformation(&tz);
+
+        if (dst == TIME_ZONE_ID_DAYLIGHT)
+          tzName = tz.DaylightName;
+        else
+          tzName = tz.StandardName;
+#endif
 
         localZoneSource = @"function: 'GetTimeZoneInformation()'";
-      	if (DST == TIME_ZONE_ID_DAYLIGHT)
-	  {
-	    localZoneString = [NSString stringWithCharacters: tz.DaylightName
-	      length: wcslen(tz.DaylightName)];
-	  }
-      	else
-	  {
-	    localZoneString = [NSString stringWithCharacters: tz.StandardName
-	      length: wcslen(tz.StandardName)];
-	  }
+
+#if defined(_MSC_VER) && defined(UCAL_H)
+        // Convert Windows timezone name to IANA identifier
+        if (tzName)
+          {
+            UErrorCode status = U_ZERO_ERROR;
+            UChar ianaTzName[128];
+            int32_t ianaTzNameLen = ucal_getTimeZoneIDForWindowsID(tzName,
+              -1, NULL, ianaTzName, 128, &status);
+            if (U_SUCCESS(status) && ianaTzNameLen > 0) {
+              localZoneString = [NSString stringWithCharacters: ianaTzName
+                length: ianaTzNameLen];
+            } else if (U_SUCCESS(status)) {
+              // this happens when ICU has no mapping for the time zone
+              NSLog(@"Unable to map timezone '%ls' to IANA format", tzName);
+            } else {
+              NSLog(@"Error converting timezone '%ls' to IANA format: %s",
+                tzName, u_errorName(status));
+            }
+          }
+#endif
+
+        if (localZoneString == nil)
+          {
+            localZoneString = [NSString stringWithCharacters: tzName
+              length: wcslen(tzName)];
+          }
       }
 #endif
 
@@ -1809,12 +1850,17 @@ localZoneString, [zone name], sign, s/3600, (s/60)%60);
 	      while ((name = [enumerator nextObject]) != nil)
 		{
 		  NSTimeZone	*zone = nil;
+		  NSString	*ext;
 		  BOOL		isDir;
 		
 		  path = [zonedir stringByAppendingPathComponent: name];
+		  ext = [path pathExtension];
 		  if ([mgr fileExistsAtPath: path isDirectory: &isDir]
                     && isDir == NO
-                    && [[path pathExtension] isEqual: @"tab"] == NO)
+                    && [ext isEqual: @"tab"] == NO
+                    && [ext isEqual: @"zi"] == NO
+                    && [ext isEqual: @"list"] == NO
+                    && [ext isEqual: @"leapseconds"] == NO)
 		    {
 		      zone = [zoneDictionary objectForKey: name];
 		      if (zone == nil)
@@ -1827,7 +1873,7 @@ localZoneString, [zone name], sign, s/3600, (s/60)%60);
 			     to be in this directory, but initWithName:data:
 			     will do this anyway and log a message if not. */
 			  zone = [[self alloc] initWithName: name data: data];
-			  IF_NO_GC([zone autorelease];)
+			  IF_NO_ARC([zone autorelease];)
 			}
 		      if (zone != nil)
 			{
@@ -2925,7 +2971,7 @@ newDetailInZoneForType(GSTimeZone *zone, TypeInfo *type)
 static TypeInfo
 getTypeInfo(NSTimeInterval since, GSTimeZone *zone)
 {
-  int64_t       when = (int64_t)since;
+  time_t        when = (time_t)since;
   gstm		tm;
   TypeInfo      type;
 
@@ -2987,6 +3033,7 @@ getTypeInfo(NSTimeInterval since, GSTimeZone *zone)
 
   zoneName = [timeZoneName UTF8String];
   sp = malloc(sizeof(*sp));
+  memset((char *)sp, '\0', sizeof(*sp));
 
   NS_DURING
     {

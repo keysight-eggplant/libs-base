@@ -22,7 +22,6 @@
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
    Boston, MA 02110 USA.
 
-   $Date$ $Revision$
    */
 
 #import "common.h"
@@ -44,10 +43,6 @@ static SEL	oaiSel;
 
 static Class	GSInlineArrayClass;
 /* This class stores objects inline in data beyond the end of the instance.
- * However, when GC is enabled the object data is typed, and all data after
- * the end of the class is ignored by the garbage collector (which would
- * mean that objects in the array could be collected).
- * We therefore do not provide the class when GC is being used.
  */
 @interface GSInlineArray : GSArray
 {
@@ -968,7 +963,7 @@ static Class	GSInlineArrayClass;
   if ((self = [super init]) != nil)
     {
       array = anArray;
-      IF_NO_GC(RETAIN(array));
+      IF_NO_ARC(RETAIN(array);)
       pos = 0;
     }
   return self;
@@ -993,8 +988,10 @@ static Class	GSInlineArrayClass;
 
 - (id) initWithArray: (GSArray*)anArray
 {
-  [super initWithArray: anArray];
-  pos = array->_count;
+  if (nil != (self = [super initWithArray: anArray]))
+    {
+      pos = array->_count;
+    }
   return self;
 }
 

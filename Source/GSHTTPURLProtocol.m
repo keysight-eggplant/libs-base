@@ -13,43 +13,7 @@
 #import "Foundation/NSStream.h"
 #import "Foundation/NSURL.h"
 #import "Foundation/NSURLError.h"
-#import "Foundation/NSURLSession.h"
 #import "Foundation/NSValue.h"
-
-
-@interface NSURLSessionTask (Internal)
-
-- (void) setCountOfBytesExpectedToReceive: (int64_t)count;
-
-- (void) setCountOfBytesExpectedToSend: (int64_t)count;
-
-- (dispatch_queue_t) workQueue;
-
-@end
-
-@implementation NSURLSessionTask (Internal)
-
-- (void) setCountOfBytesExpectedToReceive: (int64_t)count
-{
-  _countOfBytesExpectedToReceive = count;
-}
-
-- (void) setCountOfBytesExpectedToSend: (int64_t)count
-{
-  _countOfBytesExpectedToSend = count;
-}
-
-- (GSURLSessionTaskBody*) knownBody
-{
-  return _knownBody;
-}
-
-- (dispatch_queue_t) workQueue
-{
-  return _workQueue;
-}
-
-@end
 
 @interface GSURLCacherHelper : NSObject
 
@@ -359,9 +323,10 @@ parseArgumentPart(NSString *part, NSString *name)
 
 @implementation GSHTTPURLProtocol
 
-+ (BOOL) canInitWithRequest: (NSURLRequest*)request
++ (BOOL) canInitWithTask: (NSURLSessionTask*)task
 {
-  NSURL  *url;
+  NSURLRequest	*request = [task currentRequest];
+  NSURL  	*url;
 
   if (nil != (url = [request URL]) 
     && ([[url scheme] isEqualToString: @"http"]
@@ -467,6 +432,7 @@ parseArgumentPart(NSString *part, NSString *name)
   NSURLSessionTask  		*task = [self task];
   NSURLSession			*session = [task session];
   NSURLSessionConfiguration	*config = [session configuration];
+  BOOL				debugLibcurl;
 
   if ([[request HTTPMethod] isEqualToString:@"GET"]) 
     {
@@ -488,7 +454,7 @@ parseArgumentPart(NSString *part, NSString *name)
         }
     }
 
-  BOOL debugLibcurl = [[[NSProcessInfo processInfo] environment] 
+  debugLibcurl = [[[NSProcessInfo processInfo] environment] 
     objectForKey: @"URLSessionDebugLibcurl"] ? YES : NO;
 
   /* Programatically turning debug on in the request supercedes any
@@ -592,23 +558,19 @@ parseArgumentPart(NSString *part, NSString *name)
   [hh addEntriesFromDictionary: 
     [self transformLowercaseKeyForHTTPHeaders: HTTPHeaders]];
 
-  NSArray *curlHeaders = [self curlHeadersForHTTPHeaders: hh];
+  NSMutableArray *curlHeaders = [self curlHeadersForHTTPHeaders: hh];
   if ([[request HTTPMethod] isEqualToString:@"POST"] 
     && [[request HTTPBody] length] > 0
     && [request valueForHTTPHeaderField: @"Content-Type"] == nil) 
     {
-      NSMutableArray *temp = [curlHeaders mutableCopy];
-      [temp addObject: @"Content-Type:application/x-www-form-urlencoded"];
-      curlHeaders = temp;
+      [curlHeaders addObject: @"Content-Type:application/x-www-form-urlencoded"];
     }
   [_easyHandle setCustomHeaders: curlHeaders];
-  RELEASE(curlHeaders);
 
   NSInteger        timeoutInterval = [request timeoutInterval] * 1000;
   GSTimeoutSource  *timeoutTimer;
 
   timeoutTimer = [[GSTimeoutSource alloc] initWithQueue: [task workQueue] 
-                                           milliseconds: timeoutInterval 
                                                 handler: 
     ^{
       NSError                 *urlError;
@@ -625,6 +587,7 @@ parseArgumentPart(NSString *part, NSString *name)
           [client URLProtocol: self didFailWithError: urlError];
         }
     }];
+  [timeoutTimer setTimeout: timeoutInterval];
   [_easyHandle setTimeoutTimer: timeoutTimer];
   RELEASE(timeoutTimer);
 
@@ -675,9 +638,10 @@ parseArgumentPart(NSString *part, NSString *name)
 - (NSURLRequest*) redirectRequestForResponse: (NSHTTPURLResponse*)response 
                                  fromRequest: (NSURLRequest*)fromRequest 
 {
-  NSString  *method = nil;
-  NSURL     *targetURL;
-  NSString  *location;
+  NSString  		*method = nil;
+  NSURL     		*targetURL;
+  NSString  		*location;
+  NSMutableURLRequest	*request;
 
   if (nil == [response allHeaderFields]) 
     {
@@ -712,7 +676,7 @@ parseArgumentPart(NSString *part, NSString *name)
         return nil;
    }
 
-  NSMutableURLRequest *request = AUTORELEASE([fromRequest mutableCopy]);
+  request = AUTORELEASE([fromRequest mutableCopy]);
   [request setHTTPMethod: method];
 
   if (nil != [targetURL scheme] && nil != [targetURL host]) 
@@ -874,7 +838,7 @@ parseArgumentPart(NSString *part, NSString *name)
 // expects.
 //
 // - SeeAlso: https://curl.haxx.se/libcurl/c/CURLOPT_HTTPHEADER.html
-- (NSArray*) curlHeadersForHTTPHeaders: (NSDictionary*)HTTPHeaders 
+- (NSMutableArray*) curlHeadersForHTTPHeaders: (NSDictionary*)HTTPHeaders 
 {
   NSMutableArray *result = [NSMutableArray array];
   NSMutableSet   *names = [NSMutableSet set];
@@ -951,7 +915,7 @@ parseArgumentPart(NSString *part, NSString *name)
       [result addObject: [NSString stringWithFormat: @"%@:", k]];
     }
 
-  return AUTORELEASE([result copy]);
+  return result;
 }
 
 // Any header values that should be passed to libcurl

@@ -164,7 +164,9 @@ static char * xml_strdup(const char *from)
       xmlInitParser();
       xmlMemSetup(free, malloc, realloc, xml_strdup);
       xmlInitializeCatalog();
+#if LIBXML_VERSION < 21000
       xmlDefaultSAXHandlerInit();
+#endif
       NSString_class = [NSString class];
       usSel = @selector(stringWithUTF8String:);
       usImp = (id (*)(id, SEL, const unsigned char*))
@@ -2669,10 +2671,12 @@ getEntityDefault(void *ctx, const xmlChar *name, BOOL resolve)
                   return NULL;
                 }
               ret->owner = 1;
+#if LIBXML_VERSION < 21100
               if (ret->checked == 0)
                 {
                   ret->checked = 1;
                 }
+#endif
             }
         }
     }
@@ -4134,7 +4138,7 @@ fatalErrorFunction(void *ctx, const unsigned char *msg, ...)
   else
     {
       result = [GSXPathObject _newWithNativePointer: res  context: self];
-      IF_NO_GC ([result autorelease];)
+      IF_NO_ARC ([result autorelease];)
     }
   xmlXPathFreeCompExpr (comp);
 
@@ -4368,7 +4372,7 @@ static BOOL warned = NO; if (warned == NO) { warned = YES; NSLog(@"WARNING, use 
 	      newdoc = [newdoc _initFrom: res
 				  parent: self
 				 ownsLib: YES];
-	      IF_NO_GC([newdoc autorelease];)
+	      IF_NO_ARC([newdoc autorelease];)
 	    }
 	}
       /*
@@ -4672,7 +4676,7 @@ GS_EXPORT_CLASS
 	}
       self = [[NSString alloc] initWithCharacters: to length: output];
       NSZoneFree (NSDefaultMallocZone (), to);
-      IF_NO_GC([self autorelease];)
+      IF_NO_ARC([self autorelease];)
     }
   else
     {

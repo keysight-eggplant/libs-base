@@ -179,30 +179,17 @@ static SEL	remSel;
 {
    if ([aCoder allowsKeyedCoding])
     {
-      if ([aCoder class] == [NSKeyedArchiver class])
-	{
-          /* HACK ... MacOS-X seems to code differently if the coder is an
-           * actual instance of NSKeyedArchiver
-           */
-          NSArray *array = [self array];
-
-	  [(NSKeyedArchiver*)aCoder _encodeArrayOfObjects: array
-						   forKey: @"NS.objects"];
-	}
-      else
-	{
-	  unsigned	i = 0;
-	  NSEnumerator	*e = [self objectEnumerator];
-	  id		o;
-
-	  while ((o = [e nextObject]) != nil)
-	    {
-	      NSString	*key;
-
-	      key = [NSString stringWithFormat: @"NS.object.%u", i++];
-	      [(NSKeyedArchiver*)aCoder encodeObject: o forKey: key];
-	    }
-	}
+      unsigned	i = 0;
+      NSEnumerator	*e = [self objectEnumerator];
+      id		o;
+    
+      while ((o = [e nextObject]) != nil)
+        {
+          NSString	*key;
+    
+          key = [NSString stringWithFormat: @"NS.object.%u", i++];
+          [(NSKeyedArchiver*)aCoder encodeObject: o forKey: key];
+        }
     }
   else
     {
@@ -212,9 +199,9 @@ static SEL	remSel;
 
       [aCoder encodeValueOfObjCType: @encode(unsigned) at: &count];
       while ((o = [e nextObject]) != nil)
-	{
-	  [aCoder encodeValueOfObjCType: @encode(id) at: &o];
-	}
+        {
+          [aCoder encodeValueOfObjCType: @encode(id) at: &o];
+        }
     }
 }
 
@@ -751,7 +738,7 @@ static SEL	remSel;
     }
   if (range.length == 1)
     {
-      switch (CALL_BLOCK(comparator, key, [self objectAtIndex: range.location]))
+      switch (CALL_NON_NULL_BLOCK(comparator, key, [self objectAtIndex: range.location]))
         {
           case NSOrderedSame:
             return range.location;
@@ -818,7 +805,7 @@ static SEL	remSel;
        * For a search from the left, we'd have the correct index anyways. Check
        * whether it's equal to the key and return NSNotFound otherwise
        */
-      return (NSOrderedSame == CALL_BLOCK(comparator,
+      return (NSOrderedSame == CALL_NON_NULL_BLOCK(comparator,
         key, [self objectAtIndex: index]) ? index : NSNotFound);
     }
   // Never reached
@@ -886,7 +873,7 @@ static SEL	remSel;
         }
       else // call block directly
 #     endif
-      if (CALL_BLOCK(predicate, obj, count, &shouldStop))
+      if (CALL_NON_NULL_BLOCK(predicate, obj, count, &shouldStop))
         {
           index = count;
           shouldStop = YES;
@@ -959,10 +946,10 @@ static SEL	remSel;
         }
       else // call block directly
 #     endif
-      if (CALL_BLOCK(predicate, obj, count, &shouldStop))
+      if (CALL_NON_NULL_BLOCK(predicate, obj, count, &shouldStop))
         {
           /* TODO: It would be more efficient to collect an NSRange and only
-           * pass it to the index set when CALL_BLOCK returned NO. */
+           * pass it to the index set when CALL_NON_NULL_BLOCK returned NO. */
           [set addIndex: count];
         }
       if (shouldStop)

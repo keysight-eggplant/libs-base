@@ -284,7 +284,7 @@ static inline BOOL timerInvalidated(NSTimer *t)
     {
       GSTimedPerformer	*array[count];
 
-      IF_NO_GC(RETAIN(target));
+      IF_NO_ARC(RETAIN(target);)
       [perf getObjects: array];
       while (count-- > 0)
 	{
@@ -318,8 +318,8 @@ static inline BOOL timerInvalidated(NSTimer *t)
     {
       GSTimedPerformer	*array[count];
 
-      IF_NO_GC(RETAIN(target));
-      IF_NO_GC(RETAIN(arg));
+      IF_NO_ARC(RETAIN(target);)
+      IF_NO_ARC(RETAIN(arg);)
       [perf getObjects: array];
       while (count-- > 0)
 	{
@@ -545,7 +545,7 @@ static inline BOOL timerInvalidated(NSTimer *t)
 	    {
 	      [array[i] fire];
 	      RELEASE(array[i]);
-	      IF_NO_GC([arp emptyPool];)
+	      IF_NO_ARC([arp emptyPool];)
 	    }
           [arp drain];
 	}
@@ -742,8 +742,8 @@ static inline BOOL timerInvalidated(NSTimer *t)
  * <p>There is one run loop per thread in an application, which
  *  may always be obtained through the <code>+currentRunLoop</code> method
  *  (you cannot use -init or +new),
- *  however unless you are using the AppKit and the [NSApplication] class, the
- *  run loop will not be started unless you explicitly send it a
+ *  however unless you are using the AppKit and the <code>NSApplication</code>
+ *  class, the  run loop will not be started unless you explicitly send it a
  *  <code>-run</code> message.</p>
  *
  * <p>At any given point, a run loop operates in a single <em>mode</em>, usually
@@ -1040,7 +1040,7 @@ updateTimer(NSTimer *t, NSDate *d, NSTimeInterval now)
               GSIArrayRemoveItemAtIndexNoRelease(timers, i);
               [t fire];
               GSPrivateNotifyASAP(_currentMode);
-              IF_NO_GC([arp emptyPool];)
+              IF_NO_ARC([arp emptyPool];)
               if (updateTimer(t, d, now) == YES)
                 {
                   /* Updated ... replace in array.

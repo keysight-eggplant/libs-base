@@ -22,28 +22,30 @@
    Boston, MA 02110 USA.
 
    <title>NSTask class reference</title>
-   $Date$ $Revision$
    */
 
 #import "common.h"
 #define	EXPOSE_NSTask_IVARS	1
+#import "Foundation/FoundationErrors.h"
 #import "Foundation/NSAutoreleasePool.h"
 #import "Foundation/NSCharacterSet.h"
 #import "Foundation/NSData.h"
 #import "Foundation/NSDate.h"
 #import "Foundation/NSEnumerator.h"
+#import "Foundation/NSError.h"
 #import "Foundation/NSException.h"
 #import "Foundation/NSFileHandle.h"
 #import "Foundation/NSFileManager.h"
 #import "Foundation/NSMapTable.h"
 #import "Foundation/NSProcessInfo.h"
 #import "Foundation/NSRunLoop.h"
+#import "Foundation/NSLock.h"
 #import "Foundation/NSNotification.h"
 #import "Foundation/NSNotificationQueue.h"
 #import "Foundation/NSTask.h"
 #import "Foundation/NSThread.h"
 #import "Foundation/NSTimer.h"
-#import "Foundation/NSLock.h"
+#import "Foundation/NSURL.h"
 #import "GNUstepBase/NSString+GNUstepBase.h"
 #import "GNUstepBase/NSTask+GNUstepBase.h"
 #import "GSPrivate.h"
@@ -338,7 +340,7 @@ pty_slave(const char* name)
   if (_currentDirectoryPath == nil)
     {
       [self setCurrentDirectoryPath:
-		[[NSFileManager defaultManager] currentDirectoryPath]];
+	[[NSFileManager defaultManager] currentDirectoryPath]];
     }
   return _currentDirectoryPath;
 }
@@ -414,7 +416,13 @@ pty_slave(const char* name)
  */
 - (void) launch
 {
-  ASSIGN(_launchingThread, [NSThread currentThread]);
+  NSError	*e;
+
+  if (NO == [self launchAndReturnError: &e])
+    {
+      [NSException raise: NSInvalidArgumentException
+		  format: @"%@", e ? [e description] : @"Unable to launch"];
+    }
 }
 
 /**
@@ -850,7 +858,7 @@ pty_slave(const char* name)
   NSTimer	*timer = nil;
   NSDate	*limit = nil;
 
-  IF_NO_GC([[self retain] autorelease];)
+  IF_NO_ARC([[self retain] autorelease];)
   while ([self isRunning])
     {
       /* Poll at 0.1 second intervals.
@@ -875,6 +883,87 @@ pty_slave(const char* name)
   limit = [NSDate dateWithTimeIntervalSinceNow: 0.0];
   [loop runMode: NSDefaultRunLoopMode beforeDate: limit];
   LEAVE_POOL
+}
+
+// macOS 10.13 methods...
+
++ (NSTask *) launchedTaskWithExecutableURL: (NSURL *)url 
+  arguments: (NSArray *)arguments 
+  error: (NSError **)error 
+  terminationHandler: (GSTaskTerminationHandler)terminationHandler
+{
+  NSTask	*task = [self launchedTaskWithLaunchPath: [url path]
+					       arguments: arguments];
+  task->_handler = terminationHandler;
+  if (error)
+    {
+      *error = nil;
+     } 
+  return task;
+}
+
+- (BOOL) launchAndReturnError: (NSError **)error
+{
+  NSFileManager	*mgr = [NSFileManager defaultManager];
+  NSString	*cwd;
+  BOOL		ok;
+
+  ASSIGN(_launchingThread, [NSThread currentThread]);
+
+  cwd = [self currentDirectoryPath];
+  if (NO == [mgr fileExistsAtPath: cwd isDirectory: &ok])
+    {
+      if (error)
+	{
+	  NSDictionary	*info = [NSDictionary dictionaryWithObjectsAndKeys:
+	    @"does not exist", NSLocalizedDescriptionKey,
+	    cwd, NSFilePathErrorKey,
+	    nil];
+	  *error = [NSError errorWithDomain: NSCocoaErrorDomain
+				       code: NSFileNoSuchFileError
+				   userInfo: info];
+	}
+      return NO;
+    }
+  if (NO == ok)
+    {
+      if (error)
+	{
+	  *error = [NSError _systemError: ENOTDIR];
+	  [*error _setObject: cwd forKey: NSFilePathErrorKey];
+	}
+      return NO;
+    }
+  if (NO == [mgr isExecutableFileAtPath: cwd])
+    {
+      if (error)
+	{
+	  *error = [NSError _systemError: EACCES];
+	  [*error _setObject: cwd forKey: NSFilePathErrorKey];
+	}
+      return NO;
+    }
+  return YES;
+}
+
+- (NSURL *) executableURL
+{
+  return [NSURL URLWithString: [self launchPath]];;
+}
+
+- (void) setExecutableURL: (NSURL *)url
+{
+  [self setLaunchPath: [url path]];
+}
+
+- (NSURL *) currentDirectoryURL
+{
+  return [NSURL URLWithString: [self currentDirectoryPath]];
+}
+
+- (void) setCurrentDirectoryURL: (NSURL *)url
+{
+  [self setCurrentDirectoryPath: [url path]];
 }
 @end
 
@@ -918,12 +1007,17 @@ pty_slave(const char* name)
             postingStyle: NSPostASAP
             coalesceMask: NSNotificationNoCoalescing
                 forModes: nil];
+
+  if (_handler != NULL)
+    {
+      CALL_BLOCK_NO_ARGS(_handler);
+    }
 }
 
 - (void) _terminatedChild: (int)status reason: (NSTaskTerminationReason)reason
 {
   [tasksLock lock];
-  IF_NO_GC([[self retain] autorelease];)
+  IF_NO_ARC([[self retain] autorelease];)
   NSMapRemove(activeTasks, (void*)(intptr_t)_taskId);
   [tasksLock unlock];
   _terminationStatus = status;
@@ -1125,7 +1219,8 @@ quotedFromString(NSString *aString)
     }
 }
 
-- (void) launch
+// 10.13 method...
+- (BOOL) launchAndReturnError: (NSError **)error
 {
   STARTUPINFOW		start_info;
   NSString      	*lpath;
@@ -1146,11 +1241,23 @@ quotedFromString(NSString *aString)
 
   if (_hasLaunched)
     {
-      [NSException raise: NSInvalidArgumentException
-                  format: @"NSTask - task has already been launched"];
+      if (error)
+	{
+	  NSDictionary      *info;
+
+	  info = [NSDictionary dictionaryWithObjectsAndKeys:
+	    @"task has already been launched", NSLocalizedDescriptionKey, nil];
+	  *error = [NSError errorWithDomain: NSCocoaErrorDomain
+				       code: 0
+				   userInfo: info];
+	}
+      return NO;
     }
 
-  [super launch];
+  if (NO == [super launchAndReturnError: error])
+    {
+      return NO;
+    }
 
   lpath = [self _fullLaunchPath];
   wexecutable = (const unichar*)[lpath fileSystemRepresentation];
@@ -1307,7 +1414,7 @@ quotedFromString(NSString *aString)
     (const unichar*)[[self currentDirectoryPath] fileSystemRepresentation],
     &start_info,
     &procInfo);
-  if (result == 0)
+  if (0 == result)
     {
       last = [NSError _last];
     }
@@ -1319,8 +1426,11 @@ quotedFromString(NSString *aString)
 
   if (0 == result)
     {
-      [NSException raise: NSInvalidArgumentException
-        format: @"NSTask - Error launching task: %@ ... %@", lpath, last];
+      if (error)
+	{
+	  *error = last;
+	}
+      return NO;
     }
 
   _taskId = procInfo.dwProcessId;
@@ -1347,6 +1457,8 @@ quotedFromString(NSString *aString)
       [hdl closeFile];
       [toClose removeObjectAtIndex: 0];
     }
+
+  return YES;
 }
 
 - (void) _collectChild
@@ -1397,7 +1509,7 @@ GSPrivateCheckTasks()
 #if	defined(WAITDEBUG)
 	      [tasksLock lock];
 	      t = (NSTask*)NSMapGet(activeTasks, (void*)(intptr_t)result);
-	      IF_NO_GC([[t retain] autorelease];)
+	      IF_NO_ARC([[t retain] autorelease];)
 	      [tasksLock unlock];
 	      if (t != nil)
 		{
@@ -1410,7 +1522,7 @@ GSPrivateCheckTasks()
 	    {
 	      [tasksLock lock];
 	      t = (NSTask*)NSMapGet(activeTasks, (void*)(intptr_t)result);
-	      IF_NO_GC([[t retain] autorelease];)
+	      IF_NO_ARC([[t retain] autorelease];)
 	      [tasksLock unlock];
 	      if (t != nil)
 		{
@@ -1453,8 +1565,10 @@ GSPrivateCheckTasks()
   return found;
 }
 
-- (void) launch
+// 10.13 method...
+- (BOOL) launchAndReturnError: (NSError **)error
 {
+  NSDictionary      	*info;
   NSMutableArray	*toClose;
   NSString      	*lpath;
   int			pid;
@@ -1475,11 +1589,21 @@ GSPrivateCheckTasks()
 
   if (_hasLaunched)
     {
-      [NSException raise: NSInvalidArgumentException
-                  format: @"NSTask - task has already been launched"];
+      if (error)
+	{
+	  info = [NSDictionary dictionaryWithObjectsAndKeys:
+	    @"task has already been launched", NSLocalizedDescriptionKey, nil];
+	  *error = [NSError errorWithDomain: NSCocoaErrorDomain
+				       code: 0
+				   userInfo: info];
+	}
+      return NO;
     }
 
-  [super launch];
+  if (NO == [super launchAndReturnError: error])
+    {
+      return NO;
+    }
 
   lpath = [self _fullLaunchPath];
   executable = [lpath fileSystemRepresentation];
@@ -1551,8 +1675,11 @@ GSPrivateCheckTasks()
   pid = vfork();
   if (pid < 0)
     {
-      [NSException raise: NSInvalidArgumentException
-                  format: @"NSTask - failed to create child process"];
+      if (error)
+	{
+	  *error = [NSError _last];
+	}
+      return NO;
     }
   if (pid == 0)
     {
@@ -1645,14 +1772,30 @@ GSPrivateCheckTasks()
       /*
        * Close any extra descriptors.
        */
+#if	defined(HAVE_CLOSEFROM)
+      closefrom(3);
+#elif	defined(F_CLOSEM)
+      (void)fcntl(3, F_CLOSEM, 0);
+#elif	defined(_SC_OPEN_MAX)
+      i = sysconf(_SC_OPEN_MAX);
+      while (i-- > 3)
+	{
+	  (void)close(i);
+	}
+#else
       for (i = 3; i < NOFILE; i++)
 	{
-	  (void) close(i);
+	  (void)close(i);
 	}
+#endif
 
-      (void)chdir(path);
+      if (0 != chdir(path))
+        {
+          _exit(-1);
+        }
+
       (void)execve(executable, (char**)args, (char**)envl);
-      exit(-1);
+      _exit(-1);
     }
   else
     {
@@ -1674,6 +1817,8 @@ GSPrivateCheckTasks()
 	  [toClose removeObjectAtIndex: 0];
 	}
     }
+  
+  return YES;
 }
 
 - (void) setStandardError: (id)hdl

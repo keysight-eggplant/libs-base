@@ -1,7 +1,7 @@
 /** Implementation of NSUnarchiver for GNUstep
    Copyright (C) 1998 Free Software Foundation, Inc.
 
-   Written by:  Richard Frith-Macdonald <richard@brainstorm.co.uk>
+   Written by:  Richard Frith-Macdonald <rfm@gnu.org>
    Created: October 1998
 
    This file is part of the GNUstep Base Library.
@@ -903,7 +903,7 @@ scalarSize(char type)
 		   *	order to give the appearance that it's actually a
 		   *	new object.
 		   */
-		  IF_NO_GC(RETAIN(obj));
+		  IF_NO_ARC(RETAIN(obj);)
 		}
 	      else
 		{
@@ -1506,7 +1506,7 @@ scalarSize(char type)
 				   at: b];
 	  d = [[NSData allocWithZone: zone] initWithBytesNoCopy: b
 							 length: l];
-	  IF_NO_GC(AUTORELEASE(d));
+	  IF_NO_ARC(AUTORELEASE(d);)
 	  return d;
 	}
       else

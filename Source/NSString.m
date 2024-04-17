@@ -28,7 +28,6 @@
    Boston, MA 02110 USA.
 
    <title>NSString class reference</title>
-   $Date$ $Revision$
 */
 
 /* Caveats:
@@ -740,7 +739,7 @@ GSICUCollatorOpen(NSStringCompareOptions mask, NSLocale *locale)
   return NULL;
 }
 
-#if defined(HAVE_UNICODE_UNORM2_H)
+#if defined(HAVE_UNICODE_UNORM2_H) || defined(HAVE_ICU_H)
 - (NSString *) _normalizedICUStringOfType: (const char*)normalization
                                      mode: (UNormalization2Mode)mode
 {
@@ -1543,8 +1542,10 @@ GSICUCollatorOpen(NSStringCompareOptions mask, NSLocale *locale)
   if (len == 0)
     {
       RELEASE(d);
-      DESTROY(self);
-      return @"";
+      return [self initWithBytesNoCopy: (char *)""
+				length: 0
+			      encoding: NSASCIIStringEncoding
+			  freeWhenDone: NO];
     }
   data_bytes = [d bytes];
   if ((data_bytes != NULL) && (len >= 2))
@@ -1617,8 +1618,10 @@ GSICUCollatorOpen(NSStringCompareOptions mask, NSLocale *locale)
   if (len == 0)
     {
       RELEASE(d);
-      DESTROY(self);
-      return @"";
+      return [self initWithBytesNoCopy: (char *)""
+				length: 0
+			      encoding: NSASCIIStringEncoding
+			  freeWhenDone: NO];
     }
   data_bytes = [d bytes];
   if ((data_bytes != NULL) && (len >= 2))
@@ -1669,8 +1672,10 @@ GSICUCollatorOpen(NSStringCompareOptions mask, NSLocale *locale)
   if (len == 0)
     {
       RELEASE(d);
-      DESTROY(self);
-      return @"";
+      return [self initWithBytesNoCopy: (char *)""
+				length: 0
+			      encoding: NSASCIIStringEncoding
+			  freeWhenDone: NO];
     }
   self = [self initWithData: d encoding: enc];
   RELEASE(d);
@@ -1720,7 +1725,10 @@ GSICUCollatorOpen(NSStringCompareOptions mask, NSLocale *locale)
   if (len == 0)
     {
       DESTROY(self);
-      return @"";
+      return [self initWithBytesNoCopy: (char *)""
+				length: 0
+			      encoding: NSASCIIStringEncoding
+			  freeWhenDone: NO];
     }
   data_bytes = [d bytes];
   if ((data_bytes != NULL) && (len >= 2))
@@ -1767,7 +1775,10 @@ GSICUCollatorOpen(NSStringCompareOptions mask, NSLocale *locale)
   if (len == 0)
     {
       DESTROY(self);
-      return @"";
+      return [self initWithBytesNoCopy: (char *)""
+				length: 0
+			      encoding: NSASCIIStringEncoding
+			  freeWhenDone: NO];
     }
   data_bytes = [d bytes];
   if ((data_bytes != NULL) && (len >= 2))
@@ -1817,7 +1828,10 @@ GSICUCollatorOpen(NSStringCompareOptions mask, NSLocale *locale)
   if (len == 0)
     {
       DESTROY(self);
-      return @"";
+      return [self initWithBytesNoCopy: (char *)""
+				length: 0
+			      encoding: NSASCIIStringEncoding
+			  freeWhenDone: NO];
     }
   self = [self initWithData: d encoding: enc];
   if (self == nil)
@@ -1856,7 +1870,7 @@ GSICUCollatorOpen(NSStringCompareOptions mask, NSLocale *locale)
 
 - (NSString *) decomposedStringWithCompatibilityMapping
 {
-#if (GS_USE_ICU == 1) && defined(HAVE_UNICODE_UNORM2_H)
+#if (GS_USE_ICU == 1) && (defined(HAVE_UNICODE_UNORM2_H) || defined(HAVE_ICU_H))
   return [self _normalizedICUStringOfType: "nfkc" mode: UNORM2_DECOMPOSE];
 #else
   return [self notImplemented: _cmd];
@@ -1865,7 +1879,7 @@ GSICUCollatorOpen(NSStringCompareOptions mask, NSLocale *locale)
 
 - (NSString *) decomposedStringWithCanonicalMapping
 {
-#if (GS_USE_ICU == 1) && defined(HAVE_UNICODE_UNORM2_H)
+#if (GS_USE_ICU == 1) && (defined(HAVE_UNICODE_UNORM2_H) || defined(HAVE_ICU_H))
   return [self _normalizedICUStringOfType: "nfc" mode: UNORM2_DECOMPOSE];
 #else
   return [self notImplemented: _cmd];
@@ -1949,7 +1963,7 @@ GSICUCollatorOpen(NSStringCompareOptions mask, NSLocale *locale)
 				   length: dpos
 				 encoding: NSASCIIStringEncoding];
       NSZoneFree(NSDefaultMallocZone(), dst);
-      IF_NO_GC([s autorelease];)
+      IF_NO_ARC([s autorelease];)
     }
   return s;
 }
@@ -2072,7 +2086,7 @@ GSICUCollatorOpen(NSStringCompareOptions mask, NSLocale *locale)
 				   length: dpos
 				 encoding: NSASCIIStringEncoding];
       NSZoneFree(NSDefaultMallocZone(), dst);
-      IF_NO_GC([s autorelease];)
+      IF_NO_ARC([s autorelease];)
     }
   return s;
 }
@@ -2126,13 +2140,13 @@ GSICUCollatorOpen(NSStringCompareOptions mask, NSLocale *locale)
   NSRange	complete;
   NSRange	found;
   NSMutableArray *array;
-  IF_NO_GC(NSAutoreleasePool *pool; NSUInteger count;)
+  IF_NO_ARC(NSAutoreleasePool *pool; NSUInteger count;)
 
   if (separator == nil)
     [NSException raise: NSInvalidArgumentException format: @"separator is nil"];
 
   array = [NSMutableArray array];
-  IF_NO_GC(pool = [NSAutoreleasePool new]; count = 0;)
+  IF_NO_ARC(pool = [NSAutoreleasePool new]; count = 0;)
   search = NSMakeRange (0, [self length]);
   complete = search;
   found = [self rangeOfCharacterFromSet: separator];
@@ -2149,11 +2163,11 @@ GSICUCollatorOpen(NSStringCompareOptions mask, NSLocale *locale)
       found = [self rangeOfCharacterFromSet: separator
                                     options: 0
                                       range: search];
-      IF_NO_GC(if (0 == count % 200) [pool emptyPool];)
+      IF_NO_ARC(if (0 == count % 200) [pool emptyPool];)
     }
   // Add the last search string range
   [array addObject: [self substringWithRange: search]];
-  IF_NO_GC([pool release];)
+  IF_NO_ARC([pool release];)
   // FIXME: Need to make mutable array into non-mutable array?
   return array;
 }
@@ -3681,7 +3695,7 @@ GSICUCollatorOpen(NSStringCompareOptions mask, NSLocale *locale)
     }
   m = [d mutableCopy];
   [m appendBytes: "" length: 1];
-  IF_NO_GC([m autorelease];)
+  IF_NO_ARC([m autorelease];)
   return (const char*)[m bytes];
 }
 
@@ -3769,7 +3783,7 @@ GSICUCollatorOpen(NSStringCompareOptions mask, NSLocale *locale)
          allowLossyConversion: YES];
   m = [d mutableCopy];
   [m appendBytes: "" length: 1];
-  IF_NO_GC([m autorelease];)
+  IF_NO_ARC([m autorelease];)
   return (const char*)[m bytes];
 }
 
@@ -3787,7 +3801,7 @@ GSICUCollatorOpen(NSStringCompareOptions mask, NSLocale *locale)
          allowLossyConversion: NO];
   m = [d mutableCopy];
   [m appendBytes: "" length: 1];
-  IF_NO_GC([m autorelease];)
+  IF_NO_ARC([m autorelease];)
   return (const char*)[m bytes];
 }
 
@@ -4492,7 +4506,7 @@ static NSFileManager *fm = nil;
 
 - (NSString *) precomposedStringWithCompatibilityMapping
 {
-#if (GS_USE_ICU == 1) && defined(HAVE_UNICODE_UNORM2_H)
+#if (GS_USE_ICU == 1) && (defined(HAVE_UNICODE_UNORM2_H) || defined(HAVE_ICU_H))
   return [self _normalizedICUStringOfType: "nfkc" mode: UNORM2_COMPOSE];
 #else
   return [self notImplemented: _cmd];
@@ -4501,7 +4515,7 @@ static NSFileManager *fm = nil;
  
 - (NSString *) precomposedStringWithCanonicalMapping
 {
-#if (GS_USE_ICU == 1) && defined(HAVE_UNICODE_UNORM2_H)
+#if (GS_USE_ICU == 1) && (defined(HAVE_UNICODE_UNORM2_H) || defined(HAVE_ICU_H))
    return [self _normalizedICUStringOfType: "nfc" mode: UNORM2_COMPOSE];
 #else
   return [self notImplemented: _cmd];
@@ -6340,11 +6354,13 @@ static NSFileManager *fm = nil;
  */
 + (id) stringWithFormat: (NSString*)format, ...
 {
+  id    s;
+
   va_list ap;
   va_start(ap, format);
-  self = [super stringWithFormat: format arguments: ap];
+  s = [super stringWithFormat: format arguments: ap];
   va_end(ap);
-  return self;
+  return s;
 }
 
 /** <init/> <override-subclass />

@@ -132,11 +132,11 @@ static NSDateFormatterBehavior _defaultBehavior = 0;
 {
   NSDateFormatter	*o = (id)NSCopyObject(self, 0, zone);
 
-  IF_NO_GC(RETAIN(o->_dateFormat));
+  IF_NO_ARC(RETAIN(o->_dateFormat);)
   if (0 != internal)
     {
       GS_COPY_INTERNAL(o, zone)
-      IF_NO_GC(RETAIN(GSIVar(o,_locale));)
+      IF_NO_ARC(RETAIN(GSIVar(o,_locale));)
 #if GS_USE_ICU == 1
       {
         UErrorCode err = U_ZERO_ERROR;
@@ -946,7 +946,7 @@ static NSDateFormatterBehavior _defaultBehavior = 0;
       pat = malloc(sizeof(UChar) * patLength);
       [self->_dateFormat getCharacters: pat];
     }
-#if U_ICU_VERSION_MAJOR_NUM >= 50
+#if U_ICU_VERSION_MAJOR_NUM >= 50 || defined(HAVE_ICU_H)
   timeStyle = pat ? UDAT_PATTERN : NSToUDateFormatStyle (internal->_timeStyle);
   dateStyle = pat ? UDAT_PATTERN : NSToUDateFormatStyle (internal->_dateStyle);
 #else

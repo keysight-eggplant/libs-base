@@ -1,7 +1,7 @@
 /** Implementation of NSNotificationCenter for GNUstep
    Copyright (C) 1999 Free Software Foundation, Inc.
 
-   Written by:  Richard Frith-Macdonald <richard@brainstorm.co.uk>
+   Written by:  Richard Frith-Macdonald <rfm@gnu.org>
    Created: June 1999
 
    Many thanks for the earlier version, (from which this is loosely
@@ -26,7 +26,6 @@
    Boston, MA 02110 USA.
 
    <title>NSNotificationCenter class reference</title>
-   $Date$ $Revision$
 */
 
 #import "common.h"
@@ -118,18 +117,6 @@ static Class concrete = 0;
 
 @end
 
-
-/*
- * Garbage collection considerations -
- * The notification center is not supposed to retain any notification
- * observers or notification objects.  To achieve this when using garbage
- * collection, we must hide all references to observers and objects.
- * Within an Observation structure, this is not a problem, we simply
- * allocate the structure using 'atomic' allocation to tell the gc
- * system to ignore pointers inside it.
- * Elsewhere, we store the pointers with a bit added, to hide them from
- * the garbage collector.
- */
 
 struct	NCTbl;		/* Notification Center Table structure	*/
 
@@ -238,11 +225,6 @@ static void obsFree(Observation *o);
  * lists of Observations.  This lets us avoid the overhead of creating
  * and destroying map tables when we are frequently adding and removing
  * notification observations.
- *
- * Performance is however, not the primary reason for using this
- * structure - it provides a neat way to ensure that observers pointed
- * to by the Observation structures are not seen as being in use by
- * the garbage collection mechanism.
  */
 #define	CHUNKSIZE	128
 #define	CACHESIZE	16
@@ -273,8 +255,7 @@ obsNew(NCTable *t, SEL s, id o)
 
   /* Generally, observations are cached and we create a 'new' observation
    * by retrieving from the cache or by allocating a block of observations
-   * in one go.  This works nicely to both hide observations from the
-   * garbage collector (when using gcc for GC) and to provide high
+   * in one go.  This works nicely to provide high
    * performance for situations where apps add/remove lots of observers
    * very frequently (poor design, but something which happens in the
    * real world unfortunately).
@@ -561,8 +542,8 @@ purgeMapNode(GSIMapTable map, GSIMapNode node, id observer)
 
 @interface GSNotificationBlockOperation : NSOperation
 {
-	NSNotification *_notification;
-	GSNotificationBlock _block;
+  NSNotification	*_notification;
+  GSNotificationBlock	_block;
 }
 
 - (id) initWithNotification: (NSNotification *)notif 
@@ -575,72 +556,81 @@ purgeMapNode(GSIMapTable map, GSIMapNode node, id observer)
 - (id) initWithNotification: (NSNotification *)notif 
                       block: (GSNotificationBlock)block
 {
-	self = [super init];
-	if (self == nil)
-		return nil;
-
-	ASSIGN(_notification, notif);
-	_block = Block_copy(block);
-	return self;
-
+  if ((self = [super init]) != nil)
+    {
+      ASSIGN(_notification, notif);
+      _block = Block_copy(block);
+    }
+  return self;
 }
 
 - (void) dealloc
 {
-	DESTROY(_notification);
-	Block_release(_block);
-	[super dealloc];
+  DESTROY(_notification);
+  Block_release(_block);
+  DEALLOC
 }
 
 - (void) main
 {
-	CALL_BLOCK(_block, _notification);
+  CALL_BLOCK(_block, _notification);
 }
 
 @end
 
+/* Cached class for fast test when removing observer.
+ */
+static Class	GSNotificationObserverClass = Nil;
+
 @interface GSNotificationObserver : NSObject
 {
-	NSOperationQueue *_queue;
-	GSNotificationBlock _block;
+  NSOperationQueue	*_queue;
+  GSNotificationBlock	_block;
 }
 
 @end
 
 @implementation GSNotificationObserver
 
++ (void) initialize
+{
+  if ([GSNotificationObserver class] == self)
+    {
+      GSNotificationObserverClass = self;
+    }
+}
+
 - (id) initWithQueue: (NSOperationQueue *)queue 
                block: (GSNotificationBlock)block
 {
-	self = [super init];
-	if (self == nil)
-		return nil;
-
-	ASSIGN(_queue, queue);
-	_block = Block_copy(block);
-	return self;
+  if ((self = [super init]) != nil)
+    {
+      ASSIGN(_queue, queue);
+      _block = Block_copy(block);
+    }
+  return self;
 }
 
 - (void) dealloc
 {
-	DESTROY(_queue);
-	Block_release(_block);
-	[super dealloc];
+  DESTROY(_queue);
+  Block_release(_block);
+  DEALLOC
 }
 
 - (void) didReceiveNotification: (NSNotification *)notif
 {
-	if (_queue != nil)
-	{
-		GSNotificationBlockOperation *op = [[GSNotificationBlockOperation alloc] 
-			initWithNotification: notif block: _block];
+  if (_queue != nil)
+    {
+      GSNotificationBlockOperation *op = [[GSNotificationBlockOperation alloc] 
+	initWithNotification: notif block: _block];
 
-		[_queue addOperation: op];
-	}
-	else
-	{
-		CALL_BLOCK(_block, notif);
-	}
+      [_queue addOperation: op];
+    }
+  else
+    {
+      CALL_BLOCK(_block, notif);
+    }
 }
 
 @end
@@ -689,6 +679,14 @@ static NSNotificationCenter *default_center = nil;
 	{
 	  concrete = [GSNotification class];
 	}
+      /* Ensure value is initialised before we use it in
+       * -removeObserver:name:object:
+       */
+      if (nil == GSNotificationObserverClass)
+	{
+	  [GSNotificationObserver class];
+	}
+
       /*
        * Do alloc and init separately so the default center can refer to
        * the 'default_center' variable during initialisation.
@@ -758,8 +756,6 @@ static NSNotificationCenter *default_center = nil;
  * <p>The notification center does not retain observer or object. Therefore,
  * you should always send removeObserver: or removeObserver:name:object: to
  * the notification center before releasing these objects.<br />
- * As a convenience, when built with garbage collection, you do not need to
- * remove any garbage collected observer as the system will do it implicitly.
  * </p>
  *
  * <p>NB. For MacOS-X compatibility, adding an observer multiple times will
@@ -873,7 +869,7 @@ static NSNotificationCenter *default_center = nil;
  * the object argument is nil).</p>
  *
  * <p>For the name and object arguments, the constraints and behavior described 
- * in -addObserver:name:selector:object: remain valid.</p>
+ * in -addObserver:selector:name:object: remain valid.</p>
  *
  * <p>For each notification received by the center, the observer will execute 
  * the notification block. If the queue is not nil, the notification block is 
@@ -885,15 +881,15 @@ static NSNotificationCenter *default_center = nil;
                     queue: (NSOperationQueue *)queue 
                usingBlock: (GSNotificationBlock)block
 {
-	GSNotificationObserver *observer = 
-		[[GSNotificationObserver alloc] initWithQueue: queue block: block];
+  GSNotificationObserver *observer = 
+    [[GSNotificationObserver alloc] initWithQueue: queue block: block];
 
-	[self addObserver: observer 
-	         selector: @selector(didReceiveNotification:) 
-	             name: name 
-	           object: object];
+  [self addObserver: observer 
+	   selector: @selector(didReceiveNotification:) 
+	       name: name 
+	     object: object];
 
-	return observer;
+  return observer;	// Released when observer is removed.
 }
 
 /**
@@ -909,7 +905,9 @@ static NSNotificationCenter *default_center = nil;
                  object: (id)object
 {
   if (name == nil && object == nil && observer == nil)
+    {
       return;
+    }
 
   /*
    *	NB. The removal algorithm depends on an implementation characteristic
@@ -1053,6 +1051,14 @@ static NSNotificationCenter *default_center = nil;
 	}
     }
   unlockNCTable(TABLE);
+
+  /* As a special case GSNotificationObserver instances are owned by the
+   * notification center and are released when they are removed.
+   */
+  if (object_getClass(observer) == GSNotificationObserverClass)
+    {
+      RELEASE(observer);
+    }
 }
 
 /**
@@ -1097,9 +1103,8 @@ static NSNotificationCenter *default_center = nil;
    * Lock the table of observations while we traverse it.
    *
    * The table of observations contains weak pointers which are zeroed when
-   * the observers get garbage collected.  So to avoid consistency problems
-   * we disable gc while we copy all the observations we are interested in.
-   * We use scanned memory in the array in the case where there are more
+   * the observers get destroyed.  So to avoid consistency problems
+   * we use scanned memory in the array in the case where there are more
    * than the 64 observers we allowed room for on the stack.
    */
   GSIArrayInitWithZoneAndStaticCapacity(a, _zone, 64, i);

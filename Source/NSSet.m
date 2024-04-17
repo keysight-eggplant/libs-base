@@ -450,7 +450,7 @@ static Class NSMutableSet_concrete_class;
     {
       k[i] = [e nextObject];
     }
-  return AUTORELEASE([[NSArray allocWithZone: NSDefaultMallocZone()]
+  result = AUTORELEASE([[NSArray allocWithZone: NSDefaultMallocZone()]
     initWithObjects: k count: c]);
   GS_ENDIDBUF();
   return result;
@@ -933,7 +933,7 @@ static Class NSMutableSet_concrete_class;
     
   FOR_IN (id, obj, enumerator)
     {
-      BOOL include = CALL_BLOCK(aBlock, obj, &shouldStop);
+      BOOL include = CALL_NON_NULL_BLOCK(aBlock, obj, &shouldStop);
 
       if (include)
         {
@@ -1171,7 +1171,7 @@ static Class NSMutableSet_concrete_class;
     }
   else
     {
-      IF_NO_GC([other retain];)	// In case it's held by us
+      IF_NO_ARC([other retain];)	// In case it's held by us
       [self removeAllObjects];
       [self unionSet: other];
       RELEASE(other);

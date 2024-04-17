@@ -26,7 +26,7 @@ int main()
   TEST_FOR_CLASS(@"NSURL", [NSURL fileURLWithPath: @"."],
     "NSURL +fileURLWithPath: returns an NSURL");
   
-  TEST_FOR_CLASS(@"NSURL", [NSURL URLWithString: @"http://www.w3.org/"],
+  TEST_FOR_CLASS(@"NSURL", [NSURL URLWithString: @"http://example.com/"],
     "NSURL +URLWithString: returns an NSURL");
   
   url = [NSURL URLWithString: nil];
@@ -45,55 +45,55 @@ int main()
   str = [url scheme];
   PASS([str isEqual: @"file"], "Scheme of file URL is file");
 
-  url = [NSURL URLWithString: @"http://www.w3.org/"];
+  url = [NSURL URLWithString: @"http://example.com/"];
   data = [url resourceDataUsingCache: NO];
   PASS(data != nil,
-    "Can load a page from www.w3.org");
+    "Can load a page from example.com");
   num = [url propertyForKey: NSHTTPPropertyStatusCodeKey];
   PASS([num isKindOfClass: [NSNumber class]] && [num intValue] == 200,
-    "Status of load is 200 for www.w3.org");
+    "Status of load is 200 for example.com");
 
   url = [NSURL URLWithString:@"this isn't a URL"];
   PASS(url == nil, "URL with 'this isn't a URL' returns nil");
 
-  url = [NSURL URLWithString: @"http://www.w3.org/silly-file-name"];
+  url = [NSURL URLWithString: @"https://httpbin.org/silly-file-name"];
   data = [url resourceDataUsingCache: NO];
   num = [url propertyForKey: NSHTTPPropertyStatusCodeKey];
   PASS_EQUAL(num, [NSNumber numberWithInt: 404],
-    "Status of load is 404 for www.w3.org/silly-file-name");
+    "Status of load is 404 for httpbin.org/silly-file-name");
   str = [url scheme];
-  PASS([str isEqual: @"http"],
-       "Scheme of http://www.w3.org/silly-file-name is http");
+  PASS([str isEqual: @"https"],
+       "Scheme of https://httpbin.org/silly-file-name is https");
   str = [url host];
-  PASS([str isEqual: @"www.w3.org"],
-    "Host of http://www.w3.org/silly-file-name is www.w3.org");
+  PASS([str isEqual: @"httpbin.org"],
+    "Host of https://httpbin.org/silly-file-name is httpbin.org");
   str = [url path];
   PASS([str isEqual: @"/silly-file-name"],
-    "Path of http://www.w3.org/silly-file-name is /silly-file-name");
-  PASS([[url resourceSpecifier] isEqual: @"//www.w3.org/silly-file-name"],
-    "resourceSpecifier of http://www.w3.org/silly-file-name is //www.w3.org/silly-file-name");
+    "Path of https://httpbin.org/silly-file-name is /silly-file-name");
+  PASS([[url resourceSpecifier] isEqual: @"//httpbin.org/silly-file-name"],
+    "resourceSpecifier of https://httpbin.org/silly-file-name is //httpbin.org/silly-file-name");
 
 
-  url = [NSURL URLWithString: @"http://www.w3.org/silly-file-path/"];
+  url = [NSURL URLWithString: @"http://example.com/silly-file-path/"];
   PASS_EQUAL([url path], @"/silly-file-path",
-    "Path of http://www.w3.org/silly-file-path/ is /silly-file-path");
-  PASS_EQUAL([url resourceSpecifier], @"//www.w3.org/silly-file-path/",
-    "resourceSpecifier of http://www.w3.org/silly-file-path/ is //www.w3.org/silly-file-path/");
-  PASS_EQUAL([url absoluteString], @"http://www.w3.org/silly-file-path/",
-    "Abs of http://www.w3.org/silly-file-path/ is correct");
+    "Path of http://example.com/silly-file-path/ is /silly-file-path");
+  PASS_EQUAL([url resourceSpecifier], @"//example.com/silly-file-path/",
+    "resourceSpecifier of http://example.com/silly-file-path/ is //example.com/silly-file-path/");
+  PASS_EQUAL([url absoluteString], @"http://example.com/silly-file-path/",
+    "Abs of http://example.com/silly-file-path/ is correct");
 
-  url = [NSURL URLWithString: @"http://www.w3.org"];
+  url = [NSURL URLWithString: @"http://example.com"];
   PASS_EQUAL([url scheme], @"http",
-    "Scheme of http://www.w3.org is http");
-  PASS_EQUAL([url host], @"www.w3.org",
-    "Host of http://www.w3.org is www.w3.org");
+    "Scheme of http://example.com is http");
+  PASS_EQUAL([url host], @"example.com",
+    "Host of http://example.com is example.com");
   PASS_EQUAL([url path], @"",
-    "Path of http://www.w3.org is empty");
-  PASS_EQUAL([url resourceSpecifier], @"//www.w3.org",
-    "resourceSpecifier of http://www.w3.org is //www.w3.org");
+    "Path of http://example.com is empty");
+  PASS_EQUAL([url resourceSpecifier], @"//example.com",
+    "resourceSpecifier of http://example.com is //example.com");
 
   url = [url URLByAppendingPathComponent: @"example_path"];
-  PASS_EQUAL([url description], @"http://www.w3.org/example_path",
+  PASS_EQUAL([url description], @"http://example.com/example_path",
     "Append of component to pathless http URL works");
 
 #if	defined(_WIN32)
@@ -101,10 +101,20 @@ int main()
   str = [url path];
   PASS_EQUAL(str, @"C:\\WINDOWS",
     "Path of file URL C:\\WINDOWS is C:\\WINDOWS");
-  PASS_EQUAL([url description], @"file://localhost/C:%5CWINDOWS/",
-    "File URL C:\\WINDOWS is file://localhost/C:%%5CWINDOWS/");
-  PASS_EQUAL([url resourceSpecifier], @"//localhost/C:%5CWINDOWS/",
-    "resourceSpecifier of C:\\WINDOWS is //localhost/C:%%5CWINDOWS/");
+  PASS_EQUAL([url description], @"file:///C:%5CWINDOWS/",
+    "File URL C:\\WINDOWS is file:///C:%%5CWINDOWS/");
+  PASS_EQUAL([url resourceSpecifier], @"/C:%5CWINDOWS/",
+    "resourceSpecifier of C:\\WINDOWS is /C:%5CWINDOWS/");
+
+  // UNC path
+  url = [NSURL fileURLWithPath: @"\\\\SERVER\\SHARE\\"];
+  str = [url path];
+  PASS_EQUAL(str, @"\\\\SERVER\\SHARE\\",
+    "Path of file URL \\\\SERVER\\SHARE\\ is \\\\SERVER\\SHARE\\");
+  PASS_EQUAL([url description], @"file:///%5C%5CSERVER%5CSHARE%5C",
+    "File URL \\\\SERVER\\SHARE\\ is file:///%5C%5CSERVER%5CSHARE%5C");
+  PASS_EQUAL([url resourceSpecifier], @"/%5C%5CSERVER%5CSHARE%5C",
+    "resourceSpecifier of \\\\SERVER\\SHARE\\ is /%5C%5CSERVER%5CSHARE%5C");
 #else
   url = [NSURL fileURLWithPath: @"/usr"];
   str = [url path];

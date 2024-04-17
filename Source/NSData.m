@@ -233,11 +233,7 @@ readContentsOfFile(NSString *path, void **buf, off_t *len, NSZone *zone)
 {
   NSFileManager	*mgr = [NSFileManager defaultManager];
   NSDictionary	*att;
-#if defined(_WIN32)
-  const unichar	*thePath = 0;
-#else
-  const char	*thePath = 0;
-#endif
+  const GSNativeChar	*thePath = 0;
   FILE		*theFile = 0;
   void		*tmp = 0;
   int		c;
@@ -277,11 +273,7 @@ readContentsOfFile(NSString *path, void **buf, off_t *len, NSZone *zone)
     }
 #endif /* __ANDROID__ */
 
-#if defined(_WIN32)
-  thePath = (const unichar*)[path fileSystemRepresentation];
-#else
   thePath = [path fileSystemRepresentation];
-#endif
   if (thePath == 0)
     {
       NSWarnFLog(@"Open (%@) attempt failed - bad path", path);
@@ -651,7 +643,15 @@ failure:
 {
   NSData	*d;
 
-  d = [url resourceDataUsingCache: YES];
+  if ([url isFileURL])
+    {
+      d = [dataMalloc allocWithZone: NSDefaultMallocZone()];
+      d = AUTORELEASE([d initWithContentsOfFile: [url path]]);
+    }
+  else
+    {
+      d = [url resourceDataUsingCache: YES];
+    }
   return d;
 }
 
@@ -812,6 +812,13 @@ failure:
 	}
     }
   length = dst - result;
+
+  if (length == 0)
+    {
+      NSZoneFree(zone, result);
+      return [self initWithBytesNoCopy: 0 length: 0 freeWhenDone: YES];
+    }
+
   if (options & NSDataBase64DecodingIgnoreUnknownCharacters)
     {
       /* If the decoded length is a lot shorter than expected (because we
@@ -956,9 +963,15 @@ failure:
  */
 - (id) initWithContentsOfURL: (NSURL*)url
 {
-  NSData	*data = [url resourceDataUsingCache: YES];
-
-  return [self initWithData: data];
+  if ([url isFileURL])
+    {
+      return [self initWithContentsOfFile: [url path]];
+    }
+  else
+    {
+      NSData *data = [url resourceDataUsingCache: YES];
+      return [self initWithData: data];
+    }
 }
 
 /**
@@ -1743,8 +1756,8 @@ failure:
 {
 #if defined(_WIN32)
   NSUInteger	length = [path length];
-  unichar	wthePath[length + 100];
-  unichar	wtheRealPath[length + 100];
+  GSNativeChar	wthePath[length + 100];
+  GSNativeChar	wtheRealPath[length + 100];
   int		c;
   FILE		*theFile;
   BOOL		useAuxiliaryFile = NO;
@@ -1834,7 +1847,7 @@ failure:
 	{
 	  att = [[mgr fileAttributesAtPath: path
 			      traverseLink: YES] mutableCopy];
-	  IF_NO_GC(AUTORELEASE(att));
+	  IF_NO_ARC(AUTORELEASE(att);)
 	}
 
       /* To replace the existing file on windows, it must be writable.
@@ -1858,7 +1871,7 @@ failure:
 	/* Windows 9x does not support MoveFileEx */
       else if (GetLastError() == ERROR_CALL_NOT_IMPLEMENTED)
 	{
-	  unichar	secondaryFile[length + 100];
+	  GSNativeChar	secondaryFile[length + 100];
 
 	  wcscpy(secondaryFile, wthePath);
 	  wcscat(secondaryFile, L"-delete");
@@ -1998,9 +2011,13 @@ failure:
           NSWarnMLog(@"mkstemp (%s) failed - %@", thePath, [NSError _last]);
           goto failure;
 	}
+      /* Created writable files are supposed to only have read and/or
+       * write set (no execute) according to Apple documentation.
+       * They should honor the setting specified by umask though.
+       */
       mask = umask(0);
       umask(mask);
-      fchmod(desc, 0644 & ~mask);
+      fchmod(desc, 0666 & ~mask);
       if ((theFile = fdopen(desc, "w")) == 0)
 	{
 	  close(desc);
@@ -2091,7 +2108,7 @@ failure:
 	{
           NSMutableDictionary *mAtt = [att mutableCopy];
 
-          IF_NO_GC(AUTORELEASE(mAtt));
+          IF_NO_ARC(AUTORELEASE(mAtt);)
 	  /*
 	   * We have created a new file - so we attempt to make it's
 	   * attributes match that of the original.
@@ -2360,11 +2377,18 @@ failure:
 + (id) dataWithContentsOfURL: (NSURL*)url
 {
   NSMutableData	*d;
-  NSData	*data;
 
   d = [mutableDataMalloc allocWithZone: NSDefaultMallocZone()];
-  data = [url resourceDataUsingCache: YES];
-  d = [d initWithBytes: [data bytes] length: [data length]];
+
+  if ([url isFileURL])
+    {
+      d = [d initWithContentsOfFile: [url path]];
+    }
+  else
+    {
+      NSData *data = [url resourceDataUsingCache: YES];
+      d = [d initWithBytes: [data bytes] length: [data length]];
+    }
   return AUTORELEASE(d);
 }
 
@@ -3579,7 +3603,7 @@ getBytes(void* dst, void* src, unsigned len, unsigned limit, unsigned *pos)
 {
   if (deallocator != NULL)
     {
-      CALL_BLOCK(((GSDataDeallocatorBlock)deallocator), bytes, length);
+      CALL_NON_NULL_BLOCK(((GSDataDeallocatorBlock)deallocator), bytes, length);
       DESTROY(deallocator);
     }
   // Clear out the ivars so that super doesn't double free.
@@ -3623,11 +3647,7 @@ getBytes(void* dst, void* src, unsigned len, unsigned limit, unsigned *pos)
   off_t		off;
   int		fd;
 
-#if defined(_WIN32)
-  const unichar	*thePath = (const unichar*)[path fileSystemRepresentation];
-#else
-  const char	*thePath = [path fileSystemRepresentation];
-#endif
+  const GSNativeChar	*thePath = [path fileSystemRepresentation];
 
   if (thePath == 0)
     {
@@ -4442,7 +4462,8 @@ getBytes(void* dst, void* src, unsigned len, unsigned limit, unsigned *pos)
 {
   if (deallocator != NULL)
     {
-      CALL_BLOCK(((GSDataDeallocatorBlock)deallocator), bytes, capacity);
+      CALL_NON_NULL_BLOCK(((GSDataDeallocatorBlock)deallocator),
+	bytes, capacity);
       // Clear out the ivars so that super doesn't double free.
       bytes = NULL;
       length = 0;
@@ -4472,8 +4493,9 @@ getBytes(void* dst, void* src, unsigned len, unsigned limit, unsigned *pos)
 	  memcpy(tmp, bytes, capacity < size ? capacity : size);
 	  if (deallocator != NULL)
 	    {
-          CALL_BLOCK(((GSDataDeallocatorBlock)deallocator), bytes, capacity);
-          DESTROY(deallocator);
+	      CALL_NON_NULL_BLOCK(((GSDataDeallocatorBlock)deallocator),
+		bytes, capacity);
+	      DESTROY(deallocator);
 	      zone = NSDefaultMallocZone();
 	    }
 	  else
@@ -4483,8 +4505,9 @@ getBytes(void* dst, void* src, unsigned len, unsigned limit, unsigned *pos)
 	}
       else if (deallocator != NULL)
 	{
-      CALL_BLOCK(((GSDataDeallocatorBlock)deallocator), bytes, capacity);
-      DESTROY(deallocator);
+	  CALL_NON_NULL_BLOCK(((GSDataDeallocatorBlock)deallocator),
+	    bytes, capacity);
+	  DESTROY(deallocator);
 	  zone = NSDefaultMallocZone();
 	}
       bytes = tmp;

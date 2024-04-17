@@ -1,9 +1,8 @@
 /**Implementation for NSOperation for GNUStep
-   Copyright (C) 2009,2010 Free Software Foundation, Inc.
+   Copyright (C) 2008-2023 Free Software Foundation, Inc.
 
    Written by:  Gregory Casamento <greg.casamento@gmail.com>
    Written by:  Richard Frith-Macdonald <rfm@gnu.org>
-   Date: 2009,2010
 
    This file is part of the GNUstep Base Library.
 
@@ -23,7 +22,7 @@
    Boston, MA 02110 USA.
 
    <title>NSOperation class reference</title>
-   $Date: 2008-06-08 11:38:33 +0100 (Sun, 08 Jun 2008) $ $Revision: 26606 $
+   Created: 2008-06-08 11:38:33 +0100 (Sun, 08 Jun 2008)
    */
 
 #import "common.h"
@@ -54,7 +53,7 @@
   BOOL			suspended; \
   NSInteger		executing; \
   NSInteger		threadCount; \
-  NSInteger		count;
+  NSInteger		maxThreads;
 
 #import "Foundation/NSOperation.h"
 #import "Foundation/NSArray.h"
@@ -75,14 +74,11 @@ static void     *isFinishedCtxt = (void*)"isFinished";
 static void     *isReadyCtxt = (void*)"isReady";
 static void     *queuePriorityCtxt = (void*)"queuePriority";
 
-/* The pool of threads for 'non-concurrent' operations in a queue.
- */
-#define	POOL	8
-
 static NSArray	*empty = nil;
 
 @interface	NSOperation (Private)
 - (void) _finish;
+- (void) _updateReadyState;
 @end
 
 @implementation NSOperation
@@ -287,7 +283,7 @@ static NSArray	*empty = nil;
   return internal->ready;
 }
 
-- (void) main;
+- (void) main
 {
   return;	// OSX default implementation does nothing
 }
@@ -297,49 +293,45 @@ static NSArray	*empty = nil;
                          change: (NSDictionary *)change
                         context: (void *)context
 {
-  [internal->lock lock];
-
-  /* We only observe isFinished changes, and we can remove self as an
-   * observer once we know the operation has finished since it can never
-   * become unfinished.
-   */
-  [object removeObserver: self forKeyPath: @"isFinished"];
+  NSOperation *op = object;
+  if (NO == [op isFinished])
+    {
+      return;
+    }
 
   if (object == self)
     {
+      [internal->lock lock];
+
+      /* We only observe isFinished changes, and we can remove self as an
+       * observer once we know the operation has finished since it can never
+       * become unfinished.
+       */
+      [object removeObserver: self forKeyPath: @"isFinished"];
+
+      /* Concurrent operations: Call completion block and set internal finished
+       * state so we don't try removing the observer again in -dealloc. */
+      if (YES == [self isConcurrent])
+        {
+          internal->finished = YES;
+          CALL_BLOCK_NO_ARGS(
+            ((GSOperationCompletionBlock)internal->completionBlock));
+        }
+
       /* We have finished and need to unlock the condition lock so that
        * any waiting thread can continue.
        */
       [internal->cond lock];
       [internal->cond unlockWithCondition: 1];
+
       [internal->lock unlock];
-      return;
     }
-
-  if (NO == internal->ready)
+  else
     {
-      NSEnumerator	*en;
-      NSOperation	*op;
-
-      /* Some dependency has finished (or been removed) ...
-       * so we need to check to see if we are now ready unless we know we are.
-       * This is protected by locks so that an update due to an observed
-       * change in one thread won't interrupt anything in another thread.
+      /* Some dependency has finished ...
        */
-      en = [internal->dependencies objectEnumerator];
-      while ((op = [en nextObject]) != nil)
-        {
-          if (NO == [op isFinished])
-	    break;
-        }
-      if (op == nil)
-	{
-          [self willChangeValueForKey: @"isReady"];
-	  internal->ready = YES;
-          [self didChangeValueForKey: @"isReady"];
-	}
+      [self _updateReadyState];
     }
-  [internal->lock unlock];
 }
 
 - (NSOperationQueuePriority) queuePriority
@@ -360,12 +352,8 @@ static NSArray	*empty = nil;
 	  if (NO == internal->ready)
 	    {
 	      /* The dependency may cause us to become ready ...
-	       * fake an observation so we can deal with that.
 	       */
-	      [self observeValueForKeyPath: @"isFinished"
-				  ofObject: op
-				    change: nil
-				   context: isFinishedCtxt];
+	      [self _updateReadyState];
 	    }
 	  [self didChangeValueForKey: @"dependencies"];
 	}
@@ -526,11 +514,37 @@ static NSArray	*empty = nil;
 	  internal->finished = YES;
 	  [self didChangeValueForKey: @"isFinished"];
 	}
-      if (NULL != internal->completionBlock)
-	{
-	  CALL_BLOCK_NO_ARGS(
-	    ((GSOperationCompletionBlock)internal->completionBlock));
-	}
+      CALL_BLOCK_NO_ARGS(
+	((GSOperationCompletionBlock)internal->completionBlock));
+    }
+  [internal->lock unlock];
+}
+
+- (void) _updateReadyState
+{
+  [internal->lock lock];
+  if (NO == internal->ready)
+    {
+      NSEnumerator	*en;
+      NSOperation	*op;
+
+      /* After a dependency has finished or was removed we need to check
+       * to see if we are now ready.
+       * This is protected by locks so that an update due to an observed
+       * change in one thread won't interrupt anything in another thread.
+       */
+      en = [internal->dependencies objectEnumerator];
+      while ((op = [en nextObject]) != nil)
+        {
+          if (NO == [op isFinished])
+            break;
+        }
+      if (op == nil)
+        {
+          [self willChangeValueForKey: @"isReady"];
+          internal->ready = YES;
+          [self didChangeValueForKey: @"isReady"];
+        }
     }
   [internal->lock unlock];
 }
@@ -584,7 +598,7 @@ static NSArray	*empty = nil;
 
   while ((theBlock = (GSBlockOperationBlock)[en nextObject]) != NULL)
     {
-      CALL_BLOCK_NO_ARGS(theBlock);
+      CALL_NON_NULL_BLOCK_NO_ARGS(theBlock);
     }
 }
 @end
@@ -605,7 +619,7 @@ GS_PRIVATE_INTERNAL(NSOperationQueue)
                         context: (void *)context;
 @end
 
-static NSInteger	maxConcurrent = 200;	// Thread pool size
+static NSInteger	maxConcurrent = 8;	// Thread pool size
 
 static NSComparisonResult
 sortFunc(id o1, id o2, void *ctxt)
@@ -805,7 +819,7 @@ static NSOperationQueue *mainQueue = nil;
     {
       GS_CREATE_INTERNAL(NSOperationQueue);
       internal->suspended = NO;
-      internal->count = NSOperationQueueDefaultMaxConcurrentOperationCount;
+      internal->maxThreads = NSOperationQueueDefaultMaxConcurrentOperationCount;
       internal->operations = [NSMutableArray new];
       internal->starting = [NSMutableArray new];
       internal->waiting = [NSMutableArray new];
@@ -826,7 +840,7 @@ static NSOperationQueue *mainQueue = nil;
 
 - (NSInteger) maxConcurrentOperationCount
 {
-  return internal->count;
+  return internal->maxThreads;
 }
 
 - (NSString*) name
@@ -874,10 +888,10 @@ static NSOperationQueue *mainQueue = nil;
 	NSStringFromClass([self class]), NSStringFromSelector(_cmd), cnt];
     }
   [internal->lock lock];
-  if (cnt != internal->count)
+  if (cnt != internal->maxThreads)
     {
       [self willChangeValueForKey: @"maxConcurrentOperationCount"];
-      internal->count = cnt;
+      internal->maxThreads = cnt;
       [self didChangeValueForKey: @"maxConcurrentOperationCount"];
     }
   [internal->lock unlock];
@@ -942,17 +956,21 @@ static NSOperationQueue *mainQueue = nil;
    */
   if (context == isFinishedCtxt)
     {
-      [internal->lock lock];
-      internal->executing--;
-      [object removeObserver: self forKeyPath: @"isFinished"];
-      [internal->lock unlock];
-      [self willChangeValueForKey: @"operations"];
-      [self willChangeValueForKey: @"operationCount"];
-      [internal->lock lock];
-      [internal->operations removeObjectIdenticalTo: object];
-      [internal->lock unlock];
-      [self didChangeValueForKey: @"operationCount"];
-      [self didChangeValueForKey: @"operations"];
+      NSOperation *op = object;
+      if (YES == [op isFinished])
+        {
+          [internal->lock lock];
+          internal->executing--;
+          [object removeObserver: self forKeyPath: @"isFinished"];
+          [internal->lock unlock];
+          [self willChangeValueForKey: @"operations"];
+          [self willChangeValueForKey: @"operationCount"];
+          [internal->lock lock];
+          [internal->operations removeObjectIdenticalTo: object];
+          [internal->lock unlock];
+          [self didChangeValueForKey: @"operationCount"];
+          [self didChangeValueForKey: @"operations"];
+        }
     }
   else if (context == queuePriorityCtxt || context == isReadyCtxt)
     {
@@ -1094,17 +1112,13 @@ static NSOperationQueue *mainQueue = nil;
 	}
       else
 	{
-	  NSUInteger	pending;
-
 	  [internal->cond lock];
-	  pending = [internal->starting count];
 	  [internal->starting addObject: op];
 
 	  /* Create a new thread if all existing threads are busy and
 	   * we haven't reached the pool limit.
 	   */
-	  if (0 == internal->threadCount
-	    || (pending > 0 && internal->threadCount < POOL))
+	  if (internal->threadCount < max)
 	    {
 	      internal->threadCount++;
 	      NS_DURING

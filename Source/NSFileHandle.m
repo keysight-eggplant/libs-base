@@ -745,7 +745,7 @@ static Class NSFileHandle_ssl_class = nil;
     {
       NSRunLoop	*loop;
 
-      IF_NO_GC([self retain];)		// Don't get destroyed during runloop
+      IF_NO_ARC([self retain];)		// Don't get destroyed during runloop
       loop = [NSRunLoop currentRunLoop];
       [loop runUntilDate: [NSDate dateWithTimeIntervalSinceNow: 0.01]];
       if (NO == [self sslHandshakeEstablished: &result outgoing: NO])
@@ -789,7 +789,7 @@ static Class NSFileHandle_ssl_class = nil;
     {
       NSRunLoop	*loop;
 
-      IF_NO_GC([self retain];)		// Don't get destroyed during runloop
+      IF_NO_ARC([self retain];)		// Don't get destroyed during runloop
       loop = [NSRunLoop currentRunLoop];
       [loop runUntilDate: [NSDate dateWithTimeIntervalSinceNow: 0.01]];
       if (NO == [self sslHandshakeEstablished: &result outgoing: YES])
@@ -1018,6 +1018,31 @@ GSTLSHandlePush(gnutls_transport_ptr_t handle, const void *buffer, size_t len)
   return [super read: buf length: len];
 }
 
+- (void) watchReadDescriptorForModes: (NSArray*)modes
+{
+  if (descriptor < 0)
+    { 
+      return;
+    }
+  if ([session pending] > 0)
+    {
+      NSRunLoop *l = [NSRunLoop currentRunLoop];
+
+      /* The underlying TLS buffers already have data so we signal
+       * an event as soon as possible.
+       */
+      [l performSelector: @selector(receivedEventRead)
+                  target: self
+                argument: nil
+                   order: 0
+                   modes: modes];
+    }
+  else
+    {
+      [super watchReadDescriptorForModes: modes];
+    }
+}
+
 - (BOOL) sslAccept
 {
   /* If a server session is over five minutes old, destroy it so that
@@ -1034,7 +1059,14 @@ GSTLSHandlePush(gnutls_transport_ptr_t handle, const void *buffer, size_t len)
 
 - (void) sslDisconnect
 {
-  [self setNonBlocking: NO];
+  /* When disconnecting, since the TCP/IP connection is not going to be
+   * re-used, we can use non-blocking I/O and abandon the cleanup in the
+   * TLS layer if the I/O cannot complete immediately.
+   * We don't want to block because a network issue (or a failure at the
+   * remote end) could tie up this thread until the 5 minute TCP/IP
+   * keepalive expires.
+   */
+  [self setNonBlocking: YES];
   [session disconnect: NO];
 }
 
