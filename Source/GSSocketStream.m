@@ -309,6 +309,7 @@ GSPrivateSockaddrSetup(NSString *machine, uint16_t port,
 
 - (void) bye
 {
+  NSLog(@"Closing connection. istream: %@, ostream: %@", istream, ostream);
   [self subclassResponsibility: _cmd];
 }
 
@@ -319,6 +320,7 @@ GSPrivateSockaddrSetup(NSString *machine, uint16_t port,
 
 - (void) hello
 {
+  NSLog(@"Starting handshake. istream: %@, ostream: %@", istream, ostream);
   [self subclassResponsibility: _cmd];
 }
 
@@ -328,6 +330,7 @@ GSPrivateSockaddrSetup(NSString *machine, uint16_t port,
   istream = i;
   ostream = o;
   handshake = YES;
+  NSLog(@"Initializing handler. istream: %@, ostream: %@", istream, ostream);
   return self;
 }
 
@@ -343,17 +346,20 @@ GSPrivateSockaddrSetup(NSString *machine, uint16_t port,
 
 - (NSInteger) read: (uint8_t *)buffer maxLength: (NSUInteger)len
 {
+  NSLog(@"Reading from istream: %@, length: %lu", istream, (unsigned long)len);
   [self subclassResponsibility: _cmd];
   return 0;
 }
 
 - (void) stream: (NSStream*)stream handleEvent: (NSStreamEvent)event
 {
+  NSLog(@"Stream event: %@, stream: %@", @(event), stream);
   [self subclassResponsibility: _cmd];
 }
 
 - (NSInteger) write: (const uint8_t *)buffer maxLength: (NSUInteger)len
 {
+  NSLog(@"Writing to ostream: %@, length: %lu", ostream, (unsigned long)len);
   [self subclassResponsibility: _cmd];
   return 0;
 }
@@ -539,12 +545,14 @@ static NSArray  *keys = nil;
   handshake = NO;
   active = NO;
   [session disconnect: NO];
+  NSLog(@"TLS session disconnected.");
 }
 
 - (void) dealloc
 {
   [self bye];
   DESTROY(session);
+  NSLog(@"Deallocating TLS handler.");
   [super dealloc];
 }
 
@@ -555,6 +563,7 @@ static NSArray  *keys = nil;
 
 - (void) hello
 {
+  NSLog(@"Starting TLS handshake. Session: %@", session);
   if (active == NO)
     {
       if (handshake == NO)
@@ -666,6 +675,7 @@ static NSArray  *keys = nil;
                                              pull: GSTLSPull];
   [opts release];
   initialised = YES;
+  NSLog(@"Initialized TLS handler. Session: %@", session);
   return self;
 }
 
@@ -681,6 +691,7 @@ static NSArray  *keys = nil;
 
 - (NSInteger) read: (uint8_t *)buffer maxLength: (NSUInteger)len
 {
+  NSLog(@"Reading from TLS session. Length: %lu", (unsigned long)len);
   return [session read: buffer length: len];
 }
 
@@ -773,6 +784,7 @@ static NSArray  *keys = nil;
 	  offset += written;
 	}
     }
+  NSLog(@"Written to TLS session. Length: %lu", (unsigned long)offset);
   return offset;
 }
 
@@ -996,6 +1008,7 @@ static NSString * const GSSOCKSAckConn = @"GSSOCKSAckConn";
         }
       RELEASE(is);
       RELEASE(os);
+      NSLog(@"SOCKS connection closed.");
     }
 }
 
@@ -1590,6 +1603,7 @@ static NSString * const GSSOCKSAckConn = @"GSSOCKSAckConn";
         }
       RELEASE(is);
       RELEASE(os);
+      NSLog(@"HTTP connection closed.");
     }
 }
 
@@ -2392,6 +2406,7 @@ setNonBlocking(SOCKET fd)
     {
       [self _setStatus: NSStreamStatusOpen];
     }
+  NSLog(@"Read %d bytes from %@ (Socket: %d)", readLen, [self propertyForKey: GSStreamRemoteAddressKey], [self _sock]);
   return readLen;
 }
 
@@ -2642,6 +2657,7 @@ setNonBlocking(SOCKET fd)
     {
       [self _setStatus: NSStreamStatusOpen];
     }
+  NSLog(@"Write %d bytes to %@ (Socket: %d)", writeLen, [self propertyForKey: GSStreamRemoteAddressKey], [self _sock]);
   return writeLen;
 }
 
@@ -2939,7 +2955,7 @@ setNonBlocking(SOCKET fd)
 	    }
 
 	  if (events.lNetworkEvents & FD_READ)
-	    {
+ {
 	      [_sibling _setStatus: NSStreamStatusOpen];
 	      while ([_sibling hasBytesAvailable]
 		&& [_sibling _unhandledData] == NO)
