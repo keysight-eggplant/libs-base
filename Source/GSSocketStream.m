@@ -2760,7 +2760,7 @@ setNonBlocking(SOCKET fd)
 	    }
           else if (NSStreamStatusOpening == _currentStatus)
             {
-              NSLog(@"We have NSStreamStatusOpening == %d", _currentStatus (InBase));
+              NSLog(@"We have NSStreamStatusOpening == %d", _currentStatus);
               NSRunLoop *r;
               NSDate    *d;
 
