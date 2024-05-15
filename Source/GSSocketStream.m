@@ -2841,12 +2841,14 @@ setNonBlocking(SOCKET fd)
 #else
   NSLog(@"We are ignoring read shutdown because the other side may shutdown first");
   // read shutdown is ignored, because the other side may shutdown first.
-  if (!_sibling || [_sibling streamStatus] == NSStreamStatusClosed)
+  if (!_sibling || [_sibling streamStatus] == NSStreamStatusClosed) {
     NSLog(@"Calling close on loop id");
     close((intptr_t)_loopID);
-  else
-  NSLog(@"Calling shutdown on loop id");
+  }
+  else {
+    NSLog(@"Calling shutdown on loop id");
     shutdown((intptr_t)_loopID, SHUT_WR);
+  }
   [super close];
   _loopID = (void*)(intptr_t)-1;
 #endif
