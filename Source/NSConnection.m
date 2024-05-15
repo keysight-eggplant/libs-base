@@ -367,7 +367,7 @@ GS_PRIVATE_INTERNAL(NSConnection)
 static NSTimer		*timer = nil;
 
 static BOOL cacheCoders = NO;
-static int debug_connection = 10;
+static int debug_connection = 0;
 
 static NSHashTable	*connection_table;
 static GSLazyRecursiveLock		*connection_table_gate = nil;
