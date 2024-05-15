@@ -1566,6 +1566,7 @@ static NSString * const GSSOCKSAckConn = @"GSSOCKSAckConn";
 
 - (void) bye
 {
+  NSLog(@"Entering bye for http connection...");
   if (handshake == YES)
     {
       GSSocketInputStream	*is = RETAIN(istream);
@@ -2348,30 +2349,36 @@ setNonBlocking(SOCKET fd)
 
 - (NSInteger) _read: (uint8_t *)buffer maxLength: (NSUInteger)len
 {
+  NSLog(@"Entering READ");
   int readLen;
 
   _events &= ~NSStreamEventHasBytesAvailable;
 
   if ([self streamStatus] == NSStreamStatusClosed)
     {
+      NSLog(@"NSStream STatus Closed set");
       return 0;
     }
   if ([self streamStatus] == NSStreamStatusAtEnd)
     {
+      NSLog(@"NSStream Status At End set");
       readLen = 0;
     }
   else
     {
+      NSLog(@"NSStream Status Else");
 #if	defined(_WIN32)
       readLen = recv([self _sock], (char*) buffer, (socklen_t) len, 0);
 #else
       readLen = read([self _sock], buffer, len);
 #endif
     }
+    NSLog(@"Readlen: %d", readLen);
   if (socketError(readLen))
     {
       if (_closing == YES)
         {
+          NSLog(@"Closing socket");
           /* If a read fails on a closing socket,
            * we have reached the end of all data sent by
            * the remote end before it shut down.
@@ -2383,8 +2390,10 @@ setNonBlocking(SOCKET fd)
         }
       else
         {
+          NSLog(@"Socket error else");
           if (socketWouldBlock())
             {
+              NSLog(@"Socket would block");
               /* We need an event from the operating system
                * to tell us we can start reading again.
                */
@@ -2392,6 +2401,7 @@ setNonBlocking(SOCKET fd)
             }
           else
             {
+              NSLog(@"Bizarre read error");
               [self _recordError];
             }
           readLen = -1;
@@ -2399,11 +2409,13 @@ setNonBlocking(SOCKET fd)
     }
   else if (readLen == 0)
     {
+      NSLog(@"Read length 0");
       [self _setStatus: NSStreamStatusAtEnd];
       [self _sendEvent: NSStreamEventEndEncountered];
     }
   else
     {
+      NSLog(@"Setting status open");
       [self _setStatus: NSStreamStatusOpen];
     }
   NSLog(@"Read %d bytes from %@ (Socket: %d)", readLen, [self propertyForKey: GSStreamRemoteAddressKey], [self _sock]);
@@ -2417,6 +2429,7 @@ setNonBlocking(SOCKET fd)
 
 - (void) _dispatch
 {
+  NSLog(@"Entering dispatcha;");
 #if	defined(_WIN32)
   AUTORELEASE(RETAIN(self));
   /*
@@ -2428,6 +2441,7 @@ setNonBlocking(SOCKET fd)
    */
   if ([self streamStatus] == NSStreamStatusClosed)
     {
+      NSLog(@"We are entering NSStreamStatusClosed");
       /*
        * It is possible the stream is closed yet recieving event because
        * of not closed sibling
@@ -2438,6 +2452,7 @@ setNonBlocking(SOCKET fd)
     }
   else if ([self streamStatus] == NSStreamStatusError)
     {
+      NSLog(@"We are entering NSStreamSTatusErrro");
       [self _sendEvent: NSStreamEventErrorOccurred];
     }
   else
@@ -2454,6 +2469,7 @@ setNonBlocking(SOCKET fd)
 
       if ([self streamStatus] == NSStreamStatusOpening)
 	{
+    NSLog(@"We are in NSStreamStatusOpening");
 	  [self _unschedule];
 	  if (error == 0)
 	    {
@@ -2738,11 +2754,13 @@ setNonBlocking(SOCKET fd)
 #endif
 	  if (NSCountMapTable(_loops) > 0)
 	    {
+        NSLog(@"We are in NSCountMApTable > 0");
 	      [self _schedule];
 	      return;
 	    }
           else if (NSStreamStatusOpening == _currentStatus)
             {
+              NSLog(@"We have NSStreamStatusOpening == %d", _currentStatus (InBase));
               NSRunLoop *r;
               NSDate    *d;
 
@@ -2750,6 +2768,7 @@ setNonBlocking(SOCKET fd)
                * implement a blocking connect by running in the default
                * run loop mode.
                */
+               NSLog(@"We are using a blocking connection in the default run loop mode");
               r = [NSRunLoop currentRunLoop];
               d = [NSDate distantFuture];
               [r addStream: self mode: NSDefaultRunLoopMode];
@@ -2780,6 +2799,7 @@ setNonBlocking(SOCKET fd)
    * avoid a leak no matter what the nominal state of the stream is.
    * The descriptor is created before the stream is formally opened.
    */
+   NSLog(@"We are entering close on %@", self);
   if (INVALID_SOCKET == _sock)
     {
   if (_currentStatus == NSStreamStatusNotOpen)
@@ -2819,10 +2839,13 @@ setNonBlocking(SOCKET fd)
   [super close];
   _loopID = WSA_INVALID_EVENT;
 #else
+  NSLog(@"We are ignoring read shutdown because the other side may shutdown first");
   // read shutdown is ignored, because the other side may shutdown first.
   if (!_sibling || [_sibling streamStatus] == NSStreamStatusClosed)
+    NSLog(@"Calling close on loop id");
     close((intptr_t)_loopID);
   else
+  NSLog(@"Calling shutdown on loop id");
     shutdown((intptr_t)_loopID, SHUT_WR);
   [super close];
   _loopID = (void*)(intptr_t)-1;
