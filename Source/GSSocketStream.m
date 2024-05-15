@@ -2163,19 +2163,27 @@ setNonBlocking(SOCKET fd)
 
 - (void) open
 {
+  NSLog(@"We are entering open for GSSocketInputStream...");
   // could be opened because of sibling
-  if ([self _isOpened])
+  if ([self _isOpened]) {
+    NSLog(@"Opened because of sibling...");
     return;
+  }
   if (_sibling && [_sibling streamStatus] == NSStreamStatusError)
     {
+      NSLog(@"Sibling has an error...");
       [self _setStatus: NSStreamStatusError];
       return;
     }
-  if (_passive || (_sibling && [_sibling _isOpened]))
+  if (_passive || (_sibling && [_sibling _isOpened])) {
+    NSLog(@"Passive or sibling is opened...");
     goto open_ok;
+  }
+  
   // check sibling status, avoid double connect
   if (_sibling && [_sibling streamStatus] == NSStreamStatusOpening)
     {
+      NSLog(@"Sibling is opening...");
       [self _setStatus: NSStreamStatusOpening];
       return;
     }
@@ -2185,24 +2193,29 @@ setNonBlocking(SOCKET fd)
 
       if ([self _sock] == INVALID_SOCKET)
         {
+          NSLog(@"Socket is invalid for GSSocketInputSTream...");
           SOCKET        s;
 
           if (_handler == nil)
             {
+              NSLog(@"We are tryping GSHttP...");
               [GSHTTP tryInput: self output: _sibling];
             }
           if (_handler == nil)
             {
+              NSLog(@"We are tryping GSHSOCKS...");
               [GSSOCKS tryInput: self output: _sibling];
             }
           s = socket(_address.s.ss_family, SOCK_STREAM, 0);
           if (BADSOCKET(s))
             {
+              NSLog(@"Set bad socket record error");
               [self _recordError];
               return;
             }
           else
             {
+              NSLog(@"Set sock to our new socket...");
               [self _setSock: s];
               [_sibling _setSock: s];
             }
@@ -2210,15 +2223,19 @@ setNonBlocking(SOCKET fd)
 
       if (nil == _handler)
         {
+          NSLog(@"Handler is nil, try input...");
           [GSTLSHandler tryInput: self output: _sibling];
         }
 
       result = connect([self _sock], (struct sockaddr*)&_address.s,
         GSPrivateSockaddrLength(&_address.s));
+      NSLog(@"Trying connection with result: %d", result);
       if (socketError(result))
         {
+          NSLog(@"Socket error...");
           if (socketWouldBlock())
             {
+              NSLog(@"Socket would block...");
               /* Need to set the status first, so that the run loop can tell
            * it needs to add the stream as waiting on writable, as an
            * indication of opened
@@ -2227,6 +2244,7 @@ setNonBlocking(SOCKET fd)
             }
           else
             {
+              NSLog(@"Record immediate error...");
               /* Had an immediate connect error.
                */
               [self _recordError];
@@ -2237,11 +2255,13 @@ setNonBlocking(SOCKET fd)
 #endif
 	  if (NSCountMapTable(_loops) > 0)
 	    {
+        NSLog(@"Scheduling...");
 	      [self _schedule];
 	      return;
 	    }
           else if (NSStreamStatusOpening == _currentStatus)
             {
+              NSLog(@"Blocking connect...");
               NSRunLoop *r;
               NSDate    *d;
 
@@ -2254,6 +2274,7 @@ setNonBlocking(SOCKET fd)
               [r addStream: self mode: NSDefaultRunLoopMode];
               while ([r runMode: NSDefaultRunLoopMode beforeDate: d] == YES)
                 {
+                  NSLog(@"Blocking connect loop...");
                   if (_currentStatus != NSStreamStatusOpening)
                     {
                       break;
@@ -2278,8 +2299,10 @@ setNonBlocking(SOCKET fd)
    * avoid a leak no matter what the nominal state of the stream is.
    * The descriptor is created before the stream is formally opened.
    */
+   NSLog(@"Attempting Close on GSInputStream");
   if (INVALID_SOCKET == _sock)
     {
+      NSLog(@"Invalid Socket");
   if (_currentStatus == NSStreamStatusNotOpen)
     {
       NSDebugMLLog(@"NSStream",
@@ -2319,10 +2342,14 @@ setNonBlocking(SOCKET fd)
 #else
   [super close];
   // read shutdown is ignored, because the other side may shutdown first.
-  if (!_sibling || [_sibling streamStatus] == NSStreamStatusClosed)
+  if (!_sibling || [_sibling streamStatus] == NSStreamStatusClosed) {
+    NSLog(@"Read shutdown is ignored, because the otherside may shutdown first...");
     close((intptr_t)_loopID);
-  else
+  }
+  else {
+    NSLog(@"Shutting down...");
     shutdown((intptr_t)_loopID, SHUT_RD);
+  }
   _loopID = (void*)(intptr_t)-1;
 #endif
   _sock = INVALID_SOCKET;
