@@ -438,6 +438,7 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
       GSRunLoopWatcher	*watcher;
 
       watcher = (GSRunLoopWatcher*)GSIArrayItemAtIndex(_trigger, count).obj;
+	  NSLog(@"watcher: %@", watcher);
       if (watcher->_invalidated == NO)
 	{
 	  i = [contexts count];
@@ -529,6 +530,7 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
 		   * The watcher is still valid - so call its
 		   * receivers event handling method.
 		   */
+		   NSLog(@"receivedEvent: %@ %p %d %p %p", watcher->receiver, watcher->data, watcher->type, (void*)(intptr_t)fd, mode);
 		  [watcher->receiver receivedEvent: watcher->data
 					      type: watcher->type
 					     extra: (void*)(uintptr_t)fd

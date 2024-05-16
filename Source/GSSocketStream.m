@@ -2582,27 +2582,35 @@ setNonBlocking(SOCKET fd)
       int error;
       int result;
       socklen_t len = sizeof(error);
+      NSLog(@"length in myevent: %d", len);
 
       IF_NO_GC([[self retain] autorelease];)
       [self _unschedule];
+      NSLog(@"Unscheduled...");
       result = getsockopt([self _sock], SOL_SOCKET, SO_ERROR,
 	&error, (OPTLEN*)&len);
+    NSLog(@"Result from getsocket in myevent: %d", result);
 
       if (result >= 0 && !error)
         { // finish up the opening
+        NSLog(@"Finishing up the opening...");
           myEvent = NSStreamEventOpenCompleted;
           _passive = YES;
           [self open];
           // notify sibling
+          NSLog(@"Notifying sibling of the opening...");
           [_sibling open];
+          NSLog(@"Sending event to sibling in myevent...");
           [_sibling _sendEvent: myEvent];
         }
       else // must be an error
         {
           if (error)
             errno = error;
+          NSLog(@"Error in myevent...");
           [self _recordError];
           myEvent = NSStreamEventErrorOccurred;
+          NSLog(@"Sending event to sibling in myevent...");
           [_sibling _recordError];
           [_sibling _sendEvent: myEvent];
         }
@@ -2620,6 +2628,7 @@ setNonBlocking(SOCKET fd)
       [self _setStatus: NSStreamStatusOpen];
       myEvent = NSStreamEventHasBytesAvailable;
     }
+    NSLog(@"SendEvent in status myevent is %d", myEvent);
   [self _sendEvent: myEvent];
 #endif
 }
