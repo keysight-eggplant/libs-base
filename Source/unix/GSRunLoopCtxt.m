@@ -455,6 +455,8 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
 	   * The watcher is still valid - so call its
 	   * receivers event handling method.
 	   */
+
+		NSLog(@"receivedEvent: %@ %p %d %p %p", watcher->receiver, watcher->data, watcher->type, mode);
 	  [watcher->receiver receivedEvent: watcher->data
 				      type: watcher->type
 				     extra: watcher->data
@@ -563,6 +565,8 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
 		   * The watcher is still valid - so call its
 		   * receivers event handling method.
 		   */
+
+		NSLog(@"receivedEvent: %@ %p %d %p %p", watcher->receiver, watcher->data, watcher->type, mode);
 		  [watcher->receiver receivedEvent: watcher->data
 					      type: watcher->type
 					     extra: (void*)(uintptr_t)fd
@@ -604,6 +608,8 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
 		   * The watcher is still valid - so call its
 		   * receivers event handling method.
 		   */
+
+		NSLog(@"receivedEvent: %@ %p %d %p %p", watcher->receiver, watcher->data, watcher->type, mode);
 		  [watcher->receiver receivedEvent: watcher->data
 					      type: watcher->type
 					     extra: (void*)(uintptr_t)fd
@@ -874,6 +880,8 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
 	   * The watcher is still valid - so call its
 	   * receivers event handling method.
 	   */
+
+		NSLog(@"receivedEvent: %@ %p %d %p %p", watcher->receiver, watcher->data, watcher->type, mode);
 	  [watcher->receiver receivedEvent: watcher->data
 				      type: watcher->type
 				     extra: watcher->data
@@ -935,6 +943,8 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
 	       * The watcher is still valid - so call its receivers
 	       * event handling method.
 	       */
+
+		NSLog(@"receivedEvent: %@ %p %d %p %p", watcher->receiver, watcher->data, watcher->type, mode);
 	      [watcher->receiver receivedEvent: watcher->data
 					  type: watcher->type
 					 extra: (void*)(intptr_t)fdIndex
@@ -967,6 +977,8 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
 	       * The watcher is still valid - so call its receivers
 	       * event handling method.
 	       */
+
+		NSLog(@"receivedEvent: %@ %p %d %p %p", watcher->receiver, watcher->data, watcher->type, mode);
 	      [watcher->receiver receivedEvent: watcher->data
 					  type: watcher->type
 					 extra: (void*)(intptr_t)fdIndex
@@ -1008,6 +1020,8 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
 	       * The watcher is still valid - so call its receivers
 	       * event handling method.
 	       */
+
+		NSLog(@"receivedEvent: %@ %p %d %p %p", watcher->receiver, watcher->data, watcher->type, mode);
 	      [watcher->receiver receivedEvent: watcher->data
 					  type: watcher->type
 					 extra: (void*)(intptr_t)fdIndex
