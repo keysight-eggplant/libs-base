@@ -1047,7 +1047,7 @@ static NSURLProtocol	*placeholder = nil;
       [this->output open];
       
       // TESTPLANT-MAL-090892017: Start a timer for this operation to avoid hangs...
-      [self _startTimer];
+      //[self _startTimer];
     }
 }
 
@@ -1071,7 +1071,7 @@ static NSURLProtocol	*placeholder = nil;
       [this->output close];
       DESTROY(this->input);
       DESTROY(this->output);
-      [self _stopTimer];
+      //[self _stopTimer];
     }
 }
 
