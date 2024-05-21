@@ -238,10 +238,12 @@ static RunLoopEventType typeForStream(NSStream *aStream)
       modes = (NSMutableArray*)NSMapGet(_loops, (void*)aRunLoop);
       if ([modes containsObject: mode])
 	{
+    NSLog(@"Removing stream with mode %@ from runloop %@", mode, aRunLoop);
 	  [aRunLoop removeStream: self mode: mode];
 	  [modes removeObject: mode];
 	  if ([modes count] == 0)
 	    {
+        NSLog(@"Removing loops from runloop %@", aRunLoop);
 	      NSMapRemove(_loops, (void*)aRunLoop);
 	    }
 	}
@@ -263,6 +265,7 @@ static RunLoopEventType typeForStream(NSStream *aStream)
 	}
       if ([modes containsObject: mode] == NO)
 	{
+    NSLog(@"Adding stream with mode %@ to runloop %@", mode, aRunLoop);
 	  mode = [mode copy];
 	  [modes addObject: mode];
 	  RELEASE(mode);
@@ -272,6 +275,7 @@ static RunLoopEventType typeForStream(NSStream *aStream)
 	   */
 	  if ([self _isOpened])
 	    {
+        NSLog(@"Add _isOpened with mode %@ to runloop %@", mode, aRunLoop);
 	      [aRunLoop addStream: self mode: mode];
 	    }
 	}
