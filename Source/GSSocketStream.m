@@ -2655,62 +2655,59 @@ setNonBlocking(SOCKET fd)
     }
 }
 
-- (NSInteger) _write: (const uint8_t *)buffer maxLength: (NSUInteger)len
-{
-  int writeLen;
+- (NSInteger)_write:(const uint8_t *)buffer maxLength:(NSUInteger)len {
+    int writeLen;
 
-  _events &= ~NSStreamEventHasSpaceAvailable;
+    _events &= ~NSStreamEventHasSpaceAvailable;
 
-  if ([self streamStatus] == NSStreamStatusClosed)
-    {
-      return 0;
+    NSLog(@"Starting _write with maxLength: %lu", (unsigned long)len);
+
+    if ([self streamStatus] == NSStreamStatusClosed) {
+        NSLog(@"Stream is closed");
+        return 0;
     }
-  if ([self streamStatus] == NSStreamStatusAtEnd)
-    {
-      [self _sendEvent: NSStreamEventEndEncountered];
-      return 0;
+    if ([self streamStatus] == NSStreamStatusAtEnd) {
+        NSLog(@"Stream is at end");
+        [self _sendEvent:NSStreamEventEndEncountered];
+        return 0;
     }
 
-#if	defined(_WIN32)
-  writeLen = send([self _sock], (char*) buffer, (socklen_t) len, 0);
+#if defined(_WIN32)
+    writeLen = send([self _sock], (char *)buffer, (socklen_t)len, 0);
 #else
-  writeLen = write([self _sock], buffer, (socklen_t) len);
+    writeLen = write([self _sock], buffer, (socklen_t)len);
 #endif
 
-  if (socketError(writeLen))
-    {
-      if (_closing == YES)
-        {
-          /* If a write fails on a closing socket,
-           * we know the other end is no longer reading.
-           */
-          [self _setClosing: NO];
-          [self _setStatus: NSStreamStatusAtEnd];
-          [self _sendEvent: NSStreamEventEndEncountered];
-          writeLen = 0;
-        }
-      else
-        {
-          if (socketWouldBlock())
-            {
-              /* We need an event from the operating system
-               * to tell us we can start writing again.
-               */
-              [self _setStatus: NSStreamStatusWriting];
+    if (socketError(writeLen)) {
+        NSLog(@"Socket error occurred with writeLen: %d", writeLen);
+        if (_closing == YES) {
+            /* If a write fails on a closing socket,
+             * we know the other end is no longer reading.
+             */
+            NSLog(@"Socket is closing, setting status to AtEnd");
+            [self _setClosing:NO];
+            [self _setStatus:NSStreamStatusAtEnd];
+            [self _sendEvent:NSStreamEventEndEncountered];
+            writeLen = 0;
+        } else {
+            if (socketWouldBlock()) {
+                /* We need an event from the operating system
+                 * to tell us we can start writing again.
+                 */
+                NSLog(@"Socket would block, setting status to Writing");
+                [self _setStatus:NSStreamStatusWriting];
+            } else {
+                NSLog(@"Recording socket error");
+                [self _recordError];
             }
-          else
-            {
-              [self _recordError];
-            }
-          writeLen = -1;
+            writeLen = -1;
         }
+    } else {
+        NSLog(@"Write succeeded, setting status to Open");
+        [self _setStatus:NSStreamStatusOpen];
     }
-  else
-    {
-      [self _setStatus: NSStreamStatusOpen];
-    }
-  NSLog(@"Write %d bytes to %@ (Socket: %d)", writeLen, [self propertyForKey: GSStreamRemoteAddressKey], [self _sock]);
-  return writeLen;
+    NSLog(@"Write %d bytes to %@ (Socket: %d)", writeLen, [self propertyForKey:GSStreamRemoteAddressKey], [self _sock]);
+    return writeLen;
 }
 
 - (void) open
@@ -3043,49 +3040,52 @@ setNonBlocking(SOCKET fd)
 #else
   NSStreamEvent myEvent;
 
-  if ([self streamStatus] == NSStreamStatusOpening)
-    {
+  NSLog(@"Checking stream status for event handling");
+
+  if ([self streamStatus] == NSStreamStatusOpening) {
+      NSLog(@"Stream status is Opening");
       int error;
       socklen_t len = sizeof(error);
       int result;
 
       IF_NO_GC([[self retain] autorelease];)
       [self _schedule];
-      result = getsockopt((intptr_t)_loopID, SOL_SOCKET, SO_ERROR,
-	&error, (OPTLEN*)&len);
-      if (result >= 0 && !error)
-        { // finish up the opening
+      result = getsockopt((intptr_t)_loopID, SOL_SOCKET, SO_ERROR, &error, (OPTLEN*)&len);
+      NSLog(@"getsockopt result: %d, error: %d", result, error);
+      if (result >= 0 && !error) {
+          // Finish up the opening
+          NSLog(@"No error, finishing up the opening");
           myEvent = NSStreamEventOpenCompleted;
           _passive = YES;
           [self open];
-          // notify sibling
+          NSLog(@"Stream opened, notifying sibling");
+          // Notify sibling
           [_sibling open];
-          [_sibling _sendEvent: myEvent];
-        }
-      else // must be an error
-        {
-          if (error)
-            errno = error;
+          [_sibling _sendEvent:myEvent];
+      } else {
+          // Must be an error
+          NSLog(@"Error occurred during getsockopt");
+          if (error) {
+              errno = error;
+          }
           [self _recordError];
           myEvent = NSStreamEventErrorOccurred;
           [_sibling _recordError];
-          [_sibling _sendEvent: myEvent];
-        }
-    }
-  else if ([self streamStatus] == NSStreamStatusAtEnd)
-    {
+          [_sibling _sendEvent:myEvent];
+      }
+  } else if ([self streamStatus] == NSStreamStatusAtEnd) {
+      NSLog(@"Stream status is AtEnd");
       myEvent = NSStreamEventEndEncountered;
-    }
-  else if ([self streamStatus] == NSStreamStatusError)
-    {
+  } else if ([self streamStatus] == NSStreamStatusError) {
+      NSLog(@"Stream status is Error");
       myEvent = NSStreamEventErrorOccurred;
-    }
-  else
-    {
-      [self _setStatus: NSStreamStatusOpen];
+  } else {
+      NSLog(@"Stream status is Open, setting event to HasSpaceAvailable");
+      [self _setStatus:NSStreamStatusOpen];
       myEvent = NSStreamEventHasSpaceAvailable;
-    }
-  [self _sendEvent: myEvent];
+  }
+  NSLog(@"Sending event: %lu", (unsigned long)myEvent);
+  [self _sendEvent:myEvent];
 #endif
 }
 
