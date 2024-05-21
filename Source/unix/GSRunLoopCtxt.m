@@ -881,7 +881,7 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
 	   * receivers event handling method.
 	   */
 
-		NSLog(@"receivedEvent: %@ %p %d %p %p", watcher->receiver, watcher->data, watcher->type, mode);
+		NSLog(@"receivedEvent: %@ %p %d %p %p line 884", watcher->receiver, watcher->data, watcher->type, mode);
 	  [watcher->receiver receivedEvent: watcher->data
 				      type: watcher->type
 				     extra: watcher->data
@@ -944,7 +944,7 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
 	       * event handling method.
 	       */
 
-		NSLog(@"receivedEvent: %@ %p %d %p %p", watcher->receiver, watcher->data, watcher->type, mode);
+		NSLog(@"receivedEvent: %@ %p %d %p %p line 947", watcher->receiver, watcher->data, watcher->type, mode);
 	      [watcher->receiver receivedEvent: watcher->data
 					  type: watcher->type
 					 extra: (void*)(intptr_t)fdIndex
@@ -978,7 +978,7 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
 	       * event handling method.
 	       */
 
-		NSLog(@"receivedEvent: %@ %p %d %p %p", watcher->receiver, watcher->data, watcher->type, mode);
+		NSLog(@"receivedEvent: %@ %p %d %p %p line 981", watcher->receiver, watcher->data, watcher->type, mode);
 	      [watcher->receiver receivedEvent: watcher->data
 					  type: watcher->type
 					 extra: (void*)(intptr_t)fdIndex
@@ -1021,7 +1021,7 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
 	       * event handling method.
 	       */
 
-		NSLog(@"receivedEvent: %@ %p %d %p %p", watcher->receiver, watcher->data, watcher->type, mode);
+		NSLog(@"receivedEvent: %@ %p %d %p %p 1024", watcher->receiver, watcher->data, watcher->type, mode);
 	      [watcher->receiver receivedEvent: watcher->data
 					  type: watcher->type
 					 extra: (void*)(intptr_t)fdIndex
