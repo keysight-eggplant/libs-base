@@ -1299,9 +1299,7 @@ updateTimer(NSTimer *t, NSDate *d, NSTimeInterval now)
   [d retain];
 
   /* Wait, listening to our input sources. */
-  NSLog(@"Starting to wait for accept");
   [self acceptInputForMode: mode beforeDate: d];
-  NSLog(@"Finished waiting for accept");
 
   [d release];
   [arp drain];
