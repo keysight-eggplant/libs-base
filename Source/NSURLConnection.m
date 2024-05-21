@@ -209,65 +209,58 @@ typedef struct
     }
 }
 
-/**
- * TESTPLANT-MAL-09042020:
- * This is not a complete implementation.  Since the current implementation
- * of NSURLProtocol defaults to the current runloop/mode we would need to modify
- * that also.  There are also missing methods in this class like:
- * scheduleInRunLoop:forMode:
- * unscheduleFromRunLoop:forMode:
- * setDelegateQueue:
- * but it suffices for our current requirements.  Note, that this still assumes
- * that the connection will be scheduled in the current runloop so cancel, etc
- * should still be invoked on the same thread/runloop that it started on.
-**/
-- (id) initWithRequest: (NSURLRequest *)request delegate: (id)delegate startImmediately: (BOOL)startImmediately
+- (id) initWithRequest: (NSURLRequest *)request
+              delegate: (id)delegate
+      startImmediately: (BOOL)startImmediately
 {
   if ((self = [super init]) != nil)
     {
       this->_request = [request mutableCopyWithZone: [self zone]];
-      
+
       /* Enrich the request with the appropriate HTTP cookies,
        * if desired.
        */
       if ([this->_request HTTPShouldHandleCookies] == YES)
-        {
-          NSArray *cookies;
-          
-          cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage]
-                     cookiesForURL: [this->_request URL]];
-          if ([cookies count] > 0)
-            {
-              NSDictionary  *headers;
-              NSEnumerator  *enumerator;
-              NSString    *header;
-              
-              headers = [NSHTTPCookie requestHeaderFieldsWithCookies: cookies];
-              enumerator = [headers keyEnumerator];
-              while (nil != (header = [enumerator nextObject]))
-                {
-                  [this->_request addValue: [headers valueForKey: header]
-                        forHTTPHeaderField: header];
-                }
-            }
-        }
-      
+	{
+	  NSArray *cookies;
+
+	  cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage]
+	    cookiesForURL: [this->_request URL]];
+	  if ([cookies count] > 0)
+	    {
+	      NSDictionary	*headers;
+	      NSEnumerator	*enumerator;
+	      NSString		*header;
+
+	      headers = [NSHTTPCookie requestHeaderFieldsWithCookies: cookies];
+	      enumerator = [headers keyEnumerator];
+	      while (nil != (header = [enumerator nextObject]))
+		{
+		  [this->_request addValue: [headers valueForKey: header]
+			forHTTPHeaderField: header];
+		}
+	    }
+	}
+
       /* According to bug #35686, Cocoa has a bizarre deviation from the
        * convention that delegates are retained here.
        * For compatibility we retain the delegate and release it again
        * when the operation is over.
        */
-      this->_debug = GSDebugSet(@"NSURLConnection");
-      this->_delegate = delegate;
-
-      // Start if requested...
-      if (startImmediately)
+      this->_delegate = [delegate retain];
+      this->_protocol = [[NSURLProtocol alloc]
+	initWithRequest: this->_request
+	cachedResponse: nil
+	client: (id<NSURLProtocolClient>)self];
+      if (startImmediately == YES)
         {
-          [self start];
+          [this->_protocol startLoading];
         }
+      this->_debug = GSDebugSet(@"NSURLConnection");
     }
   return self;
 }
+
 
 - (id) initWithRequest: (NSURLRequest *)request delegate: (id)delegate
 {
