@@ -250,390 +250,342 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
  * and this method must tell those outer contexts not to handle events
  * which are handled by this context.
  */
-- (BOOL) pollUntil: (int)milliseconds within: (NSArray*)contexts
-{
-  GSRunLoopThreadInfo   *threadInfo = GSRunLoopInfoForThread(nil);
-  int		poll_return;
-  int		fdEnd;	/* Number of descriptors being monitored. */
-  int		fdIndex;
-  int		fdFinish;
-  unsigned	count;
-  unsigned int	i;
-  BOOL		immediate = NO;
+- (BOOL)pollUntil:(int)milliseconds within:(NSArray *)contexts {
+    GSRunLoopThreadInfo *threadInfo = GSRunLoopInfoForThread(nil);
+    int poll_return;
+    int fdEnd; /* Number of descriptors being monitored. */
+    int fdIndex;
+    int fdFinish;
+    unsigned count;
+    unsigned int i;
+    BOOL immediate = NO;
 
-  i = GSIArrayCount(watchers);
+    i = GSIArrayCount(watchers);
 
-  /*
-   * Get ready to listen to file descriptors.
-   * The maps will not have been emptied by any previous call.
-   */
-  NSResetMapTable(_efdMap);
-  NSResetMapTable(_rfdMap);
-  NSResetMapTable(_wfdMap);
-  GSIArrayRemoveAllItems(_trigger);
+    NSLog(@"Starting pollUntil with %d watchers", i);
 
-  /*
-   * Do the pre-listening set-up for the file descriptors of this mode.
-   */
-  if (pollfds_capacity < i + 2)
-    {
-      pollfds_capacity = i + 2;
-      if (pollfds == 0)
-	{
-	  pollfds = NSZoneMalloc(NSDefaultMallocZone(),
-	    pollfds_capacity * sizeof(*pollfds));
-	}
-      else
-	{
-	  pollfds = NSZoneRealloc(NSDefaultMallocZone(),
-	    pollfds, pollfds_capacity * sizeof(*pollfds));
-	}
+    /*
+     * Get ready to listen to file descriptors.
+     * The maps will not have been emptied by any previous call.
+     */
+    NSResetMapTable(_efdMap);
+    NSResetMapTable(_rfdMap);
+    NSResetMapTable(_wfdMap);
+    GSIArrayRemoveAllItems(_trigger);
+
+    /*
+     * Do the pre-listening set-up for the file descriptors of this mode.
+     */
+    if (pollfds_capacity < i + 2) {
+        pollfds_capacity = i + 2;
+        if (pollfds == 0) {
+            pollfds = NSZoneMalloc(NSDefaultMallocZone(),
+                                   pollfds_capacity * sizeof(*pollfds));
+        } else {
+            pollfds = NSZoneRealloc(NSDefaultMallocZone(),
+                                    pollfds, pollfds_capacity * sizeof(*pollfds));
+        }
     }
-  pollfds_count = 0;
-  ((pollextra*)extra)->limit = 0;
+    pollfds_count = 0;
+    ((pollextra *)extra)->limit = 0;
 
-  /* Watch for signals from other threads.
-   */
-  setPollfd(threadInfo->inputFd, POLLIN, self);
+    /* Watch for signals from other threads. */
+    setPollfd(threadInfo->inputFd, POLLIN, self);
 
-  while (i-- > 0)
-    {
-      GSRunLoopWatcher	*info;
-      BOOL		trigger;
+    while (i-- > 0) {
+        GSRunLoopWatcher *info;
+        BOOL trigger;
 
-      info = GSIArrayItemAtIndex(watchers, i).obj;
-      if (info->_invalidated == YES)
-	{
-	  GSIArrayRemoveItemAtIndex(watchers, i);
-	}
-      else if ([info runLoopShouldBlock: &trigger] == NO)
-	{
-	  if (trigger == YES)
-	    {
-	      immediate = YES;
-	      GSIArrayAddItem(_trigger, (GSIArrayItem)(id)info);
-	    }
-	}
-      else
-	{
-	  int	fd;
+        info = GSIArrayItemAtIndex(watchers, i).obj;
+        if (info->_invalidated == YES) {
+            GSIArrayRemoveItemAtIndex(watchers, i);
+            NSLog(@"Removed invalidated watcher: %@", info);
+        } else if ([info runLoopShouldBlock:&trigger] == NO) {
+            if (trigger == YES) {
+                immediate = YES;
+                GSIArrayAddItem(_trigger, (GSIArrayItem)(id)info);
+                NSLog(@"Immediate trigger for watcher: %@", info);
+            }
+        } else {
+            int fd;
 
-	  switch (info->type)
-	    {
-	      case ET_EDESC: 
-		fd = (int)(intptr_t)info->data;
-		setPollfd(fd, POLLPRI, self);
-		NSMapInsert(_efdMap, (void*)(intptr_t)fd, info);
-		break;
+            switch (info->type) {
+                case ET_EDESC:
+                    fd = (int)(intptr_t)info->data;
+                    setPollfd(fd, POLLPRI, self);
+                    NSMapInsert(_efdMap, (void *)(intptr_t)fd, info);
+                    NSLog(@"Set poll for exception descriptor: %d, watcher: %@", fd, info);
+                    break;
 
-	      case ET_RDESC: 
-		fd = (int)(intptr_t)info->data;
-		setPollfd(fd, POLLIN, self);
-		NSMapInsert(_rfdMap, (void*)(intptr_t)fd, info);
-		break;
+                case ET_RDESC:
+                    fd = (int)(intptr_t)info->data;
+                    setPollfd(fd, POLLIN, self);
+                    NSMapInsert(_rfdMap, (void *)(intptr_t)fd, info);
+                    NSLog(@"Set poll for read descriptor: %d, watcher: %@", fd, info);
+                    break;
 
-	      case ET_WDESC: 
-		fd = (int)(intptr_t)info->data;
-		setPollfd(fd, POLLOUT, self);
-		NSMapInsert(_wfdMap, (void*)(intptr_t)fd, info);
-		break;
+                case ET_WDESC:
+                    fd = (int)(intptr_t)info->data;
+                    setPollfd(fd, POLLOUT, self);
+                    NSMapInsert(_wfdMap, (void *)(intptr_t)fd, info);
+                    NSLog(@"Set poll for write descriptor: %d, watcher: %@", fd, info);
+                    break;
 
-	      case ET_TRIGGER:
-		break;
+                case ET_TRIGGER:
+                    break;
 
-	      case ET_RPORT: 
-		{
-		  id port = info->receiver;
-                  NSInteger port_fd_size = FDCOUNT;
-		  NSInteger port_fd_count = FDCOUNT;
-		  NSInteger port_fd_buffer[FDCOUNT];
-		  NSInteger *port_fd_array = port_fd_buffer;
+                case ET_RPORT: {
+                    id port = info->receiver;
+                    NSInteger port_fd_size = FDCOUNT;
+                    NSInteger port_fd_count = FDCOUNT;
+                    NSInteger port_fd_buffer[FDCOUNT];
+                    NSInteger *port_fd_array = port_fd_buffer;
 
-		  [port getFds: port_fd_array count: &port_fd_count];
-                  while (port_fd_count > port_fd_size)
-                    {
-                      if (port_fd_array != port_fd_buffer) free(port_fd_array);
-                      port_fd_size = port_fd_count;
-                      port_fd_count = port_fd_size;
-                      port_fd_array = malloc(sizeof(NSInteger)*port_fd_size);
-                      [port getFds: port_fd_array count: &port_fd_count];
+                    [port getFds:port_fd_array count:&port_fd_count];
+                    while (port_fd_count > port_fd_size) {
+                        if (port_fd_array != port_fd_buffer) free(port_fd_array);
+                        port_fd_size = port_fd_count;
+                        port_fd_count = port_fd_size;
+                        port_fd_array = malloc(sizeof(NSInteger) * port_fd_size);
+                        [port getFds:port_fd_array count:&port_fd_count];
                     }
-		  NSDebugMLLog(@"NSRunLoop",
-		    @"listening to %"PRIdPTR" port handles\n", port_fd_count);
-		  while (port_fd_count--)
-		    {
-		      fd = port_fd_array[port_fd_count];
-		      setPollfd(fd, POLLIN, self);
-		      NSMapInsert(_rfdMap, (void*)(intptr_t)fd, info);
-		    }
-                  if (port_fd_array != port_fd_buffer) free(port_fd_array);
-		}
-		break;
-	    }
-	}
+                    NSLog(@"Listening to %ld port handles", (long)port_fd_count);
+                    while (port_fd_count--) {
+                        fd = port_fd_array[port_fd_count];
+                        setPollfd(fd, POLLIN, self);
+                        NSMapInsert(_rfdMap, (void *)(intptr_t)fd, info);
+                        NSLog(@"Set poll for port read descriptor: %d, watcher: %@", fd, info);
+                    }
+                    if (port_fd_array != port_fd_buffer) free(port_fd_array);
+                    break;
+                }
+            }
+        }
     }
 
-  /*
-   * If there are notifications in the 'idle' queue, we try an
-   * instantaneous select so that, if there is no input pending,
-   * we can service the queue.  Similarly, if a task has completed,
-   * we need to deliver its notifications.
-   */
-  if (GSPrivateCheckTasks() || GSPrivateNotifyMore(mode) || immediate == YES)
-    {
-      milliseconds = 0;
+    /*
+     * If there are notifications in the 'idle' queue, we try an
+     * instantaneous select so that, if there is no input pending,
+     * we can service the queue.  Similarly, if a task has completed,
+     * we need to deliver its notifications.
+     */
+    if (GSPrivateCheckTasks() || GSPrivateNotifyMore(mode) || immediate == YES) {
+        milliseconds = 0;
     }
 
 #if 0
-{
-  unsigned int i;
-  fprintf(stderr, "poll %d %d:", milliseconds, pollfds_count);
-  for (i = 0; i < pollfds_count; i++)
-    fprintf(stderr, " %d,%x", pollfds[i].fd, pollfds[i].events);
-  fprintf(stderr, "\n");
-}
+    {
+        unsigned int i;
+        fprintf(stderr, "poll %d %d:", milliseconds, pollfds_count);
+        for (i = 0; i < pollfds_count; i++)
+            fprintf(stderr, " %d,%x", pollfds[i].fd, pollfds[i].events);
+        fprintf(stderr, "\n");
+    }
 #endif
-  poll_return = poll (pollfds, pollfds_count, milliseconds);
+    poll_return = poll(pollfds, pollfds_count, milliseconds);
 #if 0
-{
-  unsigned int i;
-  fprintf(stderr, "ret %d %d:", poll_return, pollfds_count);
-  for (i = 0; i < pollfds_count; i++)
-    fprintf(stderr, " %d,%x", pollfds[i].fd, pollfds[i].revents);
-  fprintf(stderr, "\n");
-}
+    {
+        unsigned int i;
+        fprintf(stderr, "ret %d %d:", poll_return, pollfds_count);
+        for (i = 0; i < pollfds_count; i++)
+            fprintf(stderr, " %d,%x", pollfds[i].fd, pollfds[i].revents);
+        fprintf(stderr, "\n");
+    }
 #endif
 
-  NSDebugMLLog(@"NSRunLoop", @"poll returned %d\n", poll_return);
+    NSDebugMLLog(@"NSRunLoop", @"poll returned %d\n", poll_return);
 
-  if (poll_return < 0)
-    {
-      if (errno == EINTR)
-	{
-	  GSPrivateCheckTasks();
-	  poll_return = 0;
-	}
-      else if (errno == 0)
-	{
-	  /* Some systems returns an errno == 0. Not sure why */
-	  poll_return = 0;
-	}
-      else
-	{
-	  /* Some exceptional condition happened. */
-	  /* xxx We can do something with exception_fds, instead of
-	     aborting here. */
-	  NSLog (@"poll() error in -acceptInputForMode:beforeDate: '%@'",
-	    [NSError _last]);
-	  abort ();
-	}
+    if (poll_return < 0) {
+        if (errno == EINTR) {
+            GSPrivateCheckTasks();
+            poll_return = 0;
+        } else if (errno == 0) {
+            /* Some systems returns an errno == 0. Not sure why */
+            poll_return = 0;
+        } else {
+            /* Some exceptional condition happened. */
+            /* xxx We can do something with exception_fds, instead of
+             aborting here. */
+            NSLog(@"poll() error in -acceptInputForMode:beforeDate: '%@'", [NSError _last]);
+            abort();
+        }
     }
 
-  /*
-   * Trigger any watchers which are set up to for every runloop wait.
-   */
-  count =  GSIArrayCount(_trigger);
-  while (count-- > 0)
-    {
-      GSRunLoopWatcher	*watcher;
+    /*
+     * Trigger any watchers which are set up to for every runloop wait.
+     */
+    count = GSIArrayCount(_trigger);
+    while (count-- > 0) {
+        GSRunLoopWatcher *watcher;
 
-      watcher = (GSRunLoopWatcher*)GSIArrayItemAtIndex(_trigger, count).obj;
-	  NSLog(@"watcher: %@", watcher);
-      if (watcher->_invalidated == NO)
-	{
-	  i = [contexts count];
-	  while (i-- > 0)
-	    {
-	      GSRunLoopCtxt	*c = [contexts objectAtIndex: i];
+        watcher = (GSRunLoopWatcher *)GSIArrayItemAtIndex(_trigger, count).obj;
+        NSLog(@"Triggering watcher: %@", watcher);
+        if (watcher->_invalidated == NO) {
+            i = [contexts count];
+            while (i-- > 0) {
+                GSRunLoopCtxt *c = [contexts objectAtIndex:i];
 
-	      if (c != self)
-		{
-		  [c endEvent: (void*)watcher for: watcher];
-		}
-	    }
-	  /*
-	   * The watcher is still valid - so call its
-	   * receivers event handling method.
-	   */
-
-	  [watcher->receiver receivedEvent: watcher->data
-				      type: watcher->type
-				     extra: watcher->data
-				   forMode: mode];
-	}
-      GSPrivateNotifyASAP(mode);
-    }
-
-  /*
-   * If the poll returned no descriptors with events, we have no more to do.
-   */
-  if (poll_return == 0)
-    {
-      completed = YES;
-      return NO;
-    }
-
-  /*
-   * Look at all the file descriptors poll() says are ready for action;
-   * notify the corresponding object for each of the ready fd's.
-   * NB. It is possible for a watcher to be missing from the map - if
-   * the event handler of a previous watcher has 'run' the loop again
-   * before returning.
-   * NB. Each time this loop is entered, the starting position (fairStart)
-   * is incremented - this is to ensure a fair distribution over all
-   * inputs where multiple inputs are in use.  Note - fairStart can be
-   * modified while we are in the loop (by recursive calls).
-   */
-  fdEnd = pollfds_count;
-  if (++fairStart >= fdEnd)
-    {
-      fairStart = 0;
-      fdIndex = 0;
-      fdFinish = 0;
-    }
-  else
-    {
-      fdIndex = fairStart;
-      fdFinish = fairStart;
-    }
-  completed = NO;
-  while (completed == NO)
-    {
-      if (pollfds[fdIndex].revents != 0)
-	{
-	  int			fd = pollfds[fdIndex].fd;
-	  GSRunLoopWatcher	*watcher;
-	  BOOL			found = NO;
-	  
-	  /*
-	   * The poll() call supports various error conditions - all
-	   * errors should be handled by any available handler.
-	   * The ET_EDSEC handler is the primary handler for exceptions
-	   * though it is more generally used to deal with out-of-band data.
-	   */
-	  if (pollfds[fdIndex].revents & (POLLPRI|POLLERR|POLLHUP|POLLNVAL))
-	    {
-	      watcher
-		= (GSRunLoopWatcher*)NSMapGet(_efdMap, (void*)(intptr_t)fd);
-	      if (watcher != nil && watcher->_invalidated == NO)
-		{
-		  i = [contexts count];
-		  while (i-- > 0)
-		    {
-		      GSRunLoopCtxt	*c = [contexts objectAtIndex: i];
-
-		      if (c != self)
-			{
-			  [c endEvent: (void*)(intptr_t)fd for: watcher];
-			}
-		    }
-		  /*
-		   * The watcher is still valid - so call its
-		   * receivers event handling method.
-		   */
-		  [watcher->receiver receivedEvent: watcher->data
-					      type: watcher->type
-					     extra: (void*)(uintptr_t)fd
-					   forMode: mode];
-		}
-	      GSPrivateNotifyASAP(mode);
-	      if (completed == YES)
-		{
-		  break;	// A nested poll has done the job.
-		}
-	      found = YES;
-	    }
-	  if (pollfds[fdIndex].revents & (POLLOUT|POLLERR|POLLHUP|POLLNVAL))
-	    {
-	      watcher
-		= (GSRunLoopWatcher*)NSMapGet(_wfdMap, (void*)(intptr_t)fd);
-	      if (watcher != nil && watcher->_invalidated == NO)
-		{
-		  i = [contexts count];
-		  while (i-- > 0)
-		    {
-		      GSRunLoopCtxt	*c = [contexts objectAtIndex: i];
-
-		      if (c != self)
-			{
-			  [c endEvent: (void*)(intptr_t)fd for: watcher];
-			}
-		    }
-		  /*
-		   * The watcher is still valid - so call its
-		   * receivers event handling method.
-		   */
-
-		  [watcher->receiver receivedEvent: watcher->data
-					      type: watcher->type
-					     extra: (void*)(uintptr_t)fd
-					   forMode: mode];
-		}
-	      GSPrivateNotifyASAP(mode);
-	      if (completed == YES)
-		{
-		  break;	// A nested poll has done the job.
-		}
-	      found = YES;
-	    }
-	  if (pollfds[fdIndex].revents & (POLLIN|POLLERR|POLLHUP|POLLNVAL))
-	    {
-              if (fd == threadInfo->inputFd)
-                {
-	          NSDebugMLLog(@"NSRunLoop", @"Fire perform on thread");
-                  [threadInfo fire];
-                  watcher = nil;
+                if (c != self) {
+                    [c endEvent:(void *)watcher for:watcher];
                 }
-              else
-                {
-                  watcher = (GSRunLoopWatcher*)
-                    NSMapGet(_rfdMap, (void*)(intptr_t)fd);
-                }
-	      if (watcher != nil && watcher->_invalidated == NO)
-		{
-		  i = [contexts count];
-		  while (i-- > 0)
-		    {
-		      GSRunLoopCtxt	*c = [contexts objectAtIndex: i];
+            }
+            /*
+             * The watcher is still valid - so call its
+             * receivers event handling method.
+             */
 
-		      if (c != self)
-			{
-			  [c endEvent: (void*)(intptr_t)fd for: watcher];
-			}
-		    }
-		  /*
-		   * The watcher is still valid - so call its
-		   * receivers event handling method.
-		   */
-
-		  [watcher->receiver receivedEvent: watcher->data
-					      type: watcher->type
-					     extra: (void*)(uintptr_t)fd
-					   forMode: mode];
-		}
-	      GSPrivateNotifyASAP(mode);
-	      if (completed == YES)
-		{
-		  break;	// A nested poll has done the job.
-		}
-	      found = YES;
-	    }
-	  if (found == YES && --poll_return == 0)
-	    {
-	      completed = YES;
-	    }  
-	}
-      if (++fdIndex >= fdEnd)
-	{
-	  fdIndex = 0;
-	}
-      if (fdIndex == fdFinish)
-	{
-	  completed = YES;
-	}
+            [watcher->receiver receivedEvent:watcher->data
+                                        type:watcher->type
+                                       extra:watcher->data
+                                     forMode:mode];
+        }
+        GSPrivateNotifyASAP(mode);
     }
-  completed = YES;
-  return YES;
+
+    /*
+     * If the poll returned no descriptors with events, we have no more to do.
+     */
+    if (poll_return == 0) {
+        completed = YES;
+        return NO;
+    }
+
+    /*
+     * Look at all the file descriptors poll() says are ready for action;
+     * notify the corresponding object for each of the ready fd's.
+     * NB. It is possible for a watcher to be missing from the map - if
+     * the event handler of a previous watcher has 'run' the loop again
+     * before returning.
+     * NB. Each time this loop is entered, the starting position (fairStart)
+     * is incremented - this is to ensure a fair distribution over all
+     * inputs where multiple inputs are in use.  Note - fairStart can be
+     * modified while we are in the loop (by recursive calls).
+     */
+    fdEnd = pollfds_count;
+    if (++fairStart >= fdEnd) {
+        fairStart = 0;
+        fdIndex = 0;
+        fdFinish = 0;
+    } else {
+        fdIndex = fairStart;
+        fdFinish = fairStart;
+    }
+    completed = NO;
+    while (completed == NO) {
+        if (pollfds[fdIndex].revents != 0) {
+            int fd = pollfds[fdIndex].fd;
+            GSRunLoopWatcher *watcher;
+            BOOL found = NO;
+
+            /*
+             * The poll() call supports various error conditions - all
+             * errors should be handled by any available handler.
+             * The ET_EDSEC handler is the primary handler for exceptions
+             * though it is more generally used to deal with out-of-band data.
+             */
+            if (pollfds[fdIndex].revents & (POLLPRI | POLLERR | POLLHUP | POLLNVAL)) {
+                watcher = (GSRunLoopWatcher *)NSMapGet(_efdMap, (void *)(intptr_t)fd);
+                if (watcher != nil && watcher->_invalidated == NO) {
+                    i = [contexts count];
+                    while (i-- > 0) {
+                        GSRunLoopCtxt *c = [contexts objectAtIndex:i];
+
+                        if (c != self) {
+                            [c endEvent:(void *)(intptr_t)fd for:watcher];
+                        }
+                    }
+                    /*
+                     * The watcher is still valid - so call its
+                     * receivers event handling method.
+                     */
+                    [watcher->receiver receivedEvent:watcher->data
+                                                type:watcher->type
+                                               extra:(void *)(uintptr_t)fd
+                                             forMode:mode];
+                }
+                GSPrivateNotifyASAP(mode);
+                if (completed == YES) {
+                    break; // A nested poll has done the job.
+                }
+                found = YES;
+                NSLog(@"Processed event for exception descriptor: %d, watcher: %@", fd, watcher);
+            }
+            if (pollfds[fdIndex].revents & (POLLOUT | POLLERR | POLLHUP | POLLNVAL)) {
+                watcher = (GSRunLoopWatcher *)NSMapGet(_wfdMap, (void *)(intptr_t)fd);
+                if (watcher != nil && watcher->_invalidated == NO) {
+                    i = [contexts count];
+                    while (i-- > 0) {
+                        GSRunLoopCtxt *c = [contexts objectAtIndex:i];
+
+                        if (c != self) {
+                            [c endEvent:(void *)(intptr_t)fd for:watcher];
+                        }
+                    }
+                    /*
+                     * The watcher is still valid - so call its
+                     * receivers event handling method.
+                     */
+
+                    [watcher->receiver receivedEvent:watcher->data
+                                                type:watcher->type
+                                               extra:(void *)(uintptr_t)fd
+                                             forMode:mode];
+                }
+                GSPrivateNotifyASAP(mode);
+                if (completed == YES) {
+                    break; // A nested poll has done the job.
+                }
+                found = YES;
+                NSLog(@"Processed event for write descriptor: %d, watcher: %@", fd, watcher);
+            }
+            if (pollfds[fdIndex].revents & (POLLIN | POLLERR | POLLHUP | POLLNVAL)) {
+                if (fd == threadInfo->inputFd) {
+                    NSDebugMLLog(@"NSRunLoop", @"Fire perform on thread");
+                    [threadInfo fire];
+                    watcher = nil;
+                } else {
+                    watcher = (GSRunLoopWatcher *)NSMapGet(_rfdMap, (void *)(intptr_t)fd);
+                }
+                if (watcher != nil && watcher->_invalidated == NO) {
+                    i = [contexts count];
+                    while (i-- > 0) {
+                        GSRunLoopCtxt *c = [contexts objectAtIndex:i];
+
+                        if (c != self) {
+                            [c endEvent:(void *)(intptr_t)fd for:watcher];
+                        }
+                    }
+                    /*
+                     * The watcher is still valid - so call its
+                     * receivers event handling method.
+                     */
+
+                    [watcher->receiver receivedEvent:watcher->data
+                                                type:watcher->type
+                                               extra:(void *)(uintptr_t)fd
+                                             forMode:mode];
+                }
+                GSPrivateNotifyASAP(mode);
+                if (completed == YES) {
+                    break; // A nested poll has done the job.
+                }
+                found = YES;
+                NSLog(@"Processed event for read descriptor: %d, watcher: %@", fd, watcher);
+            }
+            if (found == YES && --poll_return == 0) {
+                completed = YES;
+            }
+        }
+        if (++fdIndex >= fdEnd) {
+            fdIndex = 0;
+        }
+        if (fdIndex == fdFinish) {
+            completed = YES;
+        }
+    }
+    completed = YES;
+    NSLog(@"pollUntil completed");
+    return YES;
 }
 
 + (BOOL) awakenedBefore: (NSDate*)when
