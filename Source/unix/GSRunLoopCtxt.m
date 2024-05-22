@@ -415,6 +415,7 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
      * Trigger any watchers which are set up to for every runloop wait.
      */
     count = GSIArrayCount(_trigger);
+	NSLog(@"Checking watchers for trigger for every runloop wait");
     while (count-- > 0) {
         GSRunLoopWatcher *watcher;
 
@@ -473,6 +474,7 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
     completed = NO;
     while (completed == NO) {
         if (pollfds[fdIndex].revents != 0) {
+			NSLog(@"Processing event for descriptor: %d", pollfds[fdIndex].fd);
             int fd = pollfds[fdIndex].fd;
             GSRunLoopWatcher *watcher;
             BOOL found = NO;
@@ -514,10 +516,12 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
                 watcher = (GSRunLoopWatcher *)NSMapGet(_wfdMap, (void *)(intptr_t)fd);
                 if (watcher != nil && watcher->_invalidated == NO) {
                     i = [contexts count];
+					NSLog(@"Checking watchers for write descriptor: %d", fd);
                     while (i-- > 0) {
                         GSRunLoopCtxt *c = [contexts objectAtIndex:i];
 
                         if (c != self) {
+							NSLog(@"Ending event for watcher %@ and descriptor %d", watcher, fd);
                             [c endEvent:(void *)(intptr_t)fd for:watcher];
                         }
                     }
@@ -548,10 +552,12 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
                 }
                 if (watcher != nil && watcher->_invalidated == NO) {
                     i = [contexts count];
+					NSLog(@"Checking watchers for read descriptor: %d", fd);
                     while (i-- > 0) {
                         GSRunLoopCtxt *c = [contexts objectAtIndex:i];
 
                         if (c != self) {
+							NSLog(@"Ending event for watcher %@ and descriptor %d", watcher, fd);
                             [c endEvent:(void *)(intptr_t)fd for:watcher];
                         }
                     }
