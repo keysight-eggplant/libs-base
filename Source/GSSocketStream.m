@@ -2585,6 +2585,11 @@ setNonBlocking(SOCKET fd)
 
 @end
 
+@interface GSSocketOutputStream (Private)
+
+int		_closing_count;
+
+@end
 
 @implementation GSSocketOutputStream
 
@@ -2969,6 +2974,19 @@ setNonBlocking(SOCKET fd)
 	  if (events.lNetworkEvents == 0)
 	    {
 	      [self _sendEvent: NSStreamEventHasSpaceAvailable];
+	    }
+     
+          if (_closing == YES)
+	    {
+              _closing_count++;
+	      if (_closing_count > 20) 
+                {
+		  [_sibling _sendEvent: NSStreamEventHasBytesAvailable];
+		}
+            }
+	  else 
+            {
+	      _closing_count = 0;
 	    }
 	}
     }
