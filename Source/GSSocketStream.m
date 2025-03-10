@@ -2585,6 +2585,11 @@ setNonBlocking(SOCKET fd)
 
 @end
 
+@interface GSSocketOutputStream (Private)
+{
+  int _closing_count;
+}
+@end
 
 @implementation GSSocketOutputStream
 
