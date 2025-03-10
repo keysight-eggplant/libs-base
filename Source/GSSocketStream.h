@@ -53,6 +53,7 @@ typedef	union {
   SOCKET        _sock;          /* Needed for ms-windows.       */\
   id            _handler;       /* TLS/SOCKS handler.           */\
   sockaddr_any	_address;	/* Socket address info.		*/\
+  int          _closing_count;
 }
 
 /* The semi-abstract GSSocketStream class is not intended to be subclassed
