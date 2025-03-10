@@ -2976,7 +2976,11 @@ setNonBlocking(SOCKET fd)
               _closing_count++;
 	      if (_closing_count > 20) 
                 {
-		  [_sibling _sendEvent: NSStreamEventHasBytesAvailable];
+		  _closing_count = 0;
+		  [self _setClosing: NO];
+		  [_sibling _setClosing: NO];
+		  [_sibling _setStatus: NSStreamStatusAtEnd];
+                  [_sibling _sendEvent: NSStreamEventEndEncountered];
 		}
             }
 	  else 
