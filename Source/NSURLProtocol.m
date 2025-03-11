@@ -1514,6 +1514,7 @@ static NSURLProtocol	*placeholder = nil;
         NSString			*hdr;
 	NSURL			*url;
 	int			failures = 0;
+        GSMimeDocument	 	*document = [_parser mimeDocument];
 
 	      /* This was an authentication challenge.
 	       */
