@@ -2980,7 +2980,11 @@ setNonBlocking(SOCKET fd)
 		  [self _setClosing: NO];
 		  [_sibling _setClosing: NO];
 		  [_sibling _setStatus: NSStreamStatusAtEnd];
-                  [[self delegate] _finishURLConnection];
+    		  id del = [self delegate];
+	          if ([del respondsToSelector: @selector(_finishURLConnection)])
+	            {
+                      [[self delegate] _finishURLConnection];
+		    }
 		}
             }
 	  else 
