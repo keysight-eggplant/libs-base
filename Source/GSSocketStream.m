@@ -2970,6 +2970,27 @@ setNonBlocking(SOCKET fd)
 	    {
 	      [self _sendEvent: NSStreamEventHasSpaceAvailable];
 	    }
+     
+          if (_closing == YES)
+	    {
+              _closing_count++;
+	      if (_closing_count > 20) 
+                {
+		  _closing_count = 0;
+		  [self _setClosing: NO];
+		  [_sibling _setClosing: NO];
+		  [_sibling _setStatus: NSStreamStatusAtEnd];
+    		  id del = [self delegate];
+	          if ([del respondsToSelector: @selector(_finishURLConnection)])
+	            {
+                      [[self delegate] _finishURLConnection];
+		    }
+		}
+            }
+	  else 
+            {
+	      _closing_count = 0;
+	    }
 	}
     }
 #else
