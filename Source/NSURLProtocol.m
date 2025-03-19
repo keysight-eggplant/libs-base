@@ -1453,43 +1453,99 @@ static NSURLProtocol	*placeholder = nil;
       
       if (_complete == YES)
 	{
-	  if (_statusCode == 401)
+	  [self _finishURLConnection];
+	}
+      else if (_isLoading == YES && _statusCode != 401)
+	{
+	  /*
+	   * Report partial data if possible.
+	   */
+	  if ([_parser isInBody])
 	    {
-	      NSURLProtectionSpace	*space;
-	      NSString			*hdr;
-	      NSURL			*url;
-	      int			failures = 0;
+	      d = [_parser data];
+	      bodyLength = [d length];
+	      if (bodyLength > _parseOffset)
+	        {
+		  if (_parseOffset > 0)
+		    {
+		      d = [d subdataWithRange: 
+			NSMakeRange(_parseOffset, [d length] - _parseOffset)];
+		    }
+		  _parseOffset = bodyLength;
+		  [self _didLoad: d];
+		}
+	    }
+          
+          // Status code 200 with HEAD request is complete at this point...
+          //if ((_statusCode == 200) && ([[this->request HTTPMethod] isEqualToString: @"HEAD"]))
+          if (([[this->request HTTPMethod] isEqualToString: @"HEAD"]) && (isInHeaders == NO))
+            {
+              _isLoading = NO;
+              [this->client URLProtocolDidFinishLoading: self];
+              DESTROY(this->client);
+            }
+	}
+
+      if (_complete == NO && readCount == 0 && _isLoading == YES)
+	{
+	  /* The read failed ... dropped, but parsing is not complete.
+	   * The request was sent, so we can't know whether it was
+	   * lost in the network or the remote end received it and
+	   * the response was lost.
+	   */
+	  if (_debug == YES)
+	    {
+	      NSWarnMLog(@"%@ HTTP response not received - %@", self, _parser);
+	    }
+	  [self stopLoading];
+    NSError *error = [NSError errorWithDomain: @"receive incomplete" code: 0 userInfo: nil];
+    [this->client URLProtocol: self didFailWithError:error];
+    //[self _userInfoForErrorCode: 0 description: @"receive incomplete"]
+    DESTROY(this->client);
+	}
+    }
+}
+
+- (void) _finishURLConnection
+{
+   if (_statusCode == 401)
+     {
+        NSURLProtectionSpace	*space;
+        NSString			*hdr;
+	NSURL			*url;
+	int			failures = 0;
+        GSMimeDocument	 	*document = [_parser mimeDocument];
 
 	      /* This was an authentication challenge.
 	       */
-	      hdr = [[document headerNamed: @"WWW-Authenticate"] value];
-	      url = [this->request URL];
-	      space = [GSHTTPAuthentication
+	hdr = [[document headerNamed: @"WWW-Authenticate"] value];
+	url = [this->request URL];
+	space = [GSHTTPAuthentication
 		protectionSpaceForAuthentication: hdr requestURL: url];
-	      DESTROY(_credential);	
-	      if (space != nil)
-		{
+	DESTROY(_credential);	
+	if (space != nil)
+	  {
 		  /* Create credential from user and password
 		   * stored in the URL.
 		   * Returns nil if we have no username or password.
 		   */
-		  _credential = [[NSURLCredential alloc]
+	     _credential = [[NSURLCredential alloc]
 		    initWithUser: [url user]
 		    password: [url password]
 		    persistence: NSURLCredentialPersistenceForSession];
-		  if (_credential == nil)
-		    {
+	      if (_credential == nil)
+	        {
 		      /* No credential from the URL, so we try using the
 		       * default credential for the protection space.
 		       */
-		      ASSIGN(_credential,
+		  ASSIGN(_credential,
 			[[NSURLCredentialStorage sharedCredentialStorage]
 			  defaultCredentialForProtectionSpace: space]);
-		    }
 		}
+	   }
 
-	      if (_challenge != nil)
-		{
+	if (_challenge != nil)
+	  {
 		  /* The failure count is incremented if we have just
 		   * tried a request in the same protection space.
 		   */
@@ -1497,18 +1553,18 @@ static NSURLProtocol	*placeholder = nil;
 		    {
 		      failures = [_challenge previousFailureCount] + 1; 
 		    }
-		}
-	      else if ([this->request valueForHTTPHeaderField:@"Authorization"])
-		{
+	  }
+	else if ([this->request valueForHTTPHeaderField:@"Authorization"])
+	  {
 		  /* Our request had an authorization header, so we should
 		   * count that as a failure or we wouldn't have been
 		   * challenged.
 		   */
 		  failures = 1;
-		}
-	      DESTROY(_challenge);
+	  }
+	DESTROY(_challenge);
 
-	      _challenge = [[NSURLAuthenticationChallenge alloc]
+	_challenge = [[NSURLAuthenticationChallenge alloc]
 		initWithProtectionSpace: space
 		proposedCredential: _credential
 		previousFailureCount: failures
@@ -1519,11 +1575,11 @@ static NSURLProtocol	*placeholder = nil;
 	      /* Allow the client to control the credential we send
 	       * or whether we actually send at all.
 	       */
-	      [this->client URLProtocol: self
+	[this->client URLProtocol: self
 		didReceiveAuthenticationChallenge: _challenge];
 
-	      if (_challenge == nil)
-		{
+	if (_challenge == nil)
+	  {
 		  NSError	*e;
 
 		  /* The client cancelled the authentication challenge
@@ -1534,10 +1590,10 @@ static NSURLProtocol	*placeholder = nil;
 				      userInfo: nil];
 		  [self stopLoading];
 		  [this->client URLProtocol: self didFailWithError: e];
-      DESTROY(this->client);
-		}
-	      else
-		{
+            DESTROY(this->client);
+	  }
+	else
+	  {
 		  NSString	*auth = nil;
 
 		  if (_credential != nil)
@@ -1614,15 +1670,15 @@ static NSURLProtocol	*placeholder = nil;
 		      [self startLoading];
 		      return;
 		    }
-		}
-	    }
+	  }
+     }
 
-	  [this->input removeFromRunLoop: [NSRunLoop currentRunLoop]
+   [this->input removeFromRunLoop: [NSRunLoop currentRunLoop]
 				 forMode: NSDefaultRunLoopMode];
-	  [this->output removeFromRunLoop: [NSRunLoop currentRunLoop]
+   [this->output removeFromRunLoop: [NSRunLoop currentRunLoop]
 				  forMode: NSDefaultRunLoopMode];
-	  if (_shouldClose == YES)
-	    {
+   if (_shouldClose == YES)
+     {
 	      [this->input setDelegate: nil];
 	      [this->output setDelegate: nil];
 	      [this->input close];
@@ -1630,16 +1686,16 @@ static NSURLProtocol	*placeholder = nil;
 	      DESTROY(this->input);
 	      DESTROY(this->output);
               [self _stopTimer];
-	    }
+     }
 
 	  /*
 	   * Tell superclass that we have successfully loaded the data
 	   * (as long as we haven't had the load terminated by the client).
 	   */
-	  if (_isLoading == YES)
-	    {
-	      d = [_parser data];
-	      bodyLength = [d length];
+   if (_isLoading == YES)
+     {
+	      NSData *d = [_parser data];
+	      unsigned bodyLength = [d length];
 	      if (bodyLength > _parseOffset)
 		{
 		  if (_parseOffset > 0)
@@ -1658,59 +1714,9 @@ static NSURLProtocol	*placeholder = nil;
 	        {
 		  _isLoading = NO;
 	          [this->client URLProtocolDidFinishLoading: self];
-            DESTROY(this->client);
+            	  DESTROY(this->client);
 		}
-	    }
-	}
-      else if (_isLoading == YES && _statusCode != 401)
-	{
-	  /*
-	   * Report partial data if possible.
-	   */
-	  if ([_parser isInBody])
-	    {
-	      d = [_parser data];
-	      bodyLength = [d length];
-	      if (bodyLength > _parseOffset)
-	        {
-		  if (_parseOffset > 0)
-		    {
-		      d = [d subdataWithRange: 
-			NSMakeRange(_parseOffset, [d length] - _parseOffset)];
-		    }
-		  _parseOffset = bodyLength;
-		  [self _didLoad: d];
-		}
-	    }
-          
-          // Status code 200 with HEAD request is complete at this point...
-          //if ((_statusCode == 200) && ([[this->request HTTPMethod] isEqualToString: @"HEAD"]))
-          if (([[this->request HTTPMethod] isEqualToString: @"HEAD"]) && (isInHeaders == NO))
-            {
-              _isLoading = NO;
-              [this->client URLProtocolDidFinishLoading: self];
-              DESTROY(this->client);
-            }
-	}
-
-      if (_complete == NO && readCount == 0 && _isLoading == YES)
-	{
-	  /* The read failed ... dropped, but parsing is not complete.
-	   * The request was sent, so we can't know whether it was
-	   * lost in the network or the remote end received it and
-	   * the response was lost.
-	   */
-	  if (_debug == YES)
-	    {
-	      NSWarnMLog(@"%@ HTTP response not received - %@", self, _parser);
-	    }
-	  [self stopLoading];
-    NSError *error = [NSError errorWithDomain: @"receive incomplete" code: 0 userInfo: nil];
-    [this->client URLProtocol: self didFailWithError:error];
-    //[self _userInfoForErrorCode: 0 description: @"receive incomplete"]
-    DESTROY(this->client);
-	}
-    }
+     }
 }
 
 - (void) stream: (NSStream*) stream handleEvent: (NSStreamEvent) event

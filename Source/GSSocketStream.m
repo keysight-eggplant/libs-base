@@ -61,12 +61,21 @@
 #endif
 
 #ifdef _WIN32
-// extern const char *inet_ntop(int, const void *, char *, size_t);
-// extern int inet_pton(int , const char *, void *);
-#define	OPTLEN	int
-#else
-#define	OPTLEN	socklen_t
-#endif
+  #ifdef HAVE_WS2TCPIP_H
+  #include <ws2tcpip.h>
+  #endif // HAVE_WS2TCPIP_H
+
+  #if !defined(HAVE_INET_NTOP)
+  extern const char *inet_ntop(int, const void *, char *, size_t);
+  #endif
+  #if !defined(HAVE_INET_NTOP)
+  extern int inet_pton(int , const char *, void *);
+  #endif
+
+  #define	OPTLEN	int
+#else  // _WIN32
+  #define	OPTLEN	socklen_t
+#endif // _WIN32
 
 unsigned
 GSPrivateSockaddrLength(struct sockaddr *addr)
@@ -2960,6 +2969,27 @@ setNonBlocking(SOCKET fd)
 	  if (events.lNetworkEvents == 0)
 	    {
 	      [self _sendEvent: NSStreamEventHasSpaceAvailable];
+	    }
+     
+          if (_closing == YES)
+	    {
+              _closing_count++;
+	      if (_closing_count > 20) 
+                {
+		  _closing_count = 0;
+		  [self _setClosing: NO];
+		  [_sibling _setClosing: NO];
+		  [_sibling _setStatus: NSStreamStatusAtEnd];
+    		  id del = [self delegate];
+	          if ([del respondsToSelector: @selector(_finishURLConnection)])
+	            {
+                      [[self delegate] _finishURLConnection];
+		    }
+		}
+            }
+	  else 
+            {
+	      _closing_count = 0;
 	    }
 	}
     }
