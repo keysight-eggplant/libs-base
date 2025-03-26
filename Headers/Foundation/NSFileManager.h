@@ -525,9 +525,9 @@ GS_EXPORT_CLASS @interface NSDirectoryEnumerator : NSEnumerator
   NSFileManager *_mgr;
   struct _NSDirectoryEnumeratorFlags      // tag for objc++ w/gcc 4.6 
   {
-    BOOL isRecursive: 1;
-    BOOL isFollowing: 1;
-    BOOL justContents: 1;
+    BOOL isRecursive;
+    BOOL isFollowing;
+    BOOL justContents;
   } _flags;
 #endif
 #if     GS_NONFRAGILE
