@@ -54,7 +54,7 @@ static BOOL GSMacOSXCompatiblePropertyLists(void)
 {
   if (GSPrivateDefaultsFlag(NSWriteOldStylePropertyLists) == YES)
     return NO;
-  return GSPrivateDefaultsFlag(GSMacOSXCompatible);
+  return YES;
 }
 
 @class	GSDictionary;
