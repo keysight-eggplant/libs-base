@@ -63,7 +63,6 @@
 
 - (NSComparisonResult) compare: (id)anObject
 {
-  GSOnceMLog(@"WARNING: The -compare: method for NSObject is deprecated.");
 
   if (anObject == self)
     {
