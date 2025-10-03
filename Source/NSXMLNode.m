@@ -1188,6 +1188,11 @@ execute_xpath(xmlNodePtr node, NSString *xpath_exp, NSDictionary *constants,
 {
   NSXMLNode *c = [[self class] allocWithZone: zone];
   xmlNodePtr newNode = xmlCopyNode([self _node], 1); // make a deep copy
+  if (newNode == NULL) {
+  	NSLog(@"Error: failed to copy node: %d", [self kind]);
+	[c release];
+	return nil;
+  }
   clearPrivatePointers(newNode);
 
   c = [c _initWithNode: newNode kind: internal->kind];
