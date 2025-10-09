@@ -1187,7 +1187,7 @@ execute_xpath(xmlNodePtr node, NSString *xpath_exp, NSDictionary *constants,
 - (id) copyWithZone: (NSZone*)zone
 {
   xmlNodePtr newNode = NULL;
-  if (theNode->type == XML_DTD_NODE)
+  if ([self _node]->type == XML_DTD_NODE)
     {
       newNode = xmlCopyDtd([self _node]);
     }
