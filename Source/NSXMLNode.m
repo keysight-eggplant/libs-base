@@ -1186,11 +1186,21 @@ execute_xpath(xmlNodePtr node, NSString *xpath_exp, NSDictionary *constants,
 
 - (id) copyWithZone: (NSZone*)zone
 {
-  xmlNodePtr newNode = xmlCopyNode([self _node], 1); // make a deep copy
-  if (newNode == NULL) {
-  	NSLog(@"Error: failed to copy node: %d", [self kind]);
-	return nil;
-  }
+  xmlNodePtr newNode = NULL;
+  if (theNode->type == XML_DTD_NODE)
+    {
+      newNode = xmlCopyDtd([self _node]);
+    }
+  else 
+    {
+      newNode = xmlCopyNode([self _node], 1); // make a deep copy
+    }
+
+  if (newNode == NULL) 
+    {
+  	  NSLog(@"Error: failed to copy node: %d", [self kind]);
+	    return nil;
+    }
   NSXMLNode *c = [[self class] allocWithZone: zone];
 
   clearPrivatePointers(newNode);
@@ -1251,7 +1261,7 @@ execute_xpath(xmlNodePtr node, NSString *xpath_exp, NSDictionary *constants,
               // FIXME: Not sure when to free the node here,
               // the same namespace node might be referenced
               // from other places.
-              xmlFreeNode(theNode);
+              xmlFreeNs(theNode);
             }
           else
             {
@@ -1272,7 +1282,19 @@ execute_xpath(xmlNodePtr node, NSString *xpath_exp, NSDictionary *constants,
                     {
                       xmlDocPtr tmp = theNode->doc;
 
-                      xmlFreeNode(theNode);
+                      if (theNode->type == XML_DTD_NODE)
+                        {
+                          xmlFreeDtd(theNode);
+                        }
+                      else if (theNode->type == XML_ATTRIBUTE_NODE )
+                        {
+                          xmlFreeProp(theNode);
+                        }
+                      else 
+                        {
+                          xmlFreeNode(theNode);
+                        }
+       
                       // Free the private document we allocated in detach
                       if (tmp)
                         {
