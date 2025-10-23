@@ -332,7 +332,7 @@ callback(const void *context, int32_t steps)
       return FALSE;
     }
   CALL_BLOCK(block, nil, NSMatchingProgress, &stop);
-  return stop;
+  return (stop ? FALSE : TRUE);
 }
 
 
