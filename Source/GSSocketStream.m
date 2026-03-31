@@ -2082,7 +2082,7 @@ setNonBlocking(SOCKET fd)
 
 - (void) _setAddress: (struct sockaddr_storage*)address
 {
-  memcpy(&_address.s, address, GSPrivateSockaddrLength(address));
+  memcpy(&_address.s, address, GSPrivateSockaddrLength((struct sockaddr *)address));
 }
 
 - (void) _setLoopID: (void *)ref
@@ -2208,7 +2208,7 @@ setNonBlocking(SOCKET fd)
         }
 
       result = connect([self _sock], (struct sockaddr*)&_address.s,
-        GSPrivateSockaddrLength(&_address.s));
+        GSPrivateSockaddrLength((struct sockaddr *)&_address.s));
       if (socketError(result))
         {
           if (socketWouldBlock())
@@ -2707,7 +2707,7 @@ setNonBlocking(SOCKET fd)
         }
 
       result = connect([self _sock], (struct sockaddr*) &_address.s,
-        GSPrivateSockaddrLength(&_address.s));
+        GSPrivateSockaddrLength((struct sockaddr *)&_address.s));
       if (socketError(result))
         {
           if (socketWouldBlock())
@@ -3132,7 +3132,7 @@ setNonBlocking(SOCKET fd)
 #endif
 
   bindReturn = bind([self _sock],
-    (struct sockaddr*)&_address.s, GSPrivateSockaddrLength(&_address.s));
+    (struct sockaddr*)&_address.s, GSPrivateSockaddrLength((struct sockaddr *)&_address.s));
   if (socketError(bindReturn))
     {
       [self _recordError];
