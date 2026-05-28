@@ -2543,7 +2543,7 @@ GSPropertyListMake(id obj, NSDictionary *loc, BOOL xml,
     {
       OAppend(obj, loc, 0, step, style, dest);
     }
-  tmp = [[NSString alloc] initWithData: dest encoding: NSASCIIStringEncoding];
+  tmp = [[NSString alloc] initWithData: dest encoding: NSUTF8StringEncoding];
   [*str appendString: tmp];
   RELEASE(tmp);
 }
