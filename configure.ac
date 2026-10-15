@@ -2795,10 +2795,10 @@ GS_ADD_LIBRARY_PATH([${ffi_libdir}])
 fi
 
 if test "$do_broken_libffi" = "no"; then
-  if test "$PKGCONFIG" = "yes"; then
-    if pkg-config --exists libffi; then
+  if test -n "$PKG_CONFIG"; then
+    if "$PKG_CONFIG" --exists libffi; then
       pkg_config_libffi=yes
-      ffi_CFLAGS=`pkg-config --cflags libffi`;
+      ffi_CFLAGS=`"$PKG_CONFIG" --cflags libffi`;
       CPPFLAGS="$CPPFLAGS $ffi_CFLAGS"
       INCLUDE_FLAGS="$INCLUDE_FLAGS $ffi_CFLAGS"
     fi
@@ -2858,7 +2858,7 @@ if test $enable_libffi = yes; then
             [Define if using the libffi library for invocations])
   WITH_FFI=libffi
   if test "$pkg_config_libffi" = "yes"; then
-    ffi_LIBS=`pkg-config --libs libffi`
+    ffi_LIBS=`"$PKG_CONFIG" --libs libffi`
   else
     ffi_LIBS=-lffi
   fi
@@ -3110,13 +3110,13 @@ AC_ARG_ENABLE(xml,
   [  --disable-xml			Build even if XML-dependencies are not met],,
   enable_xml=yes)
 
-if test $enable_xml = yes; then
-  # Save CFLAGS and LIBS as AM_PATH_XML clobbers these variables regardless
-  # of the success of the macro.
-  saved_LIBS="$LIBS"
-  saved_CFLAGS="$CFLAGS"
+HAVE_LIBXML=0
 
-  AM_PATH_XML(2.3.0, enable_libxml=yes, enable_libxml=no)
+if test $enable_xml = yes; then
+  PKG_CHECK_MODULES([XML], [libxml-2.0 >= 2.3.0], [enable_libxml=yes], [
+    AM_PATH_XML(2.3.0, enable_libxml=yes, enable_libxml=no)
+  ])
+
   if test $enable_libxml = yes; then
     CPPFLAGS="$CPPFLAGS $XML_CFLAGS"
     INCLUDE_FLAGS="$INCLUDE_FLAGS $XML_CFLAGS"
@@ -3124,6 +3124,7 @@ if test $enable_xml = yes; then
     HAVE_LIBXML=1
     AC_DEFINE(HAVE_LIBXML,1,[Define if libxml available])
     AC_CHECK_HEADERS(libxml/SAX2.h)
+
     #--------------------------------------------------------------------
     # Check for (optional) libxslt
     #--------------------------------------------------------------------
@@ -3132,24 +3133,23 @@ if test $enable_xml = yes; then
       enable_xslt=yes)
 
     if test $enable_xslt = yes; then
-      AC_CHECK_LIB(xslt, xsltApplyStylesheet, xslt_ok=yes, xslt_ok=no)
+      PKG_CHECK_MODULES([XSLT], [libxslt >= 1.0], [xslt_ok=yes], [xslt_ok=no])
       if test "$xslt_ok" = "yes"; then
-	AC_CHECK_HEADER(libxslt/xslt.h, xslthdr_ok=yes, xslthdr_ok=no)
-	if test "$xslthdr_ok" = "no"; then
-	  xslt_ok=no
-	fi
+        AC_CHECK_HEADERS(libxslt/xslt.h, xslt_ok=yes, xslt_ok=no)
       fi
       if test "$xslt_ok" = "yes"; then
-	HAVE_LIBXSLT=1
-	AC_DEFINE(HAVE_LIBXSLT,1,[Define if libxslt available])
-	LIBS="-lxslt $LIBS"
+        CPPFLAGS="$CPPFLAGS $XSLT_CFLAGS"
+        INCLUDE_FLAGS="$INCLUDE_FLAGS $XSLT_CFLAGS"
+        LIBS="$XSLT_LIBS $LIBS"
+        HAVE_LIBXSLT=1
+        AC_DEFINE(HAVE_LIBXSLT,1,[Define if libxslt available])
       else
-	echo
-	echo "You do not appear to have usable libxslt headers/library."
-	echo "Building without them will disable the XSLT extensions."
-	echo "If you really want to build gnustep-base without XSLT support,"
-	echo "add --disable-xslt to the configure arguments to avoid warning."
-	AC_MSG_WARN([Missing support for XSLT functionality.])
+        echo
+        echo "You do not appear to have usable libxslt headers/library."
+        echo "Building without them will disable the XSLT extensions."
+        echo "If you really want to build gnustep-base without XSLT support,"
+        echo "add --disable-xslt to the configure arguments to avoid warning."
+        AC_MSG_WARN([Missing support for XSLT functionality.])
       fi
     else
       HAVE_LIBXSLT=0
@@ -3157,10 +3157,6 @@ if test $enable_xml = yes; then
     fi
     AC_SUBST(HAVE_LIBXSLT)
   else
-    HAVE_LIBXML=0
-    # Restore the CFLAGS and LIBS because AM_PATH_XML messes them
-    LIBS="$saved_LIBS"
-    CFLAGS="$saved_CFLAGS"
     echo
     echo "You do not appear to have usable libxml2 headers/library."
     echo "Building without them will disable the GSXML and NSXMLNode."
@@ -3170,8 +3166,7 @@ if test $enable_xml = yes; then
     AC_MSG_ERROR([Missing support for XML DOM functionality.])
   fi
 else
-  AC_MSG_WARN([Disabled support for XML funtionality.])
-  HAVE_LIBXML=0
+  AC_MSG_WARN([XML functionality disabled.])
 fi
 AC_SUBST(HAVE_LIBXML)
 
@@ -3190,12 +3185,12 @@ if test $enable_tls = yes; then
   saved_LIBS="$LIBS"
   saved_CFLAGS="$CFLAGS"
 
-  if test $PKGCONFIG = yes; then
-    if pkg-config --exists gnutls; then
+  if test -n "$PKG_CONFIG"; then
+    if "$PKG_CONFIG" --exists gnutls; then
       AC_MSG_CHECKING(gnutls support)
       HAVE_GNUTLS=1
-      TLS_CFLAGS=`pkg-config --cflags gnutls`
-      TLS_LIBS=`pkg-config --libs gnutls`
+      TLS_CFLAGS=`"$PKG_CONFIG" --cflags gnutls`
+      TLS_LIBS=`"$PKG_CONFIG" --libs gnutls`
     fi
   fi
 
@@ -3209,7 +3204,7 @@ if test $enable_tls = yes; then
     fi
   fi
   if test $HAVE_GNUTLS = 1; then
-    if ! pkg-config --atleast-version=2.12 gnutls; then
+    if ! "$PKG_CONFIG" --atleast-version=2.12 gnutls; then
       AC_CHECK_LIB(gcrypt, gcry_control, have_gcrypt=yes, have_gcrypt=no)
       if test "$have_gcrypt" = "no"; then
         HAVE_GNUTLS=0
